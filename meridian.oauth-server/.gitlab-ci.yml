@@ -1,0 +1,65 @@
+include:
+  - project: "comparethemarket/autodevops"
+    file:
+      - Auto-DevOps.gitlab-ci.yml
+      - Jobs/Create-ECR.latest.gitlab-ci.yml
+
+variables:
+  OWNER: devex
+  DOMAIN: cicd
+  SERVICE: meridian-oauth-server
+  RUNNER_TAG_CD: devex_cd
+  RUNNER_TAG_CI: devex_ci
+  CODE_QUALITY_DISABLED: true
+  LOAD_PERFORMANCE_DISABLED: true
+  PRODUCTION_MANUAL_DISABLED: "true"
+  UAT_DISABLED: true
+
+test:
+  image: alpine:3.20
+  script:
+    - apk add --no-cache jq
+    - jq empty keycloak/realm-import.json
+
+review:
+  needs:
+    - job: publish
+      optional: true
+  before_script:
+    - |
+      if [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ]; then
+        echo "Skipping review deployment on the default branch."
+        exit 0
+      fi
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: manual
+    - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
+      when: on_success
+    - when: never
+
+test_deploy:
+  extends: review
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: manual
+    - when: never
+  variables:
+    ENVIRONMENT: test
+    HELM_RELEASE_NAME: ${DOMAIN}-${SERVICE}-${ENVIRONMENT}
+    HELM_UPGRADE_EXTRA_ARGS: ""
+  environment:
+    name: test
+    url: https://${DOMAIN}-${SERVICE}-${ENVIRONMENT}.$KUBE_INGRESS_BASE_DOMAIN
+    on_stop: null
+
+publish:
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: "$CI_COMMIT_TAG || $CI_COMMIT_BRANCH"
+      when: manual
+
+publish_latest_tag:
+  rules:
+    - when: never

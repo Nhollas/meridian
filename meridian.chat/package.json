@@ -1,0 +1,68 @@
+{
+	"name": "meridian-chat",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Chat UI for the Meridian agent",
+	"type": "module",
+	"engines": {
+		"node": ">=20"
+	},
+	"scripts": {
+		"build:sandbox": "docker build -f Dockerfile.sandbox -t meridian-chat-sandbox:local ..",
+		"dev": "next dev -p 3200",
+		"build": "next build",
+		"start": "next start -p 3200",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run --config vitest.config.ts",
+		"test:unit": "vitest run --config vitest.config.ts --project unit",
+		"test:unit:watch": "vitest --config vitest.config.ts --project unit",
+		"test:integration": "vitest run --config vitest.config.ts --project integration",
+		"test:integration:watch": "vitest --config vitest.config.ts --project integration",
+		"test:browser": "vitest run --config vitest.config.ts --project browser",
+		"test:browser:watch": "vitest --config vitest.config.ts --project browser",
+		"test:ui": "npm run test:browser",
+		"test:ui:watch": "npm run test:browser:watch",
+		"lint": "biome check .",
+		"lint:fix": "biome check --write .",
+		"format": "biome format --write .",
+		"format:check": "biome format .",
+		"prepare": "husky"
+	},
+	"lint-staged": {
+		"*.{ts,tsx,json,mjs}": "biome check --write --no-errors-on-unmatched"
+	},
+	"dependencies": {
+		"@langchain/core": "^1.1.31",
+		"@langchain/langgraph": "^1.2.1",
+		"@langchain/openai": "^1.2.12",
+		"langchain": "^1.2.30",
+		"next": "^16.1.6",
+		"openai": "^6.27.0",
+		"react": "^19.2.4",
+		"react-dom": "^19.2.4",
+		"react-markdown": "^10.1.0",
+		"remark-gfm": "^4.0.1",
+		"zod": "^4.3.6"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.4.6",
+		"@commitlint/cli": "^20.4.3",
+		"@commitlint/config-conventional": "^20.4.3",
+		"@tailwindcss/postcss": "^4.2.1",
+		"@types/node": "^25.4.0",
+		"@types/react": "^19.2.14",
+		"@types/react-dom": "^19.2.3",
+		"@vitejs/plugin-react": "^5.1.4",
+		"@vitest/browser-playwright": "^4.0.18",
+		"husky": "^9.1.7",
+		"lint-staged": "^16.3.2",
+		"msw": "^2.12.10",
+		"playwright": "^1.58.2",
+		"tailwindcss": "^4.2.1",
+		"typescript": "^5.9.3",
+		"vite": "^7.3.1",
+		"vite-tsconfig-paths": "^6.1.1",
+		"vitest": "^4.0.18",
+		"vitest-browser-react": "^2.0.5"
+	}
+}

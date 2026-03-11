@@ -1,0 +1,8 @@
+global:
+  env: test
+
+service:
+  config:
+    env:
+      ENVIRONMENT: test
+      KC_HOSTNAME: https://${DOMAIN}-${SERVICE}-${VERSION}-${ENVIRONMENT}.vassily.io

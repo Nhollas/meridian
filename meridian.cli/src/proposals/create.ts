@@ -1,0 +1,88 @@
+import { requireAuthentication } from "../auth/session.js";
+import { type JsonOption, writeError } from "../cli/command-helpers.js";
+import { getMockResults } from "../mock/providers.js";
+import { writeJson, writeLines } from "../output.js";
+import { sortResultOfferings } from "../results/presenter.js";
+import type { ResolvedCliDependencies } from "../runtime.js";
+import { readDataStore, writeDataStore } from "../store/data.js";
+
+export type ProposalCreateOptions = JsonOption & {
+	proposalRequest: string;
+};
+
+export async function handleProposalsCreate(
+	dependencies: ResolvedCliDependencies,
+	options: ProposalCreateOptions,
+	jsonMode: boolean,
+) {
+	const { homeDirectory, now, randomId, stderr, stdout } = dependencies;
+	const credentials = await requireAuthentication(dependencies);
+
+	if (credentials === null) {
+		writeError(
+			stderr,
+			jsonMode,
+			'Not authenticated. Run "meridian auth login" first.',
+		);
+		return 1;
+	}
+
+	const dataStore = await readDataStore(dependencies.fileSystem, homeDirectory);
+	const proposalRequest = dataStore.proposal_requests[options.proposalRequest];
+
+	if (proposalRequest === undefined) {
+		writeError(
+			stderr,
+			jsonMode,
+			`Proposal request "${options.proposalRequest}" not found.`,
+		);
+		return 1;
+	}
+
+	const id = randomId("prop");
+	const createdAt = now().toISOString();
+	const result = sortResultOfferings(
+		getMockResults({
+			product: proposalRequest.product,
+			proposalId: id,
+			version: proposalRequest.version,
+			customerId: proposalRequest.emailAddress,
+			sessionId: `session-${options.proposalRequest}`,
+		}),
+	);
+
+	dataStore.proposals[id] = {
+		proposal_request: options.proposalRequest,
+		product: proposalRequest.product,
+		version: proposalRequest.version,
+		status: "completed",
+		created_at: createdAt,
+	};
+	dataStore.results[id] = result;
+
+	await writeDataStore(dependencies.fileSystem, homeDirectory, dataStore);
+
+	const payload = {
+		id,
+		proposal_request: options.proposalRequest,
+		product: proposalRequest.product,
+		version: proposalRequest.version,
+		status: "completed" as const,
+		created_at: createdAt,
+	};
+
+	if (jsonMode) {
+		writeJson(stdout, payload);
+		return 0;
+	}
+
+	writeLines(stdout, [
+		"Proposal created",
+		"",
+		`ID: ${id}`,
+		`Proposal request: ${options.proposalRequest}`,
+		`Product: ${proposalRequest.product}`,
+		"Status: completed",
+	]);
+	return 0;
+}

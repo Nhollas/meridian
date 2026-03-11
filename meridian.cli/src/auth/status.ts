@@ -1,0 +1,36 @@
+import { writeJson, writeLines } from "../output.js";
+import type { ResolvedCliDependencies } from "../runtime.js";
+import { requireAuthentication } from "./session.js";
+
+export async function handleAuthStatus(
+	dependencies: ResolvedCliDependencies,
+	jsonMode: boolean,
+) {
+	const { stdout } = dependencies;
+	const credentials = await requireAuthentication(dependencies);
+
+	if (credentials === null) {
+		if (jsonMode) {
+			writeJson(stdout, { authenticated: false });
+		} else {
+			writeLines(stdout, ["Not authenticated"]);
+		}
+		return 0;
+	}
+
+	if (jsonMode) {
+		writeJson(stdout, {
+			authenticated: true,
+			user: credentials.user,
+			expires_at: credentials.expires_at,
+		});
+		return 0;
+	}
+
+	writeLines(stdout, [
+		"Authenticated",
+		`User: ${credentials.user}`,
+		`Expires at: ${credentials.expires_at}`,
+	]);
+	return 0;
+}

@@ -1,0 +1,51 @@
+global:
+  owner: devex
+  domain: cicd
+  name: meridian-oauth-server
+
+service:
+  version: ${VERSION}
+  port: 8080
+  singleton: true
+  healthchecks:
+    alive:
+      httpProbe: true
+      path: /health/live
+      interval: 10
+      successThreshold: 1
+      failureThreshold: 3
+    ready:
+      httpProbe: true
+      path: /health/ready
+      interval: 10
+      successThreshold: 1
+      failureThreshold: 3
+    startup:
+      httpProbe: true
+      path: /health/started
+      interval: 10
+      successThreshold: 1
+      failureThreshold: 30
+    initialDelaySeconds: 10
+    timeoutSeconds: 5
+  config:
+    env:
+      KC_DB: dev-mem
+      # Keycloak 26.x still needs the legacy observability interface enabled
+      # to serve /health/* on the main HTTP port.
+      KC_LEGACY_OBSERVABILITY_INTERFACE: "true"
+      # Keep Keycloak health endpoints on the main HTTP port (8080) so the
+      # shared chart can probe them without separate management-port wiring.
+      KC_HTTP_MANAGEMENT_HEALTH_ENABLED: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HOSTNAME_STRICT: "false"
+      # The platform runs the container with a read-only root filesystem, so
+      # Quarkus temp files need to live on a writable in-memory mount.
+      JAVA_OPTS_APPEND: -Djava.io.tmpdir=/dev/shm
+
+  secrets:
+    encode: true
+    env:
+      KC_BOOTSTRAP_ADMIN_USERNAME: "${KC_BOOTSTRAP_ADMIN_USERNAME}"
+      KC_BOOTSTRAP_ADMIN_PASSWORD: "${KC_BOOTSTRAP_ADMIN_PASSWORD}"

@@ -1,0 +1,19 @@
+# Block direct commits to main
+branch=$(git rev-parse --abbrev-ref HEAD)
+if [ "$branch" = "main" ]; then
+  echo "Direct commits to main are not allowed. Create a feature branch first."
+  echo "  git checkout -b feat/<short-description>"
+  exit 1
+fi
+
+# Validate branch name (skip for HEAD detached states)
+if [ "$branch" != "HEAD" ]; then
+  if ! echo "$branch" | grep -qE '^(feat|fix|chore|docs|refactor|test)/[a-z0-9][a-z0-9-]*$'; then
+    echo "Branch name '$branch' does not match pattern: <type>/<short-kebab-description>"
+    echo "Types: feat, fix, chore, docs, refactor, test"
+    echo "Example: feat/add-gitlab-auth"
+    exit 1
+  fi
+fi
+
+npx lint-staged

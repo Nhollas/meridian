@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Bricolage Grotesque", serif;
+  --font-body: "DM Sans", sans-serif;
+  --font-mono: "DM Mono", monospace;
+
+  /* Dark theme (default) */
+  --color-surface-0: oklch(16.84% 0 0);
+  --color-surface-1: oklch(20.46% 0 0);
+  --color-surface-2: oklch(23.93% 0 0);
+  --color-surface-3: oklch(28.09% 0 0);
+  --color-border: oklch(30.12% 0 0);
+  --color-border-subtle: oklch(25.62% 0 0);
+  --color-text-primary: oklch(94.31% 0 0);
+  --color-text-secondary: oklch(68.3% 0 0);
+  --color-text-muted: oklch(62.68% 0 0);
+
+  --color-flow: oklch(62.31% 0.188 259.8);
+  --color-flow-muted: oklch(21.84% 0.0476 259.1);
+  --color-warning: oklch(76.86% 0.1647 70.1);
+  --color-warning-muted: oklch(34.62% 0.0517 72.6);
+  --color-error: oklch(63.68% 0.2078 25.3);
+  --color-error-muted: oklch(21.44% 0.0514 22.4);
+  --color-success: oklch(72.27% 0.192 149.6);
+  --color-success-muted: oklch(31.69% 0.0549 152.3);
+
+  --color-accent: oklch(70.9% 0.1592 293.5);
+  --color-accent-muted: oklch(25.18% 0.0412 293.5);
+}
+
+/* Light theme overrides */
+[data-theme="light"] {
+  --color-surface-0: oklch(98.76% 0 0);
+  --color-surface-1: oklch(96.1% 0.0029 264.5);
+  --color-surface-2: oklch(93.14% 0.0055 275);
+  --color-surface-3: oklch(89.49% 0.0055 275);
+  --color-border: oklch(85.86% 0.0083 278.6);
+  --color-border-subtle: oklch(91.65% 0.0068 277.2);
+  --color-text-primary: oklch(17.68% 0.007 258.4);
+  --color-text-secondary: oklch(48.01% 0.0162 276.8);
+  --color-text-muted: oklch(51.51% 0.0143 275.9);
+
+  --color-flow: oklch(48.82% 0.2172 264.4);
+  --color-flow-muted: oklch(93.19% 0.0316 255.6);
+  --color-warning: oklch(55.53% 0.1455 49);
+  --color-warning-muted: oklch(96.19% 0.058 95.6);
+  --color-error: oklch(50.54% 0.1905 27.5);
+  --color-error-muted: oklch(93.56% 0.0309 17.7);
+  --color-success: oklch(52.73% 0.1371 150.1);
+  --color-success-muted: oklch(96.24% 0.0434 156.7);
+
+  --color-accent: oklch(54.13% 0.2466 293);
+  --color-accent-muted: oklch(93.19% 0.0316 293);
+}
+
+@layer base {
+  body {
+    background-color: var(--color-surface-0);
+    color: var(--color-text-primary);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Subtle dot-grid background for forensic/precision feel */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(
+      circle,
+      var(--color-border-subtle) 1px,
+      transparent 1px
+    );
+    background-size: 24px 24px;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.5;
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
