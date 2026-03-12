@@ -209,7 +209,7 @@ describe("createDockerRuntime", () => {
 				"-e",
 				"MERIDIAN_AUTH_CLIENT_ID=meridian-cli",
 				"-e",
-				"MERIDIAN_AUTH_ISSUER=http://localhost:8080/realms/meridian",
+				"MERIDIAN_AUTH_ISSUER=http://host.docker.internal:8080/realms/meridian",
 			]),
 			{ timeout: 30000 },
 			expect.any(Function),
