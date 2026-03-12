@@ -1,5 +1,5 @@
 import { HttpResponse, http } from "msw";
-import { describe, vi } from "vitest";
+import { describe } from "vitest";
 import {
 	createChatEventFactory,
 	createControllableChatStream,
@@ -11,10 +11,6 @@ describe("Chat UI - error handling", () => {
 	test("shows an interrupted assistant message when the request fails", async ({
 		chatPage,
 	}) => {
-		const consoleError = vi
-			.spyOn(console, "error")
-			.mockImplementation(() => undefined);
-
 		browserWorker.use(
 			http.post(
 				"http://localhost:3201/api/chat",
@@ -29,16 +25,11 @@ describe("Chat UI - error handling", () => {
 			"Something went wrong reaching the agent. Check the console for details.",
 		);
 		await chatPage.expectInterruptedState();
-
-		consoleError.mockRestore();
 	});
 
 	test("keeps partial streamed content visible when the stream ends before completion", async ({
 		chatPage,
 	}) => {
-		const consoleError = vi
-			.spyOn(console, "error")
-			.mockImplementation(() => undefined);
 		const stream = createControllableChatStream();
 		const eventFactory = createChatEventFactory();
 
@@ -58,7 +49,5 @@ describe("Chat UI - error handling", () => {
 			"Authentication started. Open the login URL in your browser.",
 		);
 		await chatPage.expectInterruptedState();
-
-		consoleError.mockRestore();
 	});
 });

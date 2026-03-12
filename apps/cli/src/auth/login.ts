@@ -1,11 +1,11 @@
-import { writeJsonLine, writeLines } from "../output.js";
-import type { ResolvedCliDependencies } from "../runtime.js";
-import { writeCredentials } from "../store/credentials.js";
+import { writeJsonLine, writeLines } from "@/output";
+import type { ResolvedCliDependencies } from "@/runtime";
+import { writeCredentials } from "@/store/credentials";
 import {
 	pollDeviceAuthorisation,
 	requestDeviceAuthorisation,
-} from "./lib/device-flow.js";
-import { getAuthConfig } from "./session.js";
+} from "./lib/device-flow";
+import { getAuthConfig } from "./session";
 
 export async function handleAuthLogin(
 	dependencies: ResolvedCliDependencies,

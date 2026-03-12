@@ -1,6 +1,6 @@
-import { writeJson, writeLines } from "../output.js";
-import type { ResolvedCliDependencies } from "../runtime.js";
-import { requireAuthentication } from "./session.js";
+import { writeJson, writeLines } from "@/output";
+import type { ResolvedCliDependencies } from "@/runtime";
+import { requireAuthentication } from "./session";
 
 export async function handleAuthStatus(
 	dependencies: ResolvedCliDependencies,

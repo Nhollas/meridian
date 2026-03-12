@@ -1,23 +1,23 @@
+import { getSandboxConfig } from "./config";
 import { createDockerRuntime } from "./docker-runtime";
 import type { SandboxRuntime } from "./runtime";
 
 let sandboxRuntime: SandboxRuntime | null = null;
 
 function createSandboxRuntime(): SandboxRuntime {
-	const runtime = process.env["SANDBOX_RUNTIME"] ?? "docker";
-	const instructionsFile = process.env["SANDBOX_INSTRUCTIONS_FILE"];
+	const config = getSandboxConfig();
 
-	if (!instructionsFile) {
+	if (!config.instructionsFile) {
 		throw new Error(
 			"SANDBOX_INSTRUCTIONS_FILE environment variable is required",
 		);
 	}
 
-	switch (runtime) {
+	switch (config.runtime) {
 		case "docker":
-			return createDockerRuntime(instructionsFile);
+			return createDockerRuntime(config);
 		default:
-			throw new Error(`Unsupported sandbox runtime: ${runtime}`);
+			throw new Error(`Unsupported sandbox runtime: ${config.runtime}`);
 	}
 }
 

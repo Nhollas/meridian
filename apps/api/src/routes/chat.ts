@@ -16,9 +16,9 @@ import {
 	mapAgentResultToRuntimeEvent,
 	mapErrorToRuntimeEvent,
 } from "@/lib/runtime-events/agent-mappers";
-import { getSandboxRuntime } from "@/lib/sandbox";
 import type { SandboxRuntime } from "@/lib/sandbox/runtime";
 import { SESSION_ID_PATTERN } from "@/lib/sandbox/runtime-shared";
+import { getSandboxRuntime } from "@/lib/sandbox/singleton";
 
 const MAX_DEBUG_DELAY_MS = 1000;
 const encoder = new TextEncoder();

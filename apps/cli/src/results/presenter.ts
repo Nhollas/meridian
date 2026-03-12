@@ -2,7 +2,7 @@ import type {
 	PaymentOption,
 	ProductOffering,
 	ResultRecord,
-} from "../store/data.js";
+} from "@/store/data";
 
 function formatCurrency(amount: number) {
 	return amount === 0 ? "Free" : `£${amount.toFixed(2)}`;

@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { AuthRefreshError } from "../../errors.js";
-import type { StoredCredentials } from "../../store/credentials.js";
+import { AuthRefreshError } from "@/errors";
+import type { StoredCredentials } from "@/store/credentials";
 
 export type AuthConfig = {
 	clientId: string;

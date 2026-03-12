@@ -1,6 +1,6 @@
 import { Command } from "commander";
-import { getOutputMode, writeJson } from "../output.js";
-import type { Writable } from "../runtime.js";
+import { getOutputMode, writeJson } from "@/output";
+import type { Writable } from "@/runtime";
 
 export type JsonOption = {
 	json?: boolean;

@@ -1,3 +1,3 @@
-import { main } from "./cli.js";
+import { main } from "./cli";
 
 await main();

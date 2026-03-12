@@ -1,10 +1,10 @@
+import tsconfigPaths from "vite-tsconfig-paths";
 import { defineConfig } from "vitest/config";
 
-const meridianLogs = process.env["MERIDIAN_LOGS"];
-
 export default defineConfig({
+	plugins: [tsconfigPaths()],
 	test: {
-		silent: meridianLogs === "1" ? false : "passed-only",
+		silent: "passed-only",
 		setupFiles: ["./tests/setup/msw.ts"],
 		coverage: {
 			provider: "v8",

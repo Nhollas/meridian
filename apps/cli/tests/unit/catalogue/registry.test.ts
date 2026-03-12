@@ -3,7 +3,7 @@ import {
 	getProduct,
 	getProductSchema,
 	listProducts,
-} from "../../../src/catalogue/registry.js";
+} from "@/catalogue/registry";
 
 describe("catalogue registry", () => {
 	it("lists the bundled products", () => {

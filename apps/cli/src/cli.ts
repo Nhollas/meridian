@@ -1,24 +1,24 @@
 import { readFileSync } from "node:fs";
 import { Command, CommanderError } from "commander";
-import { registerAuthCommands } from "./auth/command.js";
-import { writeError } from "./cli/command-helpers.js";
+import { registerAuthCommands } from "./auth/command";
+import { writeError } from "./cli/command-helpers";
 import {
 	InputFileParseError,
 	InputFileReadError,
 	InvalidStoredStateError,
-} from "./errors.js";
-import { configureProcessNetworking } from "./network/proxy.js";
-import { getOutputMode } from "./output.js";
-import { registerProductSchemaCommands } from "./product-schemas/command.js";
-import { registerProductsCommands } from "./products/command.js";
-import { registerProposalRequestCommands } from "./proposal-requests/command.js";
-import { registerProposalCommands } from "./proposals/command.js";
-import { registerResultCommands } from "./results/command.js";
+} from "./errors";
+import { configureProcessNetworking } from "./network/proxy";
+import { getOutputMode } from "./output";
+import { registerProductSchemaCommands } from "./product-schemas/command";
+import { registerProductsCommands } from "./products/command";
+import { registerProposalRequestCommands } from "./proposal-requests/command";
+import { registerProposalCommands } from "./proposals/command";
+import { registerResultCommands } from "./results/command";
 import {
 	type CliDependencies,
 	type ResolvedCliDependencies,
 	resolveDependencies,
-} from "./runtime.js";
+} from "./runtime";
 
 const packageJson = JSON.parse(
 	readFileSync(new URL("../package.json", import.meta.url), "utf8"),

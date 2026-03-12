@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { runCli } from "../../../../src/cli.js";
-import { createWritable } from "../../../helpers/streams.js";
+import { runCli } from "@/cli";
+import { createWritable } from "../../../helpers/streams";
 
 describe("products list", () => {
 	it("prints product catalogue as json when requested", async () => {
