@@ -1,0 +1,41 @@
+{
+	"name": "@meridian/chat",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "next dev -p 3200",
+		"build": "next build",
+		"start": "next start -p 3200",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run --config vitest.config.ts",
+		"test:browser": "vitest run --config vitest.config.ts --project browser",
+		"test:browser:watch": "vitest --config vitest.config.ts --project browser",
+		"test:ui": "npm run test:browser",
+		"test:ui:watch": "npm run test:browser:watch"
+	},
+	"dependencies": {
+		"@meridian/contracts": "workspace:*",
+		"next": "^16.1.6",
+		"react": "^19.2.4",
+		"react-dom": "^19.2.4",
+		"react-markdown": "^10.1.0",
+		"remark-gfm": "^4.0.1",
+		"zod": "^4.3.6"
+	},
+	"devDependencies": {
+		"@tailwindcss/postcss": "^4.2.1",
+		"@types/node": "^25.4.0",
+		"@types/react": "^19.2.14",
+		"@types/react-dom": "^19.2.3",
+		"@vitejs/plugin-react": "^5.1.4",
+		"@vitest/browser-playwright": "^4.0.18",
+		"msw": "^2.12.10",
+		"playwright": "^1.58.2",
+		"tailwindcss": "^4.2.1",
+		"vite": "^7.3.1",
+		"vite-tsconfig-paths": "^6.1.1",
+		"vitest": "^4.0.18",
+		"vitest-browser-react": "^2.0.5"
+	}
+}

@@ -1,8 +1,0 @@
-global:
-  env: shadow
-
-service:
-  config:
-    env:
-      ENVIRONMENT: shadow
-      KC_HOSTNAME: https://${DOMAIN}-${SERVICE}-${ENVIRONMENT}.vassily.io

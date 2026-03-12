@@ -1,0 +1,29 @@
+FROM node:24-slim AS meridian-cli-builder
+
+WORKDIR /build/apps/cli
+ENV HUSKY=0
+
+COPY apps/cli/package.json ./
+RUN npm install
+
+COPY apps/cli/ ./
+RUN npm run build \
+  && mkdir -p /tmp/meridian-cli-pack \
+  && npm pack --pack-destination /tmp/meridian-cli-pack
+
+FROM node:24-slim
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY --from=meridian-cli-builder /tmp/meridian-cli-pack/*.tgz /tmp/meridian-cli.tgz
+RUN npm install -g /tmp/meridian-cli.tgz \
+  && rm /tmp/meridian-cli.tgz
+
+RUN useradd -m -d /sandbox-home -s /bin/sh agent
+USER agent
+ENV HOME=/sandbox-home
+WORKDIR /sandbox-home
+
+CMD ["sleep", "infinity"]

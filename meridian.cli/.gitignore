@@ -1,7 +1,0 @@
-node_modules/
-dist/
-coverage/
-.env
-*.js.map
-*.d.ts
-!scripts/bundle.js

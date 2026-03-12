@@ -1,0 +1,44 @@
+{
+	"realm": "meridian",
+	"enabled": true,
+	"displayName": "Meridian",
+	"registrationAllowed": false,
+	"resetPasswordAllowed": true,
+	"rememberMe": true,
+	"users": [
+		{
+			"username": "meridian-dev",
+			"enabled": true,
+			"emailVerified": true,
+			"firstName": "Meridian",
+			"lastName": "Developer",
+			"email": "meridian-dev@example.com",
+			"credentials": [
+				{
+					"type": "password",
+					"value": "meridian-dev",
+					"temporary": false
+				}
+			]
+		}
+	],
+	"clients": [
+		{
+			"clientId": "meridian-cli",
+			"name": "Meridian CLI",
+			"enabled": true,
+			"protocol": "openid-connect",
+			"publicClient": true,
+			"standardFlowEnabled": false,
+			"directAccessGrantsEnabled": false,
+			"serviceAccountsEnabled": false,
+			"attributes": {
+				"oauth2.device.authorization.grant.enabled": "true"
+			},
+			"redirectUris": ["*"],
+			"webOrigins": ["*"],
+			"defaultClientScopes": ["profile", "email", "roles"],
+			"optionalClientScopes": ["offline_access"]
+		}
+	]
+}
