@@ -1,0 +1,72 @@
+direction: right
+
+
+clients: Clients {
+  chat: Chat UI {
+    icon: https://cdn.simpleicons.org/googlechrome
+  }
+}
+
+platform: Platform {
+  api: Hono API Server {
+    icon: https://cdn.simpleicons.org/hono
+  }
+  agent: LangGraph Agent {
+    icon: https://cdn.simpleicons.org/langchain
+  }
+
+  api -> agent
+}
+
+providers: Providers {
+  openai: OpenAI {
+    icon: https://cdn.simpleicons.org/openai
+  }
+}
+
+infrastructure: Infrastructure {
+  sandbox: Docker Sandbox {
+    grid-columns: 1
+    grid-gap: 16
+    style.font-size: 16
+    style.bold: true
+
+    docker-icon: "" {
+      icon: https://cdn.simpleicons.org/docker
+      shape: image
+      width: 64
+      height: 64
+    }
+
+    spacer: "" {
+      width: 200
+      height: 1
+      style.opacity: 0
+      style.stroke-width: 0
+    }
+
+    cli: CLI {
+      icon: https://cdn.simpleicons.org/gnubash
+    }
+  }
+  keycloak: Keycloak {
+    icon: https://cdn.simpleicons.org/letsencrypt
+  }
+}
+
+user: User {
+  shape: person
+}
+
+clients <-> platform.api: NDJSON
+platform.agent -> infrastructure.sandbox: exec commands
+platform.agent -> providers.openai: inference {
+  style.stroke-dash: 3
+}
+
+infrastructure.sandbox -> user: OAuth 2.0 device flow login URL {
+  style.stroke-dash: 3
+}
+user -> infrastructure.keycloak: authenticates {
+  style.stroke-dash: 3
+}
