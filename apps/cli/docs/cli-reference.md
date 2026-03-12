@@ -2,8 +2,6 @@
 
 This document is the authoritative reference for the shipped Meridian CLI. It describes the current command surface, output behaviour, local state, and configuration. It should track what the binary does today.
 
-For the proof of concept rationale and design choices, see [`proof-of-concept.md`](./proof-of-concept.md).
-
 ## Scope
 
 The current CLI supports:

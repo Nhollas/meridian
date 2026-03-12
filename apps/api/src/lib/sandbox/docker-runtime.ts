@@ -11,7 +11,7 @@ import type {
 	SandboxSession,
 	SandboxWaitForBackgroundCommandResult,
 } from "./runtime";
-import { DEFAULT_RUNTIME_INSTRUCTIONS } from "./runtime-instructions";
+
 import {
 	type BackgroundCommandHandle,
 	type CommandConfig,
@@ -46,7 +46,7 @@ type BackgroundCommandRecord = BackgroundCommandHandle & {
 	terminationRequested: boolean;
 };
 
-export function createDockerRuntime(): SandboxRuntime {
+export function createDockerRuntime(instructionsFile: string): SandboxRuntime {
 	const dockerBinary = process.env["SANDBOX_DOCKER_BIN"] ?? "docker";
 	const rootDirectory =
 		process.env["SANDBOX_STATE_DIR"] ??
@@ -367,11 +367,7 @@ export function createDockerRuntime(): SandboxRuntime {
 		async getInstructions(sessionId) {
 			await ensureSessionDirectory(sessionId);
 			touchSession(sessionId);
-			const instructionsFile = process.env["SANDBOX_INSTRUCTIONS_FILE"];
-			if (instructionsFile) {
-				return readFile(instructionsFile, "utf8");
-			}
-			return DEFAULT_RUNTIME_INSTRUCTIONS;
+			return readFile(instructionsFile, "utf8");
 		},
 		async runCommand(sessionId, command, options = {}) {
 			await ensureSession(sessionId);
