@@ -30,7 +30,8 @@ const CONTAINER_HOME = "/sandbox-home";
 const CONTAINER_EXTRA_CA_CERTS_PATH = "/sandbox-extra-ca.pem";
 const DEFAULT_DOCKER_IMAGE = "meridian-chat-sandbox:local";
 const DEFAULT_MERIDIAN_AUTH_CLIENT_ID = "meridian-cli";
-const DEFAULT_MERIDIAN_AUTH_ISSUER = "http://localhost:8080/realms/meridian";
+const DEFAULT_MERIDIAN_AUTH_ISSUER =
+	"http://host.docker.internal:8080/realms/meridian";
 const DEFAULT_SESSION_TTL_MS = 5 * 60 * 1000;
 
 type ContainerState = "missing" | "running" | "stopped";
@@ -219,6 +220,8 @@ export function createDockerRuntime(): SandboxRuntime {
 			"512m",
 			"--pids-limit",
 			"256",
+			"--add-host",
+			"host.docker.internal:host-gateway",
 			"--label",
 			"meridian.chat.runtime=docker",
 			"--label",
