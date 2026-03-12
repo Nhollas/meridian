@@ -10,7 +10,7 @@
 		"meridian": "dist/meridian.js"
 	},
 	"scripts": {
-		"dev": "tsx --env-file=.env src/dev.ts",
+		"dev": "tsx --env-file=.env src/entrypoint.ts",
 		"build": "node scripts/bundle.js",
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run",
