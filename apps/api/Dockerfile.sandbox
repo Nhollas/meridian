@@ -6,7 +6,9 @@ ENV HUSKY=0
 COPY apps/cli/package.json ./
 RUN npm install
 
-COPY apps/cli/ ./
+COPY apps/cli/src ./src
+COPY apps/cli/scripts ./scripts
+COPY apps/cli/tsconfig*.json ./
 RUN npm run build \
   && mkdir -p /tmp/meridian-cli-pack \
   && npm pack --pack-destination /tmp/meridian-cli-pack
