@@ -1,0 +1,19 @@
+{
+	"name": "@meridian/contracts",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		"./runtime-events": "./src/runtime-events/contracts.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"zod": "^4.3.6"
+	},
+	"devDependencies": {
+		"vitest": "^4.0.18"
+	}
+}
