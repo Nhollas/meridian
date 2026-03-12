@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { resolveDependencies } from "@/runtime";
 import {
 	deleteCredentials,
@@ -7,16 +7,9 @@ import {
 } from "@/store/credentials";
 import { createTempHome } from "../../helpers/temp-home";
 
-const homes: Array<{ cleanup(): Promise<void>; homeDirectory: string }> = [];
-
-afterEach(async () => {
-	await Promise.all(homes.splice(0).map((home) => home.cleanup()));
-});
-
 describe("credentials store", () => {
 	it("writes then reads credentials", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		const dependencies = resolveDependencies({
 			homeDirectory: home.homeDirectory,
 		});
@@ -39,8 +32,7 @@ describe("credentials store", () => {
 	});
 
 	it("returns null when no credentials exist", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		const dependencies = resolveDependencies({
 			homeDirectory: home.homeDirectory,
 		});
@@ -51,8 +43,7 @@ describe("credentials store", () => {
 	});
 
 	it("deletes stored credentials", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		const dependencies = resolveDependencies({
 			homeDirectory: home.homeDirectory,
 		});

@@ -1,23 +1,16 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { HttpResponse, http } from "msw";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { runCli } from "@/cli";
 import { createUnsignedJwt } from "../../../helpers/jwt";
 import { createWritable } from "../../../helpers/streams";
 import { createTempHome } from "../../../helpers/temp-home";
 import { mswServer } from "../../../setup/msw";
 
-const homes: Array<{ cleanup(): Promise<void> }> = [];
-
-afterEach(async () => {
-	await Promise.all(homes.splice(0).map((home) => home.cleanup()));
-});
-
 describe("auth status", () => {
 	it("returns unauthenticated when no credentials are stored", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		const stdout = createWritable(false);
 		const stderr = createWritable();
 
@@ -33,8 +26,7 @@ describe("auth status", () => {
 	});
 
 	it("refreshes expired credentials before reporting status", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		await home.writeMeridianFile("credentials.json", {
 			access_token: "expired-access",
 			refresh_token: "refresh-token",
@@ -79,8 +71,7 @@ describe("auth status", () => {
 	});
 
 	it("returns a structured error when credential refresh hits a transport failure", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		await home.writeMeridianFile("credentials.json", {
 			access_token: "expired-access",
 			refresh_token: "refresh-token",
@@ -116,8 +107,7 @@ describe("auth status", () => {
 	});
 
 	it("returns a structured error when stored credentials are corrupted", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		await home.writeMeridianFile("data.json", {
 			proposal_requests: {},
 			proposals: {},
@@ -145,8 +135,7 @@ describe("auth status", () => {
 	});
 
 	it("returns a structured error when the credentials path is a directory", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		await mkdir(join(home.homeDirectory, ".meridian"), { recursive: true });
 		await mkdir(join(home.homeDirectory, ".meridian", "credentials.json"));
 		const stdout = createWritable(false);

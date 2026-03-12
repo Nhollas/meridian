@@ -1,22 +1,15 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { HttpResponse, http } from "msw";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { runCli } from "@/cli";
 import { createWritable } from "../../../helpers/streams";
 import { createTempHome } from "../../../helpers/temp-home";
 import { mswServer } from "../../../setup/msw";
 
-const homes: Array<{ cleanup(): Promise<void> }> = [];
-
-afterEach(async () => {
-	await Promise.all(homes.splice(0).map((home) => home.cleanup()));
-});
-
 describe("proposal-requests create", () => {
 	it("accepts the spaced version option form", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		const inputFile = join(home.homeDirectory, "broadband.json");
 		await writeFile(
 			inputFile,
@@ -74,8 +67,7 @@ describe("proposal-requests create", () => {
 	});
 
 	it("creates a proposal request from a valid json file", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		const inputFile = join(home.homeDirectory, "broadband.json");
 		await writeFile(
 			inputFile,
@@ -130,8 +122,7 @@ describe("proposal-requests create", () => {
 	});
 
 	it("rejects invalid input files with validation issues", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		const inputFile = join(home.homeDirectory, "invalid.json");
 		await writeFile(
 			inputFile,
@@ -185,8 +176,7 @@ describe("proposal-requests create", () => {
 	});
 
 	it("returns a structured error when the input file contains invalid json", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		const inputFile = join(home.homeDirectory, "invalid-json.json");
 		await writeFile(inputFile, "{invalid json");
 		await home.writeMeridianFile("credentials.json", {
@@ -224,8 +214,7 @@ describe("proposal-requests create", () => {
 	});
 
 	it("returns a structured error when the input file cannot be read", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		const inputFile = join(home.homeDirectory, "missing.json");
 		await home.writeMeridianFile("credentials.json", {
 			access_token: "access-token",
@@ -262,8 +251,7 @@ describe("proposal-requests create", () => {
 	});
 
 	it("requires authentication before creating a proposal request", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		const inputFile = join(home.homeDirectory, "broadband.json");
 		await writeFile(
 			inputFile,
@@ -302,8 +290,7 @@ describe("proposal-requests create", () => {
 	});
 
 	it("refreshes expired credentials before creating a proposal request", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		const inputFile = join(home.homeDirectory, "broadband.json");
 		await writeFile(
 			inputFile,
