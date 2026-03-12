@@ -43,7 +43,7 @@ describe("createDockerRuntime", () => {
 		fsMocks.rm.mockResolvedValue(undefined);
 		delete process.env["SANDBOX_DOCKER_IMAGE"];
 		delete process.env["SANDBOX_DOCKER_BIN"];
-		delete process.env["SANDBOX_INSTRUCTIONS_FILE"];
+
 		delete process.env["SANDBOX_SESSION_TTL_MS"];
 		delete process.env["SANDBOX_EXTRA_CA_CERTS_FILE"];
 		delete process.env["MERIDIAN_AUTH_CLIENT_ID"];
@@ -63,7 +63,7 @@ describe("createDockerRuntime", () => {
 	});
 
 	it("creates and starts a per-session container on first use", async () => {
-		const runtime = createDockerRuntime();
+		const runtime = createDockerRuntime("/tmp/test-instructions.txt");
 		mockExecFileSequence([
 			{ exitCode: 1, stderr: "No such container" },
 			{ exitCode: 0, stdout: "created-container-id\n" },
@@ -137,7 +137,7 @@ describe("createDockerRuntime", () => {
 	});
 
 	it("reaps expired idle sessions after five minutes", async () => {
-		const runtime = createDockerRuntime();
+		const runtime = createDockerRuntime("/tmp/test-instructions.txt");
 		mockExecFileSequence([
 			// createSession("old-session"): inspect (missing) → create → start
 			{ exitCode: 1, stderr: "No such container" },
@@ -169,7 +169,7 @@ describe("createDockerRuntime", () => {
 	it("passes configured auth environment into new containers", async () => {
 		process.env["MERIDIAN_AUTH_CLIENT_ID"] = "meridian-cli";
 		process.env["MERIDIAN_AUTH_ISSUER"] = "https://issuer.example.com";
-		const runtime = createDockerRuntime();
+		const runtime = createDockerRuntime("/tmp/test-instructions.txt");
 		mockExecFileSequence([
 			{ exitCode: 1, stderr: "No such container" },
 			{ exitCode: 0, stdout: "created\n" },
@@ -193,7 +193,7 @@ describe("createDockerRuntime", () => {
 	});
 
 	it("uses default auth environment when the shell does not provide it", async () => {
-		const runtime = createDockerRuntime();
+		const runtime = createDockerRuntime("/tmp/test-instructions.txt");
 		mockExecFileSequence([
 			{ exitCode: 1, stderr: "No such container" },
 			{ exitCode: 0, stdout: "created\n" },
@@ -220,7 +220,7 @@ describe("createDockerRuntime", () => {
 		process.env["SANDBOX_EXTRA_CA_CERTS_FILE"] = "/Users/example/corp-root.pem";
 		process.env["HTTPS_PROXY"] = "http://proxy.example.net:8080";
 		process.env["NO_PROXY"] = "localhost,127.0.0.1";
-		const runtime = createDockerRuntime();
+		const runtime = createDockerRuntime("/tmp/test-instructions.txt");
 		mockExecFileSequence([
 			{ exitCode: 1, stderr: "No such container" },
 			{ exitCode: 0, stdout: "created\n" },
@@ -248,9 +248,8 @@ describe("createDockerRuntime", () => {
 	});
 
 	it("reads runtime instructions from the configured instructions file", async () => {
-		process.env["SANDBOX_INSTRUCTIONS_FILE"] = "/tmp/runtime-instructions.txt";
 		fsMocks.readFile.mockResolvedValue("Use the configured instructions.\n");
-		const runtime = createDockerRuntime();
+		const runtime = createDockerRuntime("/tmp/runtime-instructions.txt");
 
 		const instructions = await runtime.getInstructions("session-instructions");
 
@@ -266,7 +265,7 @@ describe("createDockerRuntime", () => {
 	});
 
 	it("serializes concurrent container setup for the same session", async () => {
-		const runtime = createDockerRuntime();
+		const runtime = createDockerRuntime("/tmp/test-instructions.txt");
 		let firstInspectCallback:
 			| ((
 					error: Error | NodeJS.ErrnoException | null,
@@ -360,7 +359,7 @@ describe("createDockerRuntime", () => {
 	});
 
 	it("uses docker exec with spawn when stdin is provided", async () => {
-		const runtime = createDockerRuntime();
+		const runtime = createDockerRuntime("/tmp/test-instructions.txt");
 		mockExecFileSequence([
 			{ exitCode: 1, stderr: "No such container" },
 			{ exitCode: 0, stdout: "created\n" },
@@ -403,7 +402,7 @@ describe("createDockerRuntime", () => {
 	});
 
 	it("returns a session-relative path when writing a file", async () => {
-		const runtime = createDockerRuntime();
+		const runtime = createDockerRuntime("/tmp/test-instructions.txt");
 
 		const result = await runtime.writeSessionFile(
 			"session-write",
@@ -425,7 +424,7 @@ describe("createDockerRuntime", () => {
 	});
 
 	it("does not reap an expired session while a background command is still running", async () => {
-		const runtime = createDockerRuntime();
+		const runtime = createDockerRuntime("/tmp/test-instructions.txt");
 		mockExecFileSequence([
 			// session-busy background command setup
 			{ exitCode: 1, stderr: "No such container" },
@@ -483,7 +482,7 @@ describe("createDockerRuntime", () => {
 	});
 
 	it("tracks background commands started from the first stdout line", async () => {
-		const runtime = createDockerRuntime();
+		const runtime = createDockerRuntime("/tmp/test-instructions.txt");
 		mockExecFileSequence([
 			{ exitCode: 1, stderr: "No such container" },
 			{ exitCode: 0, stdout: "created\n" },
@@ -578,7 +577,7 @@ describe("createDockerRuntime", () => {
 	});
 
 	it("does not reap an expired session while another caller is reviving it", async () => {
-		const runtime = createDockerRuntime();
+		const runtime = createDockerRuntime("/tmp/test-instructions.txt");
 		let sessionAInspectCount = 0;
 		let reviveInspectCallback:
 			| ((
