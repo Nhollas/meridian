@@ -15,7 +15,7 @@ vi.mock("@/lib/agent/service", () => ({
 	createAgentService: mocks.createAgentService,
 }));
 
-vi.mock("@/lib/sandbox", () => ({
+vi.mock("@/lib/sandbox/singleton", () => ({
 	getSandboxRuntime: mocks.getSandboxRuntime,
 }));
 

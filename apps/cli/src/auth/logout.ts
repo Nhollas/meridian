@@ -1,9 +1,9 @@
-import { InvalidStoredStateError } from "../errors.js";
-import { writeJson, writeLines } from "../output.js";
-import type { ResolvedCliDependencies } from "../runtime.js";
-import { deleteCredentials, readCredentials } from "../store/credentials.js";
-import { isAccessTokenExpired } from "./lib/token.js";
-import { getAuthConfig, revokeSession } from "./session.js";
+import { InvalidStoredStateError } from "@/errors";
+import { writeJson, writeLines } from "@/output";
+import type { ResolvedCliDependencies } from "@/runtime";
+import { deleteCredentials, readCredentials } from "@/store/credentials";
+import { isAccessTokenExpired } from "./lib/token";
+import { getAuthConfig, revokeSession } from "./session";
 
 export async function handleAuthLogout(
 	dependencies: ResolvedCliDependencies,

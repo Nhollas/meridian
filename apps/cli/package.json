@@ -12,7 +12,7 @@
 	"scripts": {
 		"dev": "tsx --env-file=.env src/dev.ts",
 		"build": "node scripts/bundle.js",
-		"typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+		"typecheck": "tsc --noEmit",
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage"
@@ -23,6 +23,7 @@
 		"esbuild": "^0.27.3",
 		"msw": "^2.12.10",
 		"tsx": "^4.19.0",
+		"vite-tsconfig-paths": "^6.1.1",
 		"vitest": "^4.0.18"
 	},
 	"dependencies": {

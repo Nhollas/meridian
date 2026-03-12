@@ -1,4 +1,4 @@
-import type { ProductDefinition } from "../catalogue/registry.js";
+import type { ProductDefinition } from "@/catalogue/registry";
 
 export function formatProductsList(
 	products: Omit<ProductDefinition, "schemas">[],

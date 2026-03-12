@@ -1,10 +1,10 @@
-import { requireAuthentication } from "../auth/session.js";
-import { type JsonOption, writeError } from "../cli/command-helpers.js";
-import { getMockResults } from "../mock/providers.js";
-import { writeJson, writeLines } from "../output.js";
-import { sortResultOfferings } from "../results/presenter.js";
-import type { ResolvedCliDependencies } from "../runtime.js";
-import { readDataStore, writeDataStore } from "../store/data.js";
+import { requireAuthentication } from "@/auth/session";
+import { type JsonOption, writeError } from "@/cli/command-helpers";
+import { getMockResults } from "@/mock/providers";
+import { writeJson, writeLines } from "@/output";
+import { sortResultOfferings } from "@/results/presenter";
+import type { ResolvedCliDependencies } from "@/runtime";
+import { readDataStore, writeDataStore } from "@/store/data";
 
 export type ProposalCreateOptions = JsonOption & {
 	proposalRequest: string;

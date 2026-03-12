@@ -3,12 +3,12 @@ import {
 	addJsonOption,
 	getActionCommand,
 	getJsonMode,
-} from "../cli/command-helpers.js";
-import type { ResolvedCliDependencies } from "../runtime.js";
+} from "@/cli/command-helpers";
+import type { ResolvedCliDependencies } from "@/runtime";
 import {
 	handleProposalRequestsCreate,
 	type ProposalRequestCreateOptions,
-} from "./create.js";
+} from "./create";
 
 export function registerProposalRequestCommands(
 	program: Command,

@@ -1,10 +1,10 @@
-import type { ResolvedCliDependencies } from "../runtime.js";
-import { readCredentials, writeCredentials } from "../store/credentials.js";
+import type { ResolvedCliDependencies } from "@/runtime";
+import { readCredentials, writeCredentials } from "@/store/credentials";
 import {
 	type AuthConfig,
 	isAccessTokenExpired,
 	refreshStoredCredentials,
-} from "./lib/token.js";
+} from "./lib/token";
 
 export const DEFAULT_AUTH_ISSUER = "http://localhost:8080/realms/meridian";
 export const DEFAULT_AUTH_CLIENT_ID = "meridian-cli";
