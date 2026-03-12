@@ -7,7 +7,7 @@ export async function createTempHome() {
 
 	return {
 		homeDirectory,
-		async cleanup() {
+		async [Symbol.asyncDispose]() {
 			await rm(homeDirectory, { force: true, recursive: true });
 		},
 		async writeMeridianFile(fileName: string, contents: unknown) {

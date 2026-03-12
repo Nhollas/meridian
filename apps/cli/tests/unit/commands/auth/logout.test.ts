@@ -1,22 +1,15 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { HttpResponse, http } from "msw";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { runCli } from "@/cli";
 import { createWritable } from "../../../helpers/streams";
 import { createTempHome } from "../../../helpers/temp-home";
 import { mswServer } from "../../../setup/msw";
 
-const homes: Array<{ cleanup(): Promise<void> }> = [];
-
-afterEach(async () => {
-	await Promise.all(homes.splice(0).map((home) => home.cleanup()));
-});
-
 describe("auth logout", () => {
 	it("revokes the session and deletes stored credentials", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		await home.writeMeridianFile("credentials.json", {
 			access_token: "access-token",
 			refresh_token: "refresh-token",
@@ -64,8 +57,7 @@ describe("auth logout", () => {
 	});
 
 	it("shows help without deleting stored credentials", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		const credentialsPath = join(
 			home.homeDirectory,
 			".meridian",
@@ -96,8 +88,7 @@ describe("auth logout", () => {
 	});
 
 	it("clears corrupted credentials from local state", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		await mkdir(join(home.homeDirectory, ".meridian"), { recursive: true });
 		await writeFile(
 			join(home.homeDirectory, ".meridian", "credentials.json"),
@@ -124,8 +115,7 @@ describe("auth logout", () => {
 	});
 
 	it("clears a directory-shaped credentials path from local state", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		await mkdir(join(home.homeDirectory, ".meridian"), { recursive: true });
 		await mkdir(join(home.homeDirectory, ".meridian", "credentials.json"));
 		const stdout = createWritable(false);
@@ -149,8 +139,7 @@ describe("auth logout", () => {
 	});
 
 	it("still clears local credentials when remote revoke fails", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		await home.writeMeridianFile("credentials.json", {
 			access_token: "access-token",
 			refresh_token: "refresh-token",

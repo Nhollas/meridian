@@ -1,5 +1,5 @@
 import { HttpResponse, http } from "msw";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { DEFAULT_AUTH_CLIENT_ID, DEFAULT_AUTH_ISSUER } from "@/auth/session";
 import { runCli } from "@/cli";
 import { createUnsignedJwt } from "../../../helpers/jwt";
@@ -7,16 +7,9 @@ import { createWritable } from "../../../helpers/streams";
 import { createTempHome } from "../../../helpers/temp-home";
 import { mswServer } from "../../../setup/msw";
 
-const homes: Array<{ cleanup(): Promise<void> }> = [];
-
-afterEach(async () => {
-	await Promise.all(homes.splice(0).map((home) => home.cleanup()));
-});
-
 describe("auth login", () => {
 	it("uses the official Meridian auth defaults when no overrides are set", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		const stdout = createWritable(false);
 		const stderr = createWritable();
 		let requestBody = "";
@@ -61,8 +54,7 @@ describe("auth login", () => {
 	});
 
 	it("prints device details immediately before authentication completes", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		const stdout = createWritable(false);
 		const stderr = createWritable();
 		let tokenPolls = 0;
@@ -132,8 +124,7 @@ describe("auth login", () => {
 	});
 
 	it("completes the device flow and stores credentials", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		const stdout = createWritable(false);
 		const stderr = createWritable();
 		let tokenPolls = 0;
@@ -213,8 +204,7 @@ describe("auth login", () => {
 	});
 
 	it("returns a structured error when the device authorisation request has a transport failure", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		const stdout = createWritable(false);
 		const stderr = createWritable();
 		mswServer.use(
@@ -245,8 +235,7 @@ describe("auth login", () => {
 	});
 
 	it("returns a structured error when token polling has a transport failure", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		const stdout = createWritable(false);
 		const stderr = createWritable();
 		mswServer.use(

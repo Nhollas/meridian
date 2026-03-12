@@ -1,15 +1,9 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { runCli } from "@/cli";
 import { createWritable } from "../../../helpers/streams";
 import { createTempHome } from "../../../helpers/temp-home";
-
-const homes: Array<{ cleanup(): Promise<void> }> = [];
-
-afterEach(async () => {
-	await Promise.all(homes.splice(0).map((home) => home.cleanup()));
-});
 
 function createBroadbandResult() {
 	return {
@@ -130,7 +124,6 @@ async function seedHomeWithResult(
 		| ReturnType<typeof createTravelResult>,
 ) {
 	const home = await createTempHome();
-	homes.push(home);
 	await home.writeMeridianFile("credentials.json", {
 		access_token: "access-token",
 		user: "john.doe@example.com",
@@ -169,7 +162,10 @@ async function seedHomeWithResult(
 
 describe("results get", () => {
 	it("returns a single result entity in json mode", async () => {
-		const home = await seedHomeWithResult("broadband", createBroadbandResult());
+		await using home = await seedHomeWithResult(
+			"broadband",
+			createBroadbandResult(),
+		);
 		const stdout = createWritable(false);
 		const stderr = createWritable();
 
@@ -247,7 +243,10 @@ describe("results get", () => {
 	});
 
 	it("prints a human-friendly broadband table from offerings", async () => {
-		const home = await seedHomeWithResult("broadband", createBroadbandResult());
+		await using home = await seedHomeWithResult(
+			"broadband",
+			createBroadbandResult(),
+		);
 		const stdout = createWritable(true);
 		const stderr = createWritable();
 
@@ -271,7 +270,7 @@ describe("results get", () => {
 	});
 
 	it("prints a travel-specific human-friendly table from offerings", async () => {
-		const home = await seedHomeWithResult("travel", createTravelResult());
+		await using home = await seedHomeWithResult("travel", createTravelResult());
 		const stdout = createWritable(true);
 		const stderr = createWritable();
 
@@ -293,8 +292,7 @@ describe("results get", () => {
 	});
 
 	it("returns a structured error when the local data store is corrupted", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		await home.writeMeridianFile("credentials.json", {
 			access_token: "access-token",
 			user: "john.doe@example.com",
@@ -327,8 +325,7 @@ describe("results get", () => {
 	});
 
 	it("returns a structured error when the data store path is a directory", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		await home.writeMeridianFile("credentials.json", {
 			access_token: "access-token",
 			user: "john.doe@example.com",

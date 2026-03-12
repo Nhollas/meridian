@@ -1,18 +1,11 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { resolveDependencies } from "@/runtime";
 import { readDataStore, writeDataStore } from "@/store/data";
 import { createTempHome } from "../../helpers/temp-home";
 
-const homes: Array<{ cleanup(): Promise<void>; homeDirectory: string }> = [];
-
-afterEach(async () => {
-	await Promise.all(homes.splice(0).map((home) => home.cleanup()));
-});
-
 describe("data store", () => {
 	it("returns an empty store when the file does not exist", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		const dependencies = resolveDependencies({
 			homeDirectory: home.homeDirectory,
 		});
@@ -27,8 +20,7 @@ describe("data store", () => {
 	});
 
 	it("persists the data store to disk", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		const dependencies = resolveDependencies({
 			homeDirectory: home.homeDirectory,
 		});

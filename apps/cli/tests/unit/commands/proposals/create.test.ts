@@ -1,20 +1,13 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { runCli } from "@/cli";
 import { createWritable } from "../../../helpers/streams";
 import { createTempHome } from "../../../helpers/temp-home";
 
-const homes: Array<{ cleanup(): Promise<void> }> = [];
-
-afterEach(async () => {
-	await Promise.all(homes.splice(0).map((home) => home.cleanup()));
-});
-
 describe("proposals create", () => {
 	it("creates a proposal and generates mock results", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		await home.writeMeridianFile("credentials.json", {
 			access_token: "access-token",
 			refresh_token: "refresh-token",
@@ -92,8 +85,7 @@ describe("proposals create", () => {
 	});
 
 	it("errors when the proposal request does not exist", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		await home.writeMeridianFile("credentials.json", {
 			access_token: "access-token",
 			refresh_token: "refresh-token",
@@ -122,8 +114,7 @@ describe("proposals create", () => {
 	});
 
 	it("stores a single result entity per proposal", async () => {
-		const home = await createTempHome();
-		homes.push(home);
+		await using home = await createTempHome();
 		await home.writeMeridianFile("credentials.json", {
 			access_token: "access-token",
 			user: "john.doe@example.com",
