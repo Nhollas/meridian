@@ -1,4 +1,4 @@
-import type { Writable } from "./runtime.js";
+import type { Writable } from "./runtime";
 
 export type OutputMode = "json" | "human";
 

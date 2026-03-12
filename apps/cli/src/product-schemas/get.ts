@@ -1,9 +1,9 @@
 import { z } from "zod";
 
-import { getProduct, getProposalRequestSchema } from "../catalogue/registry.js";
-import { writeError } from "../cli/command-helpers.js";
-import { writeJson } from "../output.js";
-import type { ResolvedCliDependencies } from "../runtime.js";
+import { getProduct, getProposalRequestSchema } from "@/catalogue/registry";
+import { writeError } from "@/cli/command-helpers";
+import { writeJson } from "@/output";
+import type { ResolvedCliDependencies } from "@/runtime";
 
 export type ProductSchemaOptions = {
 	product: string;

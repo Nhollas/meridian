@@ -4,10 +4,10 @@ import {
 	authenticateWithDeviceFlow,
 	pollDeviceAuthorisation,
 	requestDeviceAuthorisation,
-} from "../../../src/auth/lib/device-flow.js";
-import { AuthDeviceFlowError } from "../../../src/errors.js";
-import { createUnsignedJwt } from "../../helpers/jwt.js";
-import { mswServer } from "../../setup/msw.js";
+} from "@/auth/lib/device-flow";
+import { AuthDeviceFlowError } from "@/errors";
+import { createUnsignedJwt } from "../../helpers/jwt";
+import { mswServer } from "../../setup/msw";
 
 const issuer = "http://localhost:8180/realms/meridian";
 const authDeviceUrl = `${issuer}/protocol/openid-connect/auth/device`;

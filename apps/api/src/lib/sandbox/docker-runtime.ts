@@ -1,8 +1,8 @@
 import type { ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
+import type { SandboxConfig } from "./config";
 import type {
 	SandboxBackgroundCommand,
 	SandboxBackgroundCommandSnapshot,
@@ -18,7 +18,6 @@ import {
 	DEFAULT_TIMEOUT_MS,
 	getCheckedPath,
 	killSessionProcesses,
-	PROXY_ENV_VARS,
 	runInBackgroundUntilFirstStdoutLine,
 	runToCompletion,
 	runUntilFirstStdoutLine,
@@ -28,11 +27,6 @@ import {
 
 const CONTAINER_HOME = "/sandbox-home";
 const CONTAINER_EXTRA_CA_CERTS_PATH = "/sandbox-extra-ca.pem";
-const DEFAULT_DOCKER_IMAGE = "meridian-chat-sandbox:local";
-const DEFAULT_MERIDIAN_AUTH_CLIENT_ID = "meridian-cli";
-const DEFAULT_MERIDIAN_AUTH_ISSUER =
-	"http://host.docker.internal:8080/realms/meridian";
-const DEFAULT_SESSION_TTL_MS = 5 * 60 * 1000;
 
 type ContainerState = "missing" | "running" | "stopped";
 
@@ -46,14 +40,14 @@ type BackgroundCommandRecord = BackgroundCommandHandle & {
 	terminationRequested: boolean;
 };
 
-export function createDockerRuntime(instructionsFile: string): SandboxRuntime {
-	const dockerBinary = process.env["SANDBOX_DOCKER_BIN"] ?? "docker";
-	const rootDirectory =
-		process.env["SANDBOX_STATE_DIR"] ??
-		join(tmpdir(), "meridian-chat-sandbox-sessions");
-	const sandboxImage =
-		process.env["SANDBOX_DOCKER_IMAGE"] ?? DEFAULT_DOCKER_IMAGE;
-	const sessionTtlMs = getSessionTtlMs();
+export function createDockerRuntime(config: SandboxConfig): SandboxRuntime {
+	const {
+		dockerBinary,
+		instructionsFile,
+		rootDirectory,
+		sandboxImage,
+		sessionTtlMs,
+	} = config;
 	const activeProcesses = new Map<string, Set<ChildProcess>>();
 	const backgroundCommands = new Map<
 		string,
@@ -62,7 +56,7 @@ export function createDockerRuntime(instructionsFile: string): SandboxRuntime {
 	const sessionLocks = new Map<string, Promise<void>>();
 	const sessionTimestamps = new Map<string, Date>();
 	const ensuredDirectories = new Set<string>();
-	const containerRuntimeArgs = getContainerRuntimeArgs();
+	const containerRuntimeArgs = getContainerRuntimeArgs(config);
 
 	function getSessionDirectory(sessionId: string) {
 		validateSessionId(sessionId);
@@ -512,29 +506,18 @@ export function createDockerRuntime(instructionsFile: string): SandboxRuntime {
 	};
 }
 
-function getContainerRuntimeArgs() {
+function getContainerRuntimeArgs(config: SandboxConfig) {
 	const runtimeEnvironment: Record<string, string> = {
-		MERIDIAN_AUTH_CLIENT_ID:
-			process.env["MERIDIAN_AUTH_CLIENT_ID"] ?? DEFAULT_MERIDIAN_AUTH_CLIENT_ID,
-		MERIDIAN_AUTH_ISSUER:
-			process.env["MERIDIAN_AUTH_ISSUER"] ?? DEFAULT_MERIDIAN_AUTH_ISSUER,
+		MERIDIAN_AUTH_CLIENT_ID: config.meridianAuthClientId,
+		MERIDIAN_AUTH_ISSUER: config.meridianAuthIssuer,
+		...config.proxyEnv,
 	};
 
-	for (const envName of PROXY_ENV_VARS) {
-		const value = process.env[envName];
-		if (value) {
-			runtimeEnvironment[envName] = value;
-		}
-	}
-
 	const mountArgs: string[] = [];
-	const extraCaCertsFile =
-		process.env["SANDBOX_EXTRA_CA_CERTS_FILE"] ??
-		process.env["NODE_EXTRA_CA_CERTS"];
-	if (extraCaCertsFile) {
+	if (config.extraCaCertsFile) {
 		mountArgs.push(
 			"-v",
-			`${extraCaCertsFile}:${CONTAINER_EXTRA_CA_CERTS_PATH}:ro`,
+			`${config.extraCaCertsFile}:${CONTAINER_EXTRA_CA_CERTS_PATH}:ro`,
 		);
 		runtimeEnvironment["NODE_EXTRA_CA_CERTS"] = CONTAINER_EXTRA_CA_CERTS_PATH;
 	}
@@ -547,18 +530,4 @@ function getContainerRuntimeArgs() {
 		environmentArgs,
 		mountArgs,
 	};
-}
-
-function getSessionTtlMs() {
-	const raw = process.env["SANDBOX_SESSION_TTL_MS"];
-	if (!raw) {
-		return DEFAULT_SESSION_TTL_MS;
-	}
-
-	const parsed = Number.parseInt(raw, 10);
-	if (!Number.isFinite(parsed) || parsed <= 0) {
-		return DEFAULT_SESSION_TTL_MS;
-	}
-
-	return parsed;
 }

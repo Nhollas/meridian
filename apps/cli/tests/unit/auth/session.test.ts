@@ -3,7 +3,7 @@ import {
 	DEFAULT_AUTH_CLIENT_ID,
 	DEFAULT_AUTH_ISSUER,
 	getAuthConfig,
-} from "../../../src/auth/session.js";
+} from "@/auth/session";
 
 describe("auth session config", () => {
 	it("uses the official Meridian auth defaults when no overrides are set", () => {

@@ -1,4 +1,4 @@
-import type { ProductOffering, ResultRecord } from "../store/data.js";
+import type { ProductOffering, ResultRecord } from "@/store/data";
 
 type MockResultContext = {
 	customerId: string;

@@ -1,9 +1,9 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { runCli } from "../../../../src/cli.js";
-import { createWritable } from "../../../helpers/streams.js";
-import { createTempHome } from "../../../helpers/temp-home.js";
+import { runCli } from "@/cli";
+import { createWritable } from "../../../helpers/streams";
+import { createTempHome } from "../../../helpers/temp-home";
 
 const homes: Array<{ cleanup(): Promise<void> }> = [];
 

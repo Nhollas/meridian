@@ -1,11 +1,11 @@
-import { requireAuthentication } from "../auth/session.js";
-import { getProposalRequestSchema } from "../catalogue/registry.js";
-import { type JsonOption, writeError } from "../cli/command-helpers.js";
-import { writeJson, writeLines } from "../output.js";
-import type { ResolvedCliDependencies } from "../runtime.js";
-import { readDataStore, writeDataStore } from "../store/data.js";
-import { validateProposalRequestInput } from "../validation.js";
-import { readProposalRequestInput } from "./input-file.js";
+import { requireAuthentication } from "@/auth/session";
+import { getProposalRequestSchema } from "@/catalogue/registry";
+import { type JsonOption, writeError } from "@/cli/command-helpers";
+import { writeJson, writeLines } from "@/output";
+import type { ResolvedCliDependencies } from "@/runtime";
+import { readDataStore, writeDataStore } from "@/store/data";
+import { validateProposalRequestInput } from "@/validation";
+import { readProposalRequestInput } from "./input-file";
 
 export type ProposalRequestCreateOptions = JsonOption & {
 	file: string;

@@ -1,7 +1,7 @@
-import { listProducts } from "../catalogue/registry.js";
-import { writeJson, writeLines } from "../output.js";
-import type { ResolvedCliDependencies } from "../runtime.js";
-import { formatProductsList } from "./presenter.js";
+import { listProducts } from "@/catalogue/registry";
+import { writeJson, writeLines } from "@/output";
+import type { ResolvedCliDependencies } from "@/runtime";
+import { formatProductsList } from "./presenter";
 
 export async function handleProductsList(
 	dependencies: ResolvedCliDependencies,

@@ -1,9 +1,9 @@
-import { requireAuthentication } from "../auth/session.js";
-import { type JsonOption, writeError } from "../cli/command-helpers.js";
-import { writeJson, writeLines } from "../output.js";
-import type { ResolvedCliDependencies } from "../runtime.js";
-import { readDataStore } from "../store/data.js";
-import { formatResultsTable, sortResultOfferings } from "./presenter.js";
+import { requireAuthentication } from "@/auth/session";
+import { type JsonOption, writeError } from "@/cli/command-helpers";
+import { writeJson, writeLines } from "@/output";
+import type { ResolvedCliDependencies } from "@/runtime";
+import { readDataStore } from "@/store/data";
+import { formatResultsTable, sortResultOfferings } from "./presenter";
 
 export type ResultsGetOptions = JsonOption & {
 	proposal: string;

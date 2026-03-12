@@ -3,9 +3,9 @@ import {
 	addJsonOption,
 	getActionCommand,
 	getJsonMode,
-} from "../cli/command-helpers.js";
-import type { ResolvedCliDependencies } from "../runtime.js";
-import { handleProductsList } from "./list.js";
+} from "@/cli/command-helpers";
+import type { ResolvedCliDependencies } from "@/runtime";
+import { handleProductsList } from "./list";
 
 export function registerProductsCommands(
 	program: Command,

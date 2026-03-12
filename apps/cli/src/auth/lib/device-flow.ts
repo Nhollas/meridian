@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { AuthDeviceFlowError } from "../../errors.js";
-import type { StoredCredentials } from "../../store/credentials.js";
-import { type AuthConfig, extractUserFromIdToken } from "./token.js";
+import { AuthDeviceFlowError } from "@/errors";
+import type { StoredCredentials } from "@/store/credentials";
+import { type AuthConfig, extractUserFromIdToken } from "./token";
 
 type DeviceFlowDependencies = {
 	now: () => Date;

@@ -2,11 +2,11 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { HttpResponse, http } from "msw";
 import { afterEach, describe, expect, it } from "vitest";
-import { runCli } from "../../../../src/cli.js";
-import { createUnsignedJwt } from "../../../helpers/jwt.js";
-import { createWritable } from "../../../helpers/streams.js";
-import { createTempHome } from "../../../helpers/temp-home.js";
-import { mswServer } from "../../../setup/msw.js";
+import { runCli } from "@/cli";
+import { createUnsignedJwt } from "../../../helpers/jwt";
+import { createWritable } from "../../../helpers/streams";
+import { createTempHome } from "../../../helpers/temp-home";
+import { mswServer } from "../../../setup/msw";
 
 const homes: Array<{ cleanup(): Promise<void> }> = [];
 

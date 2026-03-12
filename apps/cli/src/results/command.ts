@@ -3,9 +3,9 @@ import {
 	addJsonOption,
 	getActionCommand,
 	getJsonMode,
-} from "../cli/command-helpers.js";
-import type { ResolvedCliDependencies } from "../runtime.js";
-import { handleResultsGet, type ResultsGetOptions } from "./get.js";
+} from "@/cli/command-helpers";
+import type { ResolvedCliDependencies } from "@/runtime";
+import { handleResultsGet, type ResultsGetOptions } from "./get";
 
 export function registerResultCommands(
 	program: Command,

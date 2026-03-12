@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { runCli } from "../../src/cli.js";
-import { createWritable } from "../helpers/streams.js";
+import { runCli } from "@/cli";
+import { createWritable } from "../helpers/streams";
 
 const packageJson = JSON.parse(
 	readFileSync(new URL("../../package.json", import.meta.url), "utf8"),

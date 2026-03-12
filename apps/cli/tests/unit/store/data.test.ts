@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { resolveDependencies } from "../../../src/runtime.js";
-import { readDataStore, writeDataStore } from "../../../src/store/data.js";
-import { createTempHome } from "../../helpers/temp-home.js";
+import { resolveDependencies } from "@/runtime";
+import { readDataStore, writeDataStore } from "@/store/data";
+import { createTempHome } from "../../helpers/temp-home";
 
 const homes: Array<{ cleanup(): Promise<void>; homeDirectory: string }> = [];
 

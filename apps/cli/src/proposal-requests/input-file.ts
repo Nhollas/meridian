@@ -2,8 +2,8 @@ import {
 	InputFileParseError,
 	InputFileReadError,
 	InvalidStoredStateError,
-} from "../errors.js";
-import type { ResolvedCliDependencies } from "../runtime.js";
+} from "@/errors";
+import type { ResolvedCliDependencies } from "@/runtime";
 
 export async function readProposalRequestInput(
 	dependencies: ResolvedCliDependencies,

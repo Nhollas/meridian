@@ -3,11 +3,11 @@ import {
 	addJsonOption,
 	getActionCommand,
 	getJsonMode,
-} from "../cli/command-helpers.js";
-import type { ResolvedCliDependencies } from "../runtime.js";
-import { handleAuthLogin } from "./login.js";
-import { handleAuthLogout } from "./logout.js";
-import { handleAuthStatus } from "./status.js";
+} from "@/cli/command-helpers";
+import type { ResolvedCliDependencies } from "@/runtime";
+import { handleAuthLogin } from "./login";
+import { handleAuthLogout } from "./logout";
+import { handleAuthStatus } from "./status";
 
 export function registerAuthCommands(
 	program: Command,

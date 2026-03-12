@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { z } from "zod";
-import { InvalidStoredStateError } from "../errors.js";
-import type { FileSystem } from "../runtime.js";
+import { InvalidStoredStateError } from "@/errors";
+import type { FileSystem } from "@/runtime";
 
 const proposalRequestRecordSchema = z.object({
 	created_at: z.string(),

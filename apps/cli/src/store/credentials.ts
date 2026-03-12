@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { z } from "zod";
-import { InvalidStoredStateError } from "../errors.js";
-import type { FileSystem } from "../runtime.js";
+import { InvalidStoredStateError } from "@/errors";
+import type { FileSystem } from "@/runtime";
 
 const storedCredentialsSchema = z.object({
 	access_token: z.string(),
