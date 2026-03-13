@@ -101,4 +101,32 @@ describe("agent service", () => {
 			toolCalls: [],
 		});
 	});
+
+	it("excludes reasoning blocks from streamed assistant text", async () => {
+		const runtime = createInMemorySandboxRuntime();
+		const createRunner = createScriptedAgentRunner(async function* () {
+			yield {
+				content: [
+					{ reasoning: "I checked auth first.", type: "reasoning" },
+					{
+						text: "Please complete sign-in and send your postcode.",
+						type: "text",
+					},
+				],
+				messageType: "ai",
+				mode: "messages",
+			};
+		});
+		const service = createAgentService({ createRunner, runtime });
+
+		await expect(
+			service.streamConversation({
+				message: "Compare broadband for me",
+				sessionId: "session-a",
+			}),
+		).resolves.toEqual({
+			content: "Please complete sign-in and send your postcode.",
+			toolCalls: [],
+		});
+	});
 });
