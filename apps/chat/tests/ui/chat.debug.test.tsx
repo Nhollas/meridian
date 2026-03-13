@@ -32,7 +32,7 @@ describe("Chat UI - debug controls", () => {
 		await chatPage.expectAssistantResponse("Done.");
 
 		expect(requestHeaders).toMatchObject({
-			"x-meridian-debug-stream-delay-ms": "120",
+			"meridian-debug-stream-delay-ms": "120",
 		});
 	});
 

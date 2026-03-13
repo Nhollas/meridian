@@ -57,11 +57,11 @@ describe("Chat UI - submission and streaming", () => {
 		await chatPage.expectMessageInputValue("");
 		expect(requestBody).toMatchObject({
 			message: "Find me a deal",
-			sessionId: expect.any(String),
 		});
 		expect(requestHeaders).toMatchObject({
 			"content-type": "application/json",
-			"x-meridian-debug-stream-delay-ms": "0",
+			"session-id": expect.any(String),
+			"meridian-debug-stream-delay-ms": "0",
 		});
 	});
 });

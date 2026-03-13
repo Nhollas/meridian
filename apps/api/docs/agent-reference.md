@@ -42,9 +42,9 @@ Validation failures are different from streamed turn failures.
 
 ### Session Model
 
-The caller must provide `sessionId` on every request.
+The caller must provide the `Session-Id` header on every request.
 
-- `sessionId` must match `^[A-Za-z0-9_-]+$`
+- `Session-Id` must match `^[A-Za-z0-9_-]+$`
 - empty values are rejected
 - the same `sessionId` continues the same conversation history
 - a different `sessionId` starts a new conversation
@@ -81,29 +81,31 @@ Submits one user message to the current session and streams runtime events for t
 ```bash
 curl -N http://localhost:3000/api/chat \
   -H 'Content-Type: application/json' \
+  -H 'Session-Id: session-123' \
   -d '{
-    "sessionId": "session-123",
     "message": "Find me a broadband quote"
   }'
 ```
+
+Required headers:
+
+- `Session-Id`: required string used to continue or create a conversation session (must match `^[A-Za-z0-9_-]+$`)
 
 Request body:
 
 ```json
 {
-  "sessionId": "session-123",
   "message": "Find me a broadband quote"
 }
 ```
 
 Fields:
 
-- `sessionId`: required string used to continue or create a conversation session
 - `message`: required non-empty user message
 
 Behaviour:
 
-- validates `sessionId` and `message`
+- validates the `Session-Id` header and `message`
 - loads any stored conversation history for the session
 - appends the new user message to the history sent to the agent
 - streams runtime events as the turn progresses

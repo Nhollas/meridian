@@ -61,7 +61,7 @@ describe("POST /api/chat integration - debug stream delay", () => {
 					},
 					{
 						headers: {
-							"x-meridian-debug-stream-delay-ms": "50",
+							"meridian-debug-stream-delay-ms": "50",
 						},
 					},
 				),
