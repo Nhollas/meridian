@@ -10,9 +10,10 @@ export function createChatRequest(
 	},
 ) {
 	return new Request("http://localhost/api/chat", {
-		body: JSON.stringify(body),
+		body: JSON.stringify({ message: body.message }),
 		headers: {
 			"Content-Type": "application/json",
+			"session-id": body.sessionId,
 			...(options?.headers ?? {}),
 		},
 		method: "POST",

@@ -17,17 +17,17 @@ import {
 	mapErrorToRuntimeEvent,
 } from "@/lib/runtime-events/agent-mappers";
 import type { SandboxRuntime } from "@/lib/sandbox/runtime";
-import { SESSION_ID_PATTERN } from "@/lib/sandbox/runtime-shared";
 import { getSandboxRuntime } from "@/lib/sandbox/singleton";
 
 const MAX_DEBUG_DELAY_MS = 1000;
 const encoder = new TextEncoder();
 
+const sessionIdSchema = z
+	.string()
+	.min(1, "Missing or invalid sessionId.")
+	.regex(/^[A-Za-z0-9_-]+$/, "Missing or invalid sessionId.");
+
 const chatRequestSchema = z.object({
-	sessionId: z
-		.string()
-		.nonempty("Missing or invalid sessionId.")
-		.regex(SESSION_ID_PATTERN, "Missing or invalid sessionId."),
 	message: z
 		.string()
 		.nonempty("Missing or invalid message.")
@@ -48,14 +48,24 @@ export function createChatRoute({
 	sleep = delay,
 }: ChatRouteDependencies = {}) {
 	return async (request: Request) => {
-		const result = chatRequestSchema.safeParse(await request.json());
+		const sessionIdResult = sessionIdSchema.safeParse(
+			request.headers.get("session-id"),
+		);
 
-		if (!result.success) {
-			const errors = result.error.issues.map((issue) => issue.message);
+		if (!sessionIdResult.success) {
+			const errors = sessionIdResult.error.issues.map((issue) => issue.message);
 			return Response.json({ errors }, { status: 400 });
 		}
 
-		const { message, sessionId } = result.data;
+		const bodyResult = chatRequestSchema.safeParse(await request.json());
+
+		if (!bodyResult.success) {
+			const errors = bodyResult.error.issues.map((issue) => issue.message);
+			return Response.json({ errors }, { status: 400 });
+		}
+
+		const sessionId = sessionIdResult.data;
+		const { message } = bodyResult.data;
 		const debugDelayMs = getDebugDelayMs(request.headers);
 		const runtime = getRuntime();
 		const agentService = createAgentService({ runtime });
@@ -135,7 +145,7 @@ export function createChatRoute({
 export const handleChat = createChatRoute();
 
 function getDebugDelayMs(headers: Headers) {
-	const raw = headers.get("x-meridian-debug-stream-delay-ms");
+	const raw = headers.get("meridian-debug-stream-delay-ms");
 	if (!raw) {
 		return 0;
 	}

@@ -147,11 +147,11 @@ export function Chat() {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
-					"x-meridian-debug-stream-delay-ms": String(debugStreamDelayMs),
+					"session-id": activeSessionId,
+					"meridian-debug-stream-delay-ms": String(debugStreamDelayMs),
 				},
 				body: JSON.stringify({
 					message: content,
-					sessionId: activeSessionId,
 				}),
 			});
 
