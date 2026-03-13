@@ -241,10 +241,9 @@ describe("POST /api/chat", () => {
 		});
 
 		const turnCompleted = events.find((e) => e.type === "turn.completed");
-		expect(turnCompleted).toBeDefined();
-		const toolCallIds = (
-			turnCompleted!.payload as { toolCalls: AgentToolCall[] }
-		).toolCalls.map((tc) => tc.id);
+		if (turnCompleted?.type !== "turn.completed")
+			throw new Error("expected turn.completed event");
+		const toolCallIds = turnCompleted.payload.toolCalls.map((tc) => tc.id);
 		const uniqueIds = new Set(toolCallIds);
 		expect(uniqueIds.size).toBe(toolCallIds.length);
 	});

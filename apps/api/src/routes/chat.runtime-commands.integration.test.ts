@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	createChatRequest,
+	getParsedToolOutput,
 	readRuntimeEvents,
 } from "../../tests/support/chat-route";
 import { createInMemorySandboxRuntime } from "../../tests/support/in-memory-runtime";
@@ -53,35 +54,14 @@ describe("POST /api/chat integration - runtime commands", () => {
 				}),
 			),
 		);
-		const commandCompletedEvent = events.find(
-			(event) => event.type === "tool.completed",
-		);
-		const turnCompletedEvent = events.find(
-			(event) => event.type === "turn.completed",
-		);
-
-		expect(commandCompletedEvent).toMatchObject({
-			sessionId: "session-command",
-			type: "tool.completed",
-			payload: {
-				toolCall: {
-					id: "tool-1",
-					input: '{"command":["pwd"]}',
-					name: "run_command",
-				},
-			},
-		});
-		expect(
-			JSON.parse(
-				(commandCompletedEvent!.payload as { toolCall: { output: string } })
-					.toolCall.output,
-			),
-		).toEqual({
+		expect(getParsedToolOutput(events, "run_command")).toEqual({
 			exitCode: 0,
 			stderr: "",
 			stdout: "/workspace\n",
 		});
-		expect(turnCompletedEvent).toMatchObject({
+		expect(
+			events.find((event) => event.type === "turn.completed"),
+		).toMatchObject({
 			sessionId: "session-command",
 			type: "turn.completed",
 			payload: {

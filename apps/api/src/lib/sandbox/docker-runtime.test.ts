@@ -1,5 +1,6 @@
 import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { assertDefined } from "../../../tests/support/assertions";
 
 const childProcessMocks = vi.hoisted(() => ({
 	execFile: vi.fn(),
@@ -540,22 +541,22 @@ describe("createDockerRuntime", () => {
 		});
 		expect(child.unref).toHaveBeenCalled();
 
+		const backgroundCommandId = result.backgroundCommandId;
+		assertDefined(backgroundCommandId);
+
 		await expect(
 			runtime.listBackgroundCommands("session-background"),
 		).resolves.toEqual([
 			{
 				command: ["meridian", "auth", "login", "--json"],
 				exitCode: null,
-				id: result.backgroundCommandId,
+				id: backgroundCommandId,
 				startedAt: expect.any(String),
 				status: "running",
 			},
 		]);
 		await expect(
-			runtime.getBackgroundCommand(
-				"session-background",
-				result.backgroundCommandId!,
-			),
+			runtime.getBackgroundCommand("session-background", backgroundCommandId),
 		).resolves.toEqual({
 			command: ["meridian", "auth", "login", "--json"],
 			exitCode: null,
@@ -578,7 +579,7 @@ describe("createDockerRuntime", () => {
 		await expect(
 			runtime.waitForBackgroundCommand(
 				"session-background",
-				result.backgroundCommandId!,
+				backgroundCommandId,
 			),
 		).resolves.toEqual({
 			command: ["meridian", "auth", "login", "--json"],

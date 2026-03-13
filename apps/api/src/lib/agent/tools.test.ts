@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { SandboxRuntime } from "@/lib/sandbox/runtime";
+import { createInMemorySandboxRuntime } from "../../../tests/support/in-memory-runtime";
 
 // biome-ignore lint/complexity/noBannedTypes: test helper for mocked langchain tools
 type AnyFn = Function;
@@ -12,23 +12,6 @@ vi.mock("langchain", () => ({
 }));
 
 import { createRuntimeAgentTools, extractTextContent } from "@/lib/agent/tools";
-
-function createMockRuntime(): SandboxRuntime {
-	return {
-		createSession: vi.fn(),
-		deleteSessionFile: vi.fn(),
-		destroySession: vi.fn(),
-		getBackgroundCommand: vi.fn().mockResolvedValue({}),
-		getInstructions: vi.fn().mockResolvedValue("runtime instructions"),
-		listBackgroundCommands: vi.fn().mockResolvedValue([]),
-		listSessionFiles: vi.fn().mockResolvedValue([]),
-		readSessionFile: vi.fn().mockResolvedValue("file content"),
-		runCommand: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "ok" }),
-		terminateBackgroundCommand: vi.fn().mockResolvedValue({}),
-		waitForBackgroundCommand: vi.fn().mockResolvedValue({}),
-		writeSessionFile: vi.fn().mockResolvedValue("/workspace/test.txt"),
-	} as unknown as SandboxRuntime;
-}
 
 function findTool(
 	tools: ReturnType<typeof createRuntimeAgentTools>,
@@ -52,7 +35,9 @@ describe("createRuntimeAgentTools", () => {
 	});
 
 	it("returns a result from the runtime", async () => {
-		const runtime = createMockRuntime();
+		const runtime = createInMemorySandboxRuntime({
+			files: { "test.txt": "file content" },
+		});
 		const tools = createRuntimeAgentTools({ runtime, sessionId: "sess-1" });
 
 		const result = await invokeTool(findTool(tools, "read_file"), {
@@ -60,23 +45,24 @@ describe("createRuntimeAgentTools", () => {
 		});
 
 		expect(result).toBe("file content");
-		expect(runtime.readSessionFile).toHaveBeenCalledWith("sess-1", "test.txt");
+		expect(runtime.calls).toContainEqual({
+			method: "readSessionFile",
+			sessionId: "sess-1",
+			args: ["test.txt"],
+		});
 	});
 
 	it("propagates runtime errors", async () => {
-		const runtime = createMockRuntime();
-		vi.mocked(runtime.readSessionFile).mockRejectedValue(
-			new Error("not found"),
-		);
+		const runtime = createInMemorySandboxRuntime();
 		const tools = createRuntimeAgentTools({ runtime, sessionId: "sess-1" });
 
 		await expect(
 			invokeTool(findTool(tools, "read_file"), { path: "missing.txt" }),
-		).rejects.toThrow("not found");
+		).rejects.toThrow("File not found: missing.txt");
 	});
 
 	it("passes command options through to the runtime", async () => {
-		const runtime = createMockRuntime();
+		const runtime = createInMemorySandboxRuntime();
 		const tools = createRuntimeAgentTools({ runtime, sessionId: "sess-1" });
 
 		await invokeTool(findTool(tools, "run_command"), {
@@ -85,14 +71,15 @@ describe("createRuntimeAgentTools", () => {
 			waitFor: "exit",
 		});
 
-		expect(runtime.runCommand).toHaveBeenCalledWith("sess-1", ["ls", "-la"], {
-			timeoutMs: 5000,
-			waitFor: "exit",
+		expect(runtime.calls).toContainEqual({
+			method: "runCommand",
+			sessionId: "sess-1",
+			args: [["ls", "-la"], { timeoutMs: 5000, waitFor: "exit" }],
 		});
 	});
 
 	it("creates all expected tools", () => {
-		const runtime = createMockRuntime();
+		const runtime = createInMemorySandboxRuntime();
 		const tools = createRuntimeAgentTools({ runtime, sessionId: "sess-1" });
 
 		const names = tools.map((t) => t.name);
