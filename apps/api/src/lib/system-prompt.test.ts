@@ -26,9 +26,42 @@ describe("system prompt contract", () => {
 		);
 	});
 
+	it("tells the agent to treat routine prerequisites like auth startup as part of fulfilling the request", () => {
+		expect(systemPrompt).toContain(
+			"Treat routine prerequisites such as starting authentication as part of fulfilling the request, including on follow-up turns where the user is only providing missing details.",
+		);
+	});
+
+	it("tells the agent to re-check changing prerequisites and keep requests user-friendly", () => {
+		expect(systemPrompt).toContain(
+			"On follow-up turns, if a prerequisite may have changed state in the background, re-check it before asking the user to repeat or confirm it.",
+		);
+		expect(systemPrompt).toContain(
+			"Use plain language for user-facing requests. Translate schema field names into natural wording instead of echoing raw property names.",
+		);
+		expect(systemPrompt).toContain(
+			"Do not ask the user to reply in JSON unless they asked for that format or the task truly requires pasted JSON.",
+		);
+		expect(systemPrompt).toContain(
+			"If the user has already provided all required fields, proceed with sensible defaults for optional fields instead of asking them to confirm that they have no preferences.",
+		);
+	});
+
 	it("tells the agent not to claim background work is running without a live command id", () => {
 		expect(systemPrompt).toContain(
 			"Do not claim a task is still running unless you actually have a live `backgroundCommandId`.",
+		);
+	});
+
+	it("tells the agent to lead with the user-facing outcome and keep replies cohesive", () => {
+		expect(systemPrompt).toContain(
+			"Lead with the result, decision, or required next action.",
+		);
+		expect(systemPrompt).toContain(
+			"Mention tool use or exploration only when it materially changes what the user needs to know.",
+		);
+		expect(systemPrompt).toContain(
+			"Your final reply for each turn should read as one cohesive response, not a chronological log of tool calls or repeated restatements.",
 		);
 	});
 });

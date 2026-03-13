@@ -11,7 +11,7 @@ vi.mock("langchain", () => ({
 	},
 }));
 
-import { createRuntimeAgentTools } from "@/lib/agent/tools";
+import { createRuntimeAgentTools, extractTextContent } from "@/lib/agent/tools";
 
 function createMockRuntime(): SandboxRuntime {
 	return {
@@ -107,5 +107,14 @@ describe("createRuntimeAgentTools", () => {
 			"read_file",
 			"write_file",
 		]);
+	});
+
+	it("extracts visible text content without including reasoning blocks", () => {
+		expect(
+			extractTextContent([
+				{ reasoning: "Checked auth and schema.", type: "reasoning" },
+				{ text: "Please sign in and send your postcode.", type: "text" },
+			]),
+		).toBe("Please sign in and send your postcode.");
 	});
 });

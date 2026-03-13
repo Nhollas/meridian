@@ -201,14 +201,6 @@ export function extractTextContent(content: unknown): string {
 				return item.text;
 			}
 
-			if (
-				item.type === "reasoning" &&
-				"reasoning" in item &&
-				typeof item.reasoning === "string"
-			) {
-				return item.reasoning;
-			}
-
 			return "";
 		})
 		.join("");
