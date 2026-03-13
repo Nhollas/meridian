@@ -1,10 +1,10 @@
-# Meridian Agent Reference
+# Meridian API Reference
 
-This document is the authoritative reference for the current Meridian agent surface exposed by the API. It describes the `/api/chat` contract, streamed event behaviour, session model, and the runtime-backed capabilities the agent can use today. It should track what the application does today.
+This document is the authoritative reference for the Meridian API. It describes the `/api/chat` contract, streamed event behaviour, session model, and the runtime-backed capabilities available to consumers. It should track what the application does today.
 
 ## Scope
 
-The current agent surface supports:
+The current API surface supports:
 
 - one chat endpoint at `POST /api/chat`
 - newline-delimited JSON streaming of runtime events
@@ -15,7 +15,7 @@ The current implementation is still local-runtime oriented. Session history is s
 
 ## Defined Terms
 
-These terms are used throughout the agent reference and retain their runtime meaning:
+These terms are used throughout the API reference and retain their meaning:
 
 | Term | Description |
 | --- | --- |
@@ -120,13 +120,13 @@ Validation error responses:
 
 ```json
 {
-  "error": "Missing or invalid sessionId."
+  "errors": ["Missing or invalid sessionId."]
 }
 ```
 
 ```json
 {
-  "error": "Missing or invalid message."
+  "errors": ["Missing or invalid message."]
 }
 ```
 
@@ -295,15 +295,9 @@ Behaviourally, it:
 - asks the user when required information is missing or when the next step has meaningful external side effects
 - can initiate background work, continue other useful work, and then inspect or wait on that background work later
 
-### Tool Loop Guards
+### Recursion Limit
 
-The current implementation applies basic loop protection inside a turn.
-
-- the exact same tool call is rejected if the agent tries to repeat it in the same turn
-- a turn is limited to `12` tool calls
-- the underlying agent recursion limit is `20`
-
-If the recursion limit is hit, the turn still completes with an explanatory assistant message and the recorded tool timeline rather than surfacing a raw runtime error.
+The agent has a recursion limit of `20` iterations per turn. If the limit is hit, the turn still completes with an explanatory assistant message and the recorded tool timeline rather than surfacing a raw runtime error.
 
 ## Runtime Tool Surface
 
@@ -342,11 +336,11 @@ Consumers should treat the event stream as append-only for the current turn and 
 
 ## Current Limitations
 
-The current agent surface is intentionally narrower than the long-term runtime direction.
+The current API surface is intentionally narrower than the long-term runtime direction.
 
 - session history is in-memory only and resets on process restart
 - there is no separate task API yet
 - there is no dedicated approvals or artifacts contract yet
 - `/api/chat` is the only current consumer-facing agent endpoint
 
-Those capabilities may be added later, but they are not part of the current agent contract.
+Those capabilities may be added later, but they are not part of the current API contract.
