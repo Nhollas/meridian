@@ -1,6 +1,10 @@
 import type { RuntimeEventEnvelope } from "@meridian/contracts/runtime-events";
 import { describe, expect, it } from "vitest";
-import { buildDebugTrace, createTurnTrace } from "@/lib/chat/debug-trace";
+import {
+	buildCopyDebugTrace,
+	buildDebugTrace,
+	createTurnTrace,
+} from "@/lib/chat/debug-trace";
 import type { ChatMessageViewModel } from "@/lib/chat/view-models";
 
 const runtimeEvents: RuntimeEventEnvelope[] = [
@@ -83,5 +87,60 @@ describe("chat debug trace", () => {
 				turnLogs: [turnTrace],
 			}).turnLogs[0]?.runtimeEvents,
 		).toEqual(runtimeEvents);
+	});
+
+	it("builds a compact copy trace with messages and tool calls only", () => {
+		const copyTrace = buildCopyDebugTrace({
+			messages: [
+				{
+					content: "Find me a deal",
+					id: "msg-user-1",
+					role: "user",
+					timestamp: "2026-03-10T12:00:00.000Z",
+				},
+				{
+					content: "I found 2 offers worth comparing.",
+					id: "msg-assistant-1",
+					role: "assistant",
+					timestamp: "2026-03-10T12:00:02.000Z",
+					toolCalls: [
+						{
+							id: "tool-1",
+							input: '{"path":"offers.json"}',
+							name: "read_file",
+							result: '{"offers":2}',
+							status: "completed",
+						},
+					],
+				},
+			] satisfies ChatMessageViewModel[],
+			sessionId: "session-123",
+		});
+
+		expect(copyTrace).toMatchObject({
+			sessionId: "session-123",
+			messages: [
+				{
+					content: "Find me a deal",
+					id: "msg-user-1",
+					role: "user",
+				},
+				{
+					content: "I found 2 offers worth comparing.",
+					id: "msg-assistant-1",
+					role: "assistant",
+					toolCalls: [
+						{
+							id: "tool-1",
+							input: '{"path":"offers.json"}',
+							name: "read_file",
+							result: '{"offers":2}',
+							status: "completed",
+						},
+					],
+				},
+			],
+		});
+		expect(copyTrace).not.toHaveProperty("turnLogs");
 	});
 });

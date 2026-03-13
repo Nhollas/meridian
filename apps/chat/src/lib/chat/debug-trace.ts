@@ -2,6 +2,11 @@ import type { RuntimeEventEnvelope } from "@meridian/contracts/runtime-events";
 import type { ToolCallViewModel } from "./contracts";
 import type { ChatMessageViewModel } from "./view-models";
 
+type DebugTraceExportArgs = {
+	messages: ChatMessageViewModel[];
+	sessionId: string | null;
+};
+
 export type ChatTurnTrace = {
 	at: string;
 	/** ID of the user message that triggered this turn. */
@@ -44,9 +49,7 @@ export function buildDebugTrace({
 	messages,
 	sessionId,
 	turnLogs,
-}: {
-	messages: ChatMessageViewModel[];
-	sessionId: string | null;
+}: DebugTraceExportArgs & {
 	turnLogs: ChatTurnTrace[];
 }) {
 	return {
@@ -54,5 +57,16 @@ export function buildDebugTrace({
 		sessionId,
 		messages,
 		turnLogs,
+	};
+}
+
+export function buildCopyDebugTrace({
+	messages,
+	sessionId,
+}: DebugTraceExportArgs) {
+	return {
+		exportedAt: new Date().toISOString(),
+		sessionId,
+		messages,
 	};
 }
