@@ -17,18 +17,18 @@ describe("proposal-requests create", () => {
 				emailAddress: "john.doe@example.com",
 				data: {
 					postcode: "AA1 1AA",
-					current_provider: "BT",
+					currentProvider: "BT",
 					preferences: {
-						max_monthly_cost: 40,
+						maxMonthlyCost: 40,
 					},
 				},
 			}),
 		);
 		await home.writeMeridianFile("credentials.json", {
-			access_token: "access-token",
-			refresh_token: "refresh-token",
+			accessToken: "access-token",
+			refreshToken: "refresh-token",
 			user: "john.doe@example.com",
-			expires_at: "2026-03-07T16:20:00Z",
+			expiresAt: "2026-03-07T16:20:00Z",
 		});
 
 		const stdout = createWritable();
@@ -61,7 +61,7 @@ describe("proposal-requests create", () => {
 			product: "broadband",
 			version: "1.0",
 			status: "draft",
-			created_at: "2026-03-06T16:20:00.000Z",
+			createdAt: "2026-03-06T16:20:00.000Z",
 		});
 		expect(stderr.output()).toBe("");
 	});
@@ -75,18 +75,18 @@ describe("proposal-requests create", () => {
 				emailAddress: "john.doe@example.com",
 				data: {
 					postcode: "AA1 1AA",
-					current_provider: "BT",
+					currentProvider: "BT",
 					preferences: {
-						max_monthly_cost: 40,
+						maxMonthlyCost: 40,
 					},
 				},
 			}),
 		);
 		await home.writeMeridianFile("credentials.json", {
-			access_token: "access-token",
-			refresh_token: "refresh-token",
+			accessToken: "access-token",
+			refreshToken: "refresh-token",
 			user: "john.doe@example.com",
-			expires_at: "2026-03-07T16:20:00Z",
+			expiresAt: "2026-03-07T16:20:00Z",
 		});
 
 		const stdout = createWritable();
@@ -116,7 +116,7 @@ describe("proposal-requests create", () => {
 			product: "broadband",
 			version: "1.0",
 			status: "draft",
-			created_at: "2026-03-06T16:20:00.000Z",
+			createdAt: "2026-03-06T16:20:00.000Z",
 		});
 		expect(stderr.output()).toBe("");
 	});
@@ -132,10 +132,10 @@ describe("proposal-requests create", () => {
 			}),
 		);
 		await home.writeMeridianFile("credentials.json", {
-			access_token: "access-token",
-			refresh_token: "refresh-token",
+			accessToken: "access-token",
+			refreshToken: "refresh-token",
 			user: "john.doe@example.com",
-			expires_at: "2026-03-07T16:20:00Z",
+			expiresAt: "2026-03-07T16:20:00Z",
 		});
 
 		const stdout = createWritable(false);
@@ -180,10 +180,10 @@ describe("proposal-requests create", () => {
 		const inputFile = join(home.homeDirectory, "invalid-json.json");
 		await writeFile(inputFile, "{invalid json");
 		await home.writeMeridianFile("credentials.json", {
-			access_token: "access-token",
-			refresh_token: "refresh-token",
+			accessToken: "access-token",
+			refreshToken: "refresh-token",
 			user: "john.doe@example.com",
-			expires_at: "2026-03-07T16:20:00Z",
+			expiresAt: "2026-03-07T16:20:00Z",
 		});
 
 		const stdout = createWritable(false);
@@ -217,10 +217,10 @@ describe("proposal-requests create", () => {
 		await using home = await createTempHome();
 		const inputFile = join(home.homeDirectory, "missing.json");
 		await home.writeMeridianFile("credentials.json", {
-			access_token: "access-token",
-			refresh_token: "refresh-token",
+			accessToken: "access-token",
+			refreshToken: "refresh-token",
 			user: "john.doe@example.com",
-			expires_at: "2026-03-07T16:20:00Z",
+			expiresAt: "2026-03-07T16:20:00Z",
 		});
 
 		const stdout = createWritable(false);
@@ -302,10 +302,10 @@ describe("proposal-requests create", () => {
 			}),
 		);
 		await home.writeMeridianFile("credentials.json", {
-			access_token: "expired-access",
-			refresh_token: "refresh-token",
+			accessToken: "expired-access",
+			refreshToken: "refresh-token",
 			user: "john.doe@example.com",
-			expires_at: "2026-03-06T10:00:00Z",
+			expiresAt: "2026-03-06T10:00:00Z",
 		});
 
 		const stdout = createWritable(false);
@@ -353,6 +353,54 @@ describe("proposal-requests create", () => {
 			id: "pr-a1b2c3d4",
 		});
 		expect(stderr.output()).toBe("");
+	});
+
+	it("shows validation issues in human mode", async () => {
+		await using home = await createTempHome();
+		const inputFile = join(home.homeDirectory, "invalid.json");
+		await writeFile(
+			inputFile,
+			JSON.stringify({
+				emailAddress: "not-an-email",
+				data: {},
+			}),
+		);
+		await home.writeMeridianFile("credentials.json", {
+			accessToken: "access-token",
+			refreshToken: "refresh-token",
+			user: "john.doe@example.com",
+			expiresAt: "2026-03-07T16:20:00Z",
+		});
+
+		const stdout = createWritable();
+		const stderr = createWritable();
+
+		const exitCode = await runCli(
+			[
+				"proposal-requests",
+				"create",
+				"--product=broadband",
+				"--version=1.0",
+				`--file=${inputFile}`,
+			],
+			{
+				homeDirectory: home.homeDirectory,
+				now: () => new Date("2026-03-06T16:20:00Z"),
+				randomId: (prefix) => `${prefix}-a1b2c3d4`,
+				stdout: stdout.stream,
+				stderr: stderr.stream,
+			},
+		);
+
+		expect(exitCode).toBe(1);
+		expect(stderr.output()).toContain("Error: Validation failed");
+		expect(stderr.output()).toContain(
+			"emailAddress: Must be a valid email address",
+		);
+		expect(stderr.output()).toContain(
+			"data.postcode: Invalid input: expected string, received undefined",
+		);
+		expect(stdout.output()).toBe("");
 	});
 
 	it("shows subcommand help instead of validating flags", async () => {

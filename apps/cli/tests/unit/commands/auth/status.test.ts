@@ -28,10 +28,10 @@ describe("auth status", () => {
 	it("refreshes expired credentials before reporting status", async () => {
 		await using home = await createTempHome();
 		await home.writeMeridianFile("credentials.json", {
-			access_token: "expired-access",
-			refresh_token: "refresh-token",
+			accessToken: "expired-access",
+			refreshToken: "refresh-token",
 			user: "john.doe@example.com",
-			expires_at: "2026-03-06T10:00:00Z",
+			expiresAt: "2026-03-06T10:00:00Z",
 		});
 		const stdout = createWritable(false);
 		const stderr = createWritable();
@@ -65,7 +65,7 @@ describe("auth status", () => {
 		expect(JSON.parse(stdout.output())).toEqual({
 			authenticated: true,
 			user: "john.doe@example.com",
-			expires_at: "2026-03-06T10:10:00.000Z",
+			expiresAt: "2026-03-06T10:10:00.000Z",
 		});
 		expect(stderr.output()).toBe("");
 	});
@@ -73,10 +73,10 @@ describe("auth status", () => {
 	it("returns a structured error when credential refresh hits a transport failure", async () => {
 		await using home = await createTempHome();
 		await home.writeMeridianFile("credentials.json", {
-			access_token: "expired-access",
-			refresh_token: "refresh-token",
+			accessToken: "expired-access",
+			refreshToken: "refresh-token",
 			user: "john.doe@example.com",
-			expires_at: "2026-03-06T10:00:00Z",
+			expiresAt: "2026-03-06T10:00:00Z",
 		});
 		const stdout = createWritable(false);
 		const stderr = createWritable();
@@ -109,7 +109,7 @@ describe("auth status", () => {
 	it("returns a structured error when stored credentials are corrupted", async () => {
 		await using home = await createTempHome();
 		await home.writeMeridianFile("data.json", {
-			proposal_requests: {},
+			proposalRequests: {},
 			proposals: {},
 			results: {},
 		});

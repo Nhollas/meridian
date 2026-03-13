@@ -11,10 +11,10 @@ describe("auth logout", () => {
 	it("revokes the session and deletes stored credentials", async () => {
 		await using home = await createTempHome();
 		await home.writeMeridianFile("credentials.json", {
-			access_token: "access-token",
-			refresh_token: "refresh-token",
+			accessToken: "access-token",
+			refreshToken: "refresh-token",
 			user: "john.doe@example.com",
-			expires_at: "2026-03-07T16:20:00Z",
+			expiresAt: "2026-03-07T16:20:00Z",
 		});
 		const stdout = createWritable(false);
 		const stderr = createWritable();
@@ -45,7 +45,7 @@ describe("auth logout", () => {
 			"client_id=meridian-cli&refresh_token=refresh-token",
 		);
 		expect(JSON.parse(stdout.output())).toEqual({
-			logged_out: true,
+			loggedOut: true,
 		});
 		expect(stderr.output()).toBe("");
 		await expect(
@@ -64,10 +64,10 @@ describe("auth logout", () => {
 			"credentials.json",
 		);
 		await home.writeMeridianFile("credentials.json", {
-			access_token: "access-token",
-			refresh_token: "refresh-token",
+			accessToken: "access-token",
+			refreshToken: "refresh-token",
 			user: "john.doe@example.com",
-			expires_at: "2026-03-07T16:20:00Z",
+			expiresAt: "2026-03-07T16:20:00Z",
 		});
 		const stdout = createWritable();
 		const stderr = createWritable();
@@ -104,7 +104,7 @@ describe("auth logout", () => {
 		});
 
 		expect(exitCode).toBe(0);
-		expect(JSON.parse(stdout.output())).toEqual({ logged_out: true });
+		expect(JSON.parse(stdout.output())).toEqual({ loggedOut: true });
 		expect(stderr.output()).toBe("");
 		await expect(
 			readFile(
@@ -128,7 +128,7 @@ describe("auth logout", () => {
 		});
 
 		expect(exitCode).toBe(0);
-		expect(JSON.parse(stdout.output())).toEqual({ logged_out: true });
+		expect(JSON.parse(stdout.output())).toEqual({ loggedOut: true });
 		expect(stderr.output()).toBe("");
 		await expect(
 			readFile(
@@ -141,10 +141,10 @@ describe("auth logout", () => {
 	it("still clears local credentials when remote revoke fails", async () => {
 		await using home = await createTempHome();
 		await home.writeMeridianFile("credentials.json", {
-			access_token: "access-token",
-			refresh_token: "refresh-token",
+			accessToken: "access-token",
+			refreshToken: "refresh-token",
 			user: "john.doe@example.com",
-			expires_at: "2026-03-07T16:20:00Z",
+			expiresAt: "2026-03-07T16:20:00Z",
 		});
 		const stdout = createWritable(false);
 		const stderr = createWritable();
@@ -167,7 +167,7 @@ describe("auth logout", () => {
 		});
 
 		expect(exitCode).toBe(0);
-		expect(JSON.parse(stdout.output())).toEqual({ logged_out: true });
+		expect(JSON.parse(stdout.output())).toEqual({ loggedOut: true });
 		expect(stderr.output()).toBe("");
 		await expect(
 			readFile(

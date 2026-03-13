@@ -49,10 +49,10 @@ async function parseResponse<TSchema extends z.ZodType>(
 }
 
 export type DeviceAuthorisationDetails = {
-	device_code: string;
+	deviceCode: string;
 	interval: number;
-	user_code: string;
-	verification_uri_complete: string;
+	userCode: string;
+	verificationUriComplete: string;
 };
 
 export async function requestDeviceAuthorisation(
@@ -89,10 +89,10 @@ export async function requestDeviceAuthorisation(
 	);
 
 	return {
-		device_code: devicePayload.device_code,
+		deviceCode: devicePayload.device_code,
 		interval: devicePayload.interval ?? 5,
-		user_code: devicePayload.user_code,
-		verification_uri_complete: normalizeVerificationUriComplete(
+		userCode: devicePayload.user_code,
+		verificationUriComplete: normalizeVerificationUriComplete(
 			devicePayload.verification_uri_complete,
 		),
 	};
@@ -104,8 +104,8 @@ export async function pollDeviceAuthorisation(
 	dependencies: DeviceFlowDependencies,
 ): Promise<{
 	credentials: StoredCredentials;
-	user_code: string;
-	verification_uri_complete: string;
+	userCode: string;
+	verificationUriComplete: string;
 }> {
 	let intervalMilliseconds = deviceAuthorisation.interval * 1000;
 
@@ -122,7 +122,7 @@ export async function pollDeviceAuthorisation(
 					body: new URLSearchParams({
 						grant_type: "urn:ietf:params:oauth:grant-type:device_code",
 						client_id: authConfig.clientId,
-						device_code: deviceAuthorisation.device_code,
+						device_code: deviceAuthorisation.deviceCode,
 					}).toString(),
 				},
 			);
@@ -147,21 +147,20 @@ export async function pollDeviceAuthorisation(
 			}
 
 			return {
-				verification_uri_complete:
-					deviceAuthorisation.verification_uri_complete,
-				user_code: deviceAuthorisation.user_code,
+				verificationUriComplete: deviceAuthorisation.verificationUriComplete,
+				userCode: deviceAuthorisation.userCode,
 				credentials: {
-					access_token: tokenPayload.access_token,
+					accessToken: tokenPayload.access_token,
 					user,
-					expires_at: new Date(
+					expiresAt: new Date(
 						dependencies.now().getTime() + tokenPayload.expires_in * 1000,
 					).toISOString(),
 					...(tokenPayload.refresh_token === undefined
 						? {}
-						: { refresh_token: tokenPayload.refresh_token }),
+						: { refreshToken: tokenPayload.refresh_token }),
 					...(tokenPayload.id_token === undefined
 						? {}
-						: { id_token: tokenPayload.id_token }),
+						: { idToken: tokenPayload.id_token }),
 				},
 			};
 		}

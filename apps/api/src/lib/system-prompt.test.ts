@@ -2,16 +2,13 @@ import { describe, expect, it } from "vitest";
 import { systemPrompt } from "@/lib/system-prompt";
 
 describe("system prompt contract", () => {
-	it("tells the agent to fetch runtime instructions only once at the start of a session", () => {
+	it("establishes core agent behaviour", () => {
 		expect(systemPrompt).toContain(
 			"At the start of a new session, call `get_runtime_instructions` once before exploring capabilities.",
 		);
 		expect(systemPrompt).toContain(
 			"Do not call it again on later turns unless the user asks to refresh it or the earlier attempt failed.",
 		);
-	});
-
-	it("tells the agent to prefer small read-only exploration and to check help when unsure", () => {
 		expect(systemPrompt).toContain(
 			"Prefer the smallest read-only step that moves the task forward.",
 		);
@@ -20,19 +17,22 @@ describe("system prompt contract", () => {
 		);
 	});
 
-	it("tells the agent to ask for required missing information instead of inventing it", () => {
+	it("sets user interaction guidelines", () => {
+		expect(systemPrompt).toContain(
+			"Lead with the result, decision, or required next action.",
+		);
+		expect(systemPrompt).toContain(
+			"Mention tool use or exploration only when it materially changes what the user needs to know.",
+		);
+		expect(systemPrompt).toContain(
+			"Your final reply for each turn should read as one cohesive response, not a chronological log of tool calls or repeated restatements.",
+		);
 		expect(systemPrompt).toContain(
 			"Ask the user for required information instead of inventing missing details.",
 		);
-	});
-
-	it("tells the agent to treat routine prerequisites like auth startup as part of fulfilling the request", () => {
 		expect(systemPrompt).toContain(
 			"Treat routine prerequisites such as starting authentication as part of fulfilling the request, including on follow-up turns where the user is only providing missing details.",
 		);
-	});
-
-	it("tells the agent to re-check changing prerequisites and keep requests user-friendly", () => {
 		expect(systemPrompt).toContain(
 			"On follow-up turns, if a prerequisite may have changed state in the background, re-check it before asking the user to repeat or confirm it.",
 		);
@@ -47,21 +47,9 @@ describe("system prompt contract", () => {
 		);
 	});
 
-	it("tells the agent not to claim background work is running without a live command id", () => {
+	it("prevents false claims about background work", () => {
 		expect(systemPrompt).toContain(
 			"Do not claim a task is still running unless you actually have a live `backgroundCommandId`.",
-		);
-	});
-
-	it("tells the agent to lead with the user-facing outcome and keep replies cohesive", () => {
-		expect(systemPrompt).toContain(
-			"Lead with the result, decision, or required next action.",
-		);
-		expect(systemPrompt).toContain(
-			"Mention tool use or exploration only when it materially changes what the user needs to know.",
-		);
-		expect(systemPrompt).toContain(
-			"Your final reply for each turn should read as one cohesive response, not a chronological log of tool calls or repeated restatements.",
 		);
 	});
 });

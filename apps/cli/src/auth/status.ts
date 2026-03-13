@@ -22,7 +22,7 @@ export async function handleAuthStatus(
 		writeJson(stdout, {
 			authenticated: true,
 			user: credentials.user,
-			expires_at: credentials.expires_at,
+			expiresAt: credentials.expiresAt,
 		});
 		return 0;
 	}
@@ -30,7 +30,7 @@ export async function handleAuthStatus(
 	writeLines(stdout, [
 		"Authenticated",
 		`User: ${credentials.user}`,
-		`Expires at: ${credentials.expires_at}`,
+		`Expires at: ${credentials.expiresAt}`,
 	]);
 	return 0;
 }

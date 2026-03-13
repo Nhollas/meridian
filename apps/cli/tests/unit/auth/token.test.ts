@@ -15,13 +15,13 @@ describe("token", () => {
 	it("detects whether an access token is expired", () => {
 		expect(
 			isAccessTokenExpired(
-				{ expires_at: "2026-03-06T10:00:00Z" },
+				{ expiresAt: "2026-03-06T10:00:00Z" },
 				new Date("2026-03-06T10:00:01Z"),
 			),
 		).toBe(true);
 		expect(
 			isAccessTokenExpired(
-				{ expires_at: "2026-03-06T10:00:00Z" },
+				{ expiresAt: "2026-03-06T10:00:00Z" },
 				new Date("2026-03-06T09:59:59Z"),
 			),
 		).toBe(false);
@@ -60,10 +60,10 @@ describe("token", () => {
 
 		const refreshed = await refreshStoredCredentials(
 			{
-				access_token: "old-access",
-				refresh_token: "old-refresh",
+				accessToken: "old-access",
+				refreshToken: "old-refresh",
 				user: "john.doe@example.com",
-				expires_at: "2026-03-06T10:00:00Z",
+				expiresAt: "2026-03-06T10:00:00Z",
 			},
 			{
 				issuer,
@@ -75,11 +75,11 @@ describe("token", () => {
 		);
 
 		expect(refreshed).toEqual({
-			access_token: "new-access",
-			refresh_token: "new-refresh",
-			id_token: expect.any(String),
+			accessToken: "new-access",
+			refreshToken: "new-refresh",
+			idToken: expect.any(String),
 			user: "john.doe@example.com",
-			expires_at: "2026-03-06T10:10:00.000Z",
+			expiresAt: "2026-03-06T10:10:00.000Z",
 		});
 	});
 
@@ -95,10 +95,10 @@ describe("token", () => {
 		await expect(
 			refreshStoredCredentials(
 				{
-					access_token: "old-access",
-					refresh_token: "old-refresh",
+					accessToken: "old-access",
+					refreshToken: "old-refresh",
 					user: "john.doe@example.com",
-					expires_at: "2026-03-06T10:00:00Z",
+					expiresAt: "2026-03-06T10:00:00Z",
 				},
 				{
 					issuer,
@@ -126,10 +126,10 @@ describe("token", () => {
 		await expect(
 			refreshStoredCredentials(
 				{
-					access_token: "old-access",
-					refresh_token: "old-refresh",
+					accessToken: "old-access",
+					refreshToken: "old-refresh",
 					user: "john.doe@example.com",
-					expires_at: "2026-03-06T10:00:00Z",
+					expiresAt: "2026-03-06T10:00:00Z",
 				},
 				{
 					issuer,
@@ -140,11 +140,11 @@ describe("token", () => {
 				},
 			),
 		).resolves.toEqual({
-			access_token: "new-access",
-			refresh_token: "new-refresh",
-			id_token: "not.a.valid.jwt",
+			accessToken: "new-access",
+			refreshToken: "new-refresh",
+			idToken: "not.a.valid.jwt",
 			user: "john.doe@example.com",
-			expires_at: "2026-03-06T10:10:00.000Z",
+			expiresAt: "2026-03-06T10:10:00.000Z",
 		});
 	});
 });

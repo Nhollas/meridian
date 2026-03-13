@@ -21,18 +21,18 @@ export async function handleAuthLogin(
 
 	if (jsonMode) {
 		writeJsonLine(stdout, {
-			interval_seconds: deviceAuthorisation.interval,
-			verification_uri_complete: deviceAuthorisation.verification_uri_complete,
-			user_code: deviceAuthorisation.user_code,
+			intervalSeconds: deviceAuthorisation.interval,
+			verificationUriComplete: deviceAuthorisation.verificationUriComplete,
+			userCode: deviceAuthorisation.userCode,
 			status: "pending",
 		});
 	} else {
 		writeLines(stdout, [
 			"To sign in, open this URL in your browser:",
 			"",
-			`  ${deviceAuthorisation.verification_uri_complete}`,
+			`  ${deviceAuthorisation.verificationUriComplete}`,
 			"",
-			`Enter code: ${deviceAuthorisation.user_code}`,
+			`Enter code: ${deviceAuthorisation.userCode}`,
 			"",
 			"Waiting for authentication...",
 		]);
@@ -50,12 +50,12 @@ export async function handleAuthLogin(
 
 	if (jsonMode) {
 		writeJsonLine(stdout, {
-			interval_seconds: deviceAuthorisation.interval,
-			verification_uri_complete: loginResult.verification_uri_complete,
-			user_code: loginResult.user_code,
+			intervalSeconds: deviceAuthorisation.interval,
+			verificationUriComplete: loginResult.verificationUriComplete,
+			userCode: loginResult.userCode,
 			status: "authenticated",
 			user: loginResult.credentials.user,
-			expires_at: loginResult.credentials.expires_at,
+			expiresAt: loginResult.credentials.expiresAt,
 		});
 		return 0;
 	}

@@ -39,10 +39,10 @@ async function parseTokenResponse(
 }
 
 export function isAccessTokenExpired(
-	credentials: Pick<StoredCredentials, "expires_at">,
+	credentials: Pick<StoredCredentials, "expiresAt">,
 	now: Date,
 ) {
-	return new Date(credentials.expires_at).getTime() <= now.getTime();
+	return new Date(credentials.expiresAt).getTime() <= now.getTime();
 }
 
 export function extractUserFromIdToken(idToken: string) {
@@ -73,7 +73,7 @@ export async function refreshStoredCredentials(
 	authConfig: AuthConfig,
 	dependencies: RefreshDependencies,
 ): Promise<StoredCredentials | null> {
-	if (credentials.refresh_token === undefined) {
+	if (credentials.refreshToken === undefined) {
 		return null;
 	}
 
@@ -89,7 +89,7 @@ export async function refreshStoredCredentials(
 				body: new URLSearchParams({
 					grant_type: "refresh_token",
 					client_id: authConfig.clientId,
-					refresh_token: credentials.refresh_token,
+					refresh_token: credentials.refreshToken,
 				}).toString(),
 			},
 		);
@@ -111,12 +111,12 @@ export async function refreshStoredCredentials(
 			: extractUserFromIdToken(payload.id_token)) ?? credentials.user;
 
 	return {
-		access_token: payload.access_token,
-		refresh_token: payload.refresh_token ?? credentials.refresh_token,
+		accessToken: payload.access_token,
+		refreshToken: payload.refresh_token ?? credentials.refreshToken,
 		user,
-		expires_at: new Date(
+		expiresAt: new Date(
 			dependencies.now().getTime() + payload.expires_in * 1000,
 		).toISOString(),
-		...(payload.id_token === undefined ? {} : { id_token: payload.id_token }),
+		...(payload.id_token === undefined ? {} : { idToken: payload.id_token }),
 	};
 }

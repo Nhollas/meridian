@@ -15,19 +15,19 @@ describe("credentials store", () => {
 		});
 
 		await writeCredentials(dependencies.fileSystem, home.homeDirectory, {
-			access_token: "access-token",
-			refresh_token: "refresh-token",
+			accessToken: "access-token",
+			refreshToken: "refresh-token",
 			user: "john.doe@example.com",
-			expires_at: "2026-03-07T16:20:00Z",
+			expiresAt: "2026-03-07T16:20:00Z",
 		});
 
 		await expect(
 			readCredentials(dependencies.fileSystem, home.homeDirectory),
 		).resolves.toEqual({
-			access_token: "access-token",
-			refresh_token: "refresh-token",
+			accessToken: "access-token",
+			refreshToken: "refresh-token",
 			user: "john.doe@example.com",
-			expires_at: "2026-03-07T16:20:00Z",
+			expiresAt: "2026-03-07T16:20:00Z",
 		});
 	});
 
@@ -48,10 +48,10 @@ describe("credentials store", () => {
 			homeDirectory: home.homeDirectory,
 		});
 		await writeCredentials(dependencies.fileSystem, home.homeDirectory, {
-			access_token: "access-token",
-			refresh_token: "refresh-token",
+			accessToken: "access-token",
+			refreshToken: "refresh-token",
 			user: "john.doe@example.com",
-			expires_at: "2026-03-07T16:20:00Z",
+			expiresAt: "2026-03-07T16:20:00Z",
 		});
 
 		await deleteCredentials(dependencies.fileSystem, home.homeDirectory);

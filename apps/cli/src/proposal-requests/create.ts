@@ -60,8 +60,8 @@ export async function handleProposalRequestsCreate(
 	const id = randomId("pr");
 	const createdAt = now().toISOString();
 
-	dataStore.proposal_requests[id] = {
-		created_at: createdAt,
+	dataStore.proposalRequests[id] = {
+		createdAt,
 		data: parsedInput.data,
 		emailAddress: parsedInput.emailAddress,
 		product: options.product,
@@ -75,7 +75,7 @@ export async function handleProposalRequestsCreate(
 		product: options.product,
 		version: options.version,
 		status: "draft",
-		created_at: createdAt,
+		createdAt,
 	};
 
 	if (jsonMode) {

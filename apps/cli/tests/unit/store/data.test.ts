@@ -13,7 +13,7 @@ describe("data store", () => {
 		await expect(
 			readDataStore(dependencies.fileSystem, home.homeDirectory),
 		).resolves.toEqual({
-			proposal_requests: {},
+			proposalRequests: {},
 			proposals: {},
 			results: {},
 		});
@@ -25,13 +25,13 @@ describe("data store", () => {
 			homeDirectory: home.homeDirectory,
 		});
 		const payload = {
-			proposal_requests: {
+			proposalRequests: {
 				"pr-a1b2c3d4": {
 					product: "broadband",
 					version: "1.0",
 					emailAddress: "john.doe@example.com",
 					data: { postcode: "AA1 1AA" },
-					created_at: "2026-03-06T16:20:00.000Z",
+					createdAt: "2026-03-06T16:20:00.000Z",
 				},
 			},
 			proposals: {},
