@@ -12,11 +12,11 @@ The current CLI supports:
 - creation of Proposals backed by mock comparison data
 - retrieval of Results for stored Proposals
 
-The comparison journey commands are still backed by mock data. They demonstrate the command and data model rather than a production backend integration.
+The comparison journey commands are currently backed by mock data. They demonstrate the command and data model rather than a production backend integration.
 
 ## Defined Terms
 
-These terms are used throughout the CLI and retain their domain meaning:
+These terms are used throughout the CLI reference and retain their meaning:
 
 | Term | Description |
 | --- | --- |
@@ -68,7 +68,7 @@ The CLI reads its issuer configuration from the environment. If these variables 
 | `MERIDIAN_AUTH_ISSUER` | Keycloak realm URL | `http://localhost:8080/realms/meridian` |
 | `MERIDIAN_AUTH_CLIENT_ID` | OAuth client ID | `meridian-cli` |
 
-For local development, copy `.env.example` to `.env` and run the CLI via `npm run dev`.
+For local development, copy `.env.example` to `.env` and run the CLI via `pnpm dev`.
 
 ## Top-Level Commands
 
@@ -109,10 +109,10 @@ Options:
 
 Behaviour:
 
-- Requests a device authorisation from the issuer
-- Prints the verification URL and user code
-- Polls the token endpoint until the user completes sign-in in a browser
-- Stores the resulting tokens in `~/.meridian/credentials.json`
+- requests a device authorisation from the issuer
+- prints the verification URL and user code
+- polls the token endpoint until the user completes sign-in in a browser
+- stores the resulting tokens in `~/.meridian/credentials.json`
 
 Human-readable output:
 
@@ -125,8 +125,6 @@ JSON output:
 
 - first line: a `pending` event containing `verification_uri_complete`, `user_code`, and `interval_seconds`
 - second line: an `authenticated` event containing the same verification details plus `interval_seconds`, `user`, and `expires_at`
-
-Example JSON events:
 
 ```json
 {"interval_seconds":5,"verification_uri_complete":"https://keycloak.example.com/realms/meridian/device?user_code=ABCD-1234","user_code":"ABCD-1234","status":"pending"}
@@ -154,7 +152,14 @@ Behaviour:
 
 Human-readable output:
 
-- authenticated session: `Authenticated`, followed by the user and expiry timestamp
+- authenticated session:
+
+```text
+Authenticated
+User: john.doe@example.com
+Expires at: 2026-03-07T16:20:00.000Z
+```
+
 - no session: `Not authenticated`
 
 JSON output:
@@ -229,7 +234,7 @@ Behaviour:
 - returns the Product catalogue built into the CLI
 - does not require authentication
 
-JSON output example:
+JSON output:
 
 ```json
 {
@@ -258,7 +263,9 @@ JSON output example:
 }
 ```
 
-Human-readable output presents the same catalogue as a formatted list.
+Human-readable output:
+
+- presents the same catalogue as a formatted list
 
 ## `product-schemas`
 
@@ -281,10 +288,7 @@ Behaviour:
 - resolves the Product Schema from the built-in catalogue
 - writes the resulting JSON schema document to stdout
 - does not require authentication
-
-Current output behaviour:
-
-- success output is always JSON
+- success output is always JSON regardless of `--json`
 - `--json` is accepted for consistency with the rest of the CLI
 - when `--json` is passed, or when stdout is not a TTY, errors are written as structured JSON on stderr
 
@@ -333,7 +337,7 @@ Expected input shape:
 }
 ```
 
-JSON success output:
+JSON output:
 
 ```json
 {
@@ -370,7 +374,7 @@ Behaviour:
 - creates a Proposal with status `completed`
 - generates mock Result data immediately and stores it under the new Proposal identifier
 
-JSON success output:
+JSON output:
 
 ```json
 {
@@ -425,18 +429,26 @@ For a local demo against the sibling OAuth server:
 
 ```bash
 cp .env.example .env
-npm install
-npm run dev -- auth login --json
+pnpm install
+pnpm dev -- auth login --json
 ```
 
 After sign-in completes, run:
 
 ```bash
-npm run dev -- products list --json
-npm run dev -- product-schemas get --product=broadband --version=1.0
-npm run dev -- proposal-requests create --product=broadband --version=1.0 --file=/tmp/broadband.json --json
-npm run dev -- proposals create --proposal-request=pr-a1b2c3d4 --json
-npm run dev -- results get --proposal=prop-x7y8z9ab --json
+pnpm dev -- products list --json
+pnpm dev -- product-schemas get --product=broadband --version=1.0
+pnpm dev -- proposal-requests create --product=broadband --version=1.0 --file=/tmp/broadband.json --json
+pnpm dev -- proposals create --proposal-request=pr-a1b2c3d4 --json
+pnpm dev -- results get --proposal=prop-x7y8z9ab --json
 ```
 
 Use the Proposal Request example shown in the `proposal-requests create` section when creating the local input file for that flow.
+
+## Current Limitations
+
+- comparison journey commands (`proposal-requests`, `proposals`, `results`) are backed by mock data and do not call a production backend
+- local state is file-based with no server-side persistence
+- there is no token auto-refresh during long-running sessions
+
+Those capabilities may be added later, but they are not part of the current CLI contract.
