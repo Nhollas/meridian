@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, DM_Mono, DM_Sans } from "next/font/google";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Providers } from "./providers";
 import "./globals.css";
 
 const display = Bricolage_Grotesque({
@@ -46,7 +47,7 @@ export default function RootLayout({
 					}}
 				/>
 			</head>
-			<body className="h-dvh overflow-hidden">
+			<body className="dot-grid h-dvh overflow-hidden antialiased">
 				<div className="relative z-10 flex h-full flex-col">
 					<header className="shrink-0 border-border border-b">
 						<div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
@@ -56,7 +57,9 @@ export default function RootLayout({
 							<ThemeToggle />
 						</div>
 					</header>
-					<main className="flex min-h-0 flex-1 flex-col">{children}</main>
+					<main className="flex min-h-0 flex-1 flex-col">
+						<Providers>{children}</Providers>
+					</main>
 				</div>
 			</body>
 		</html>

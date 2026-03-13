@@ -54,17 +54,8 @@
   --color-accent-muted: oklch(93.19% 0.0316 293);
 }
 
-@layer base {
-  body {
-    background-color: var(--color-surface-0);
-    color: var(--color-text-primary);
-    font-family: var(--font-body);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-
-  /* Subtle dot-grid background for forensic/precision feel */
-  body::before {
+@utility dot-grid {
+  &::before {
     content: "";
     position: fixed;
     inset: 0;
@@ -80,21 +71,32 @@
   }
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+@utility tool-badge {
+  @apply inline-block rounded-full border border-flow/20 bg-flow-muted px-2.5 py-0.5 font-medium text-flow text-xs;
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+@layer base {
+  body {
+    background-color: var(--color-surface-0);
+    color: var(--color-text-primary);
+    font-family: var(--font-body);
+  }
 
-::-webkit-scrollbar-thumb {
-  background: var(--color-border);
-  border-radius: 3px;
-}
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-muted);
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-muted);
+  }
 }
