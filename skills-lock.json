@@ -1,6 +1,16 @@
 {
 	"version": 1,
 	"skills": {
+		"documentation-writer": {
+			"source": "github/awesome-copilot",
+			"sourceType": "github",
+			"computedHash": "ee53d65b163cd7eb953a930c95841cfe398cc2c0bd24c06508bbaa07c432be35"
+		},
+		"frontend-design": {
+			"source": "anthropics/skills",
+			"sourceType": "github",
+			"computedHash": "063a0e6448123cd359ad0044cc46b0e490cc7964d45ef4bb9fd842bd2ffbca67"
+		},
 		"vercel-react-best-practices": {
 			"source": "vercel-labs/agent-skills",
 			"sourceType": "github",
