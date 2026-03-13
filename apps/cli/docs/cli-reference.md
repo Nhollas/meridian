@@ -123,12 +123,12 @@ Human-readable output:
 
 JSON output:
 
-- first line: a `pending` event containing `verification_uri_complete`, `user_code`, and `interval_seconds`
-- second line: an `authenticated` event containing the same verification details plus `interval_seconds`, `user`, and `expires_at`
+- first line: a `pending` event containing `verificationUriComplete`, `userCode`, and `intervalSeconds`
+- second line: an `authenticated` event containing the same verification details plus `intervalSeconds`, `user`, and `expiresAt`
 
 ```json
-{"interval_seconds":5,"verification_uri_complete":"https://keycloak.example.com/realms/meridian/device?user_code=ABCD-1234","user_code":"ABCD-1234","status":"pending"}
-{"interval_seconds":5,"verification_uri_complete":"https://keycloak.example.com/realms/meridian/device?user_code=ABCD-1234","user_code":"ABCD-1234","status":"authenticated","user":"john.doe@example.com","expires_at":"2026-03-07T16:20:00.000Z"}
+{"intervalSeconds":5,"verificationUriComplete":"https://keycloak.example.com/realms/meridian/device?user_code=ABCD-1234","userCode":"ABCD-1234","status":"pending"}
+{"intervalSeconds":5,"verificationUriComplete":"https://keycloak.example.com/realms/meridian/device?user_code=ABCD-1234","userCode":"ABCD-1234","status":"authenticated","user":"john.doe@example.com","expiresAt":"2026-03-07T16:20:00.000Z"}
 ```
 
 ### `meridian auth status`
@@ -168,7 +168,7 @@ JSON output:
 {
   "authenticated": true,
   "user": "john.doe@example.com",
-  "expires_at": "2026-03-07T16:20:00.000Z"
+  "expiresAt": "2026-03-07T16:20:00.000Z"
 }
 ```
 
@@ -210,7 +210,7 @@ JSON output:
 
 ```json
 {
-  "logged_out": true
+  "loggedOut": true
 }
 ```
 
@@ -345,7 +345,7 @@ JSON output:
   "product": "broadband",
   "version": "1.0",
   "status": "draft",
-  "created_at": "2026-03-07T16:20:00.000Z"
+  "createdAt": "2026-03-07T16:20:00.000Z"
 }
 ```
 
@@ -379,11 +379,11 @@ JSON output:
 ```json
 {
   "id": "prop-x7y8z9ab",
-  "proposal_request": "pr-a1b2c3d4",
+  "proposalRequestId": "pr-a1b2c3d4",
   "product": "broadband",
   "version": "1.0",
   "status": "completed",
-  "created_at": "2026-03-07T16:25:00.000Z"
+  "createdAt": "2026-03-07T16:25:00.000Z"
 }
 ```
 

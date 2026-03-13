@@ -66,15 +66,15 @@ describe("device flow", () => {
 
 		expect(sleeps).toEqual([5000]);
 		expect(result).toEqual({
-			verification_uri_complete:
+			verificationUriComplete:
 				"http://localhost:8180/device?user_code=ABCD-1234",
-			user_code: "ABCD-1234",
+			userCode: "ABCD-1234",
 			credentials: {
-				access_token: "access-token",
-				refresh_token: "refresh-token",
-				id_token: expect.any(String),
+				accessToken: "access-token",
+				refreshToken: "refresh-token",
+				idToken: expect.any(String),
 				user: "john.doe@example.com",
-				expires_at: "2026-03-06T12:05:00.000Z",
+				expiresAt: "2026-03-06T12:05:00.000Z",
 			},
 		});
 	});
@@ -104,10 +104,10 @@ describe("device flow", () => {
 		);
 
 		expect(result).toEqual({
-			device_code: "device-code",
+			deviceCode: "device-code",
 			interval: 5,
-			user_code: "ABCD-1234",
-			verification_uri_complete:
+			userCode: "ABCD-1234",
+			verificationUriComplete:
 				"http://localhost:8080/realms/meridian/device?user_code=ABCD-1234",
 		});
 	});
@@ -177,10 +177,10 @@ describe("device flow", () => {
 					clientId: "meridian-cli",
 				},
 				{
-					device_code: "device-code",
+					deviceCode: "device-code",
 					interval: 5,
-					user_code: "ABCD-1234",
-					verification_uri_complete:
+					userCode: "ABCD-1234",
+					verificationUriComplete:
 						"http://localhost:8180/device?user_code=ABCD-1234",
 				},
 				{
@@ -210,10 +210,10 @@ describe("device flow", () => {
 					clientId: "meridian-cli",
 				},
 				{
-					device_code: "device-code",
+					deviceCode: "device-code",
 					interval: 5,
-					user_code: "ABCD-1234",
-					verification_uri_complete:
+					userCode: "ABCD-1234",
+					verificationUriComplete:
 						"http://localhost:8180/device?user_code=ABCD-1234",
 				},
 				{
@@ -242,10 +242,10 @@ describe("device flow", () => {
 					clientId: "meridian-cli",
 				},
 				{
-					device_code: "device-code",
+					deviceCode: "device-code",
 					interval: 5,
-					user_code: "ABCD-1234",
-					verification_uri_complete:
+					userCode: "ABCD-1234",
+					verificationUriComplete:
 						"http://localhost:8180/device?user_code=ABCD-1234",
 				},
 				{

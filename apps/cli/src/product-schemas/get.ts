@@ -26,9 +26,7 @@ export async function handleProductSchemasGet(
 			stderr,
 			jsonMode,
 			`No schema found for product "${options.product}" version "${options.version}".`,
-			availableVersions === undefined
-				? undefined
-				: { available_versions: availableVersions },
+			availableVersions === undefined ? undefined : { availableVersions },
 		);
 		if (!jsonMode && availableVersions !== undefined) {
 			stderr.write(`Available versions: ${availableVersions.join(", ")}\n`);

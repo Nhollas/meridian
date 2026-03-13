@@ -125,14 +125,14 @@ async function seedHomeWithResult(
 ) {
 	const home = await createTempHome();
 	await home.writeMeridianFile("credentials.json", {
-		access_token: "access-token",
+		accessToken: "access-token",
 		user: "john.doe@example.com",
-		expires_at: "2026-03-07T16:20:00Z",
+		expiresAt: "2026-03-07T16:20:00Z",
 	});
 	const proposalId = result.proposalId;
 	const proposalRequestId = product === "broadband" ? "pr-a1b2c3d4" : "pr-t1";
 	await home.writeMeridianFile("data.json", {
-		proposal_requests: {
+		proposalRequests: {
 			[proposalRequestId]: {
 				product,
 				version: "1.0",
@@ -141,16 +141,16 @@ async function seedHomeWithResult(
 					product === "broadband"
 						? { postcode: "AA1 1AA" }
 						: { destination: "Spain" },
-				created_at: "2026-03-06T16:20:00.000Z",
+				createdAt: "2026-03-06T16:20:00.000Z",
 			},
 		},
 		proposals: {
 			[proposalId]: {
-				proposal_request: proposalRequestId,
+				proposalRequestId,
 				product,
 				version: "1.0",
 				status: "completed",
-				created_at: "2026-03-06T16:20:05.000Z",
+				createdAt: "2026-03-06T16:20:05.000Z",
 			},
 		},
 		results: {
@@ -294,9 +294,9 @@ describe("results get", () => {
 	it("returns a structured error when the local data store is corrupted", async () => {
 		await using home = await createTempHome();
 		await home.writeMeridianFile("credentials.json", {
-			access_token: "access-token",
+			accessToken: "access-token",
 			user: "john.doe@example.com",
-			expires_at: "2026-03-07T16:20:00Z",
+			expiresAt: "2026-03-07T16:20:00Z",
 		});
 		await writeFile(
 			join(home.homeDirectory, ".meridian", "data.json"),
@@ -327,9 +327,9 @@ describe("results get", () => {
 	it("returns a structured error when the data store path is a directory", async () => {
 		await using home = await createTempHome();
 		await home.writeMeridianFile("credentials.json", {
-			access_token: "access-token",
+			accessToken: "access-token",
 			user: "john.doe@example.com",
-			expires_at: "2026-03-07T16:20:00Z",
+			expiresAt: "2026-03-07T16:20:00Z",
 		});
 		await mkdir(join(home.homeDirectory, ".meridian", "data.json"));
 

@@ -114,7 +114,7 @@ describe("auth login", () => {
 		});
 
 		expect(stdout.output()).toContain('"status":"pending"');
-		expect(stdout.output()).toContain('"user_code":"ABCD-1234"');
+		expect(stdout.output()).toContain('"userCode":"ABCD-1234"');
 		expect(stderr.output()).toBe("");
 
 		releaseSleep();
@@ -168,7 +168,7 @@ describe("auth login", () => {
 
 		expect(exitCode).toBe(0);
 		expect(stdout.output()).toContain(
-			'"verification_uri_complete":"http://localhost:8080/realms/meridian/device?user_code=ABCD-1234"',
+			'"verificationUriComplete":"http://localhost:8080/realms/meridian/device?user_code=ABCD-1234"',
 		);
 		expect(stderr.output()).toBe("");
 	});
@@ -234,20 +234,20 @@ describe("auth login", () => {
 				.map((line) => JSON.parse(line)),
 		).toEqual([
 			{
-				interval_seconds: 5,
-				verification_uri_complete:
+				intervalSeconds: 5,
+				verificationUriComplete:
 					"http://localhost:8180/device?user_code=ABCD-1234",
-				user_code: "ABCD-1234",
+				userCode: "ABCD-1234",
 				status: "pending",
 			},
 			{
-				interval_seconds: 5,
-				verification_uri_complete:
+				intervalSeconds: 5,
+				verificationUriComplete:
 					"http://localhost:8180/device?user_code=ABCD-1234",
-				user_code: "ABCD-1234",
+				userCode: "ABCD-1234",
 				status: "authenticated",
 				user: "john.doe@example.com",
-				expires_at: "2026-03-06T12:05:00.000Z",
+				expiresAt: "2026-03-06T12:05:00.000Z",
 			},
 		]);
 		expect(stderr.output()).toBe("");

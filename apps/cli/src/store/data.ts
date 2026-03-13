@@ -4,7 +4,7 @@ import { InvalidStoredStateError } from "@/errors";
 import type { FileSystem } from "@/runtime";
 
 const proposalRequestRecordSchema = z.object({
-	created_at: z.string(),
+	createdAt: z.string(),
 	data: z.record(z.string(), z.unknown()),
 	emailAddress: z.string(),
 	product: z.string(),
@@ -12,9 +12,9 @@ const proposalRequestRecordSchema = z.object({
 });
 
 const proposalRecordSchema = z.object({
-	created_at: z.string(),
+	createdAt: z.string(),
 	product: z.string(),
-	proposal_request: z.string(),
+	proposalRequestId: z.string(),
 	status: z.literal("completed"),
 	version: z.string(),
 });
@@ -60,7 +60,7 @@ const resultRecordSchema = z.object({
 });
 
 const dataStoreSchema = z.object({
-	proposal_requests: z.record(z.string(), proposalRequestRecordSchema),
+	proposalRequests: z.record(z.string(), proposalRequestRecordSchema),
 	proposals: z.record(z.string(), proposalRecordSchema),
 	results: z.record(z.string(), resultRecordSchema),
 });
@@ -77,7 +77,7 @@ export type ResultRecord = z.infer<typeof resultRecordSchema>;
 export type DataStore = z.infer<typeof dataStoreSchema>;
 
 const EMPTY_DATA_STORE: DataStore = {
-	proposal_requests: {},
+	proposalRequests: {},
 	proposals: {},
 	results: {},
 };

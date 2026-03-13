@@ -28,7 +28,7 @@ describe("POST /api/chat integration - background commands", () => {
 						status: "running",
 						stderr: "",
 						stdout:
-							'{"status":"pending","interval_seconds":5,"user_code":"ABCD-1234"}\n',
+							'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}\n',
 					},
 					waitResult: {
 						command: ["meridian", "auth", "login", "--json"],
@@ -39,7 +39,7 @@ describe("POST /api/chat integration - background commands", () => {
 						status: "completed",
 						stderr: "",
 						stdout:
-							'{"status":"pending","interval_seconds":5,"user_code":"ABCD-1234"}\n{"status":"authenticated","user":"john.doe@example.com"}\n',
+							'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}\n{"status":"authenticated","user":"john.doe@example.com"}\n',
 					},
 				},
 			},
@@ -56,7 +56,7 @@ describe("POST /api/chat integration - background commands", () => {
 						status: "running",
 						stderr: "",
 						stdout:
-							'{"status":"pending","interval_seconds":5,"user_code":"ABCD-1234"}',
+							'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}',
 					},
 				},
 			],
@@ -135,8 +135,7 @@ describe("POST /api/chat integration - background commands", () => {
 			exitCode: null,
 			status: "running",
 			stderr: "",
-			stdout:
-				'{"status":"pending","interval_seconds":5,"user_code":"ABCD-1234"}',
+			stdout: '{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}',
 		});
 		expect(getCompletedToolOutput(events, "read_file")).toBe(
 			'{"fields":["destination"]}',
@@ -150,7 +149,7 @@ describe("POST /api/chat integration - background commands", () => {
 			status: "completed",
 			stderr: "",
 			stdout:
-				'{"status":"pending","interval_seconds":5,"user_code":"ABCD-1234"}\n{"status":"authenticated","user":"john.doe@example.com"}\n',
+				'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}\n{"status":"authenticated","user":"john.doe@example.com"}\n',
 		});
 		expect(events.at(-1)).toMatchObject({
 			sessionId: "session-background",
@@ -192,7 +191,7 @@ describe("POST /api/chat integration - background commands", () => {
 						status: "running",
 						stderr: "",
 						stdout:
-							'{"status":"pending","interval_seconds":5,"user_code":"ABCD-1234"}\n',
+							'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}\n',
 					},
 					waitResult: {
 						command: ["meridian", "auth", "login", "--json"],
@@ -203,7 +202,7 @@ describe("POST /api/chat integration - background commands", () => {
 						status: "completed",
 						stderr: "",
 						stdout:
-							'{"status":"pending","interval_seconds":5,"user_code":"ABCD-1234"}\n{"status":"authenticated","user":"john.doe@example.com"}\n',
+							'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}\n{"status":"authenticated","user":"john.doe@example.com"}\n',
 					},
 				},
 			},
@@ -220,7 +219,7 @@ describe("POST /api/chat integration - background commands", () => {
 						status: "running",
 						stderr: "",
 						stdout:
-							'{"status":"pending","interval_seconds":5,"user_code":"ABCD-1234"}',
+							'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}',
 					},
 				},
 			],
@@ -327,8 +326,7 @@ describe("POST /api/chat integration - background commands", () => {
 			exitCode: null,
 			status: "running",
 			stderr: "",
-			stdout:
-				'{"status":"pending","interval_seconds":5,"user_code":"ABCD-1234"}',
+			stdout: '{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}',
 		});
 		expect(
 			getParsedToolOutput(followUpTurn, "list_background_commands"),
@@ -351,7 +349,7 @@ describe("POST /api/chat integration - background commands", () => {
 			status: "running",
 			stderr: "",
 			stdout:
-				'{"status":"pending","interval_seconds":5,"user_code":"ABCD-1234"}\n',
+				'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}\n',
 		});
 		expect(
 			getParsedToolOutput(followUpTurn, "wait_for_background_command"),
@@ -364,7 +362,7 @@ describe("POST /api/chat integration - background commands", () => {
 			status: "completed",
 			stderr: "",
 			stdout:
-				'{"status":"pending","interval_seconds":5,"user_code":"ABCD-1234"}\n{"status":"authenticated","user":"john.doe@example.com"}\n',
+				'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}\n{"status":"authenticated","user":"john.doe@example.com"}\n',
 		});
 		expect(followUpTurn.at(-1)).toMatchObject({
 			sessionId: "session-background",

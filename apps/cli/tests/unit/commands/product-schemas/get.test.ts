@@ -155,7 +155,7 @@ describe("product-schemas get", () => {
 		expect(stdout.output()).toBe("");
 		expect(JSON.parse(stderr.output())).toEqual({
 			error: 'No schema found for product "broadband" version "2.0".',
-			available_versions: ["1.0"],
+			availableVersions: ["1.0"],
 		});
 	});
 

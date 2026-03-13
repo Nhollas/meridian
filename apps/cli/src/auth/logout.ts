@@ -21,18 +21,18 @@ export async function handleAuthLogout(
 	const authConfig = getAuthConfig(env);
 
 	if (
-		credentials?.refresh_token !== undefined &&
+		credentials?.refreshToken !== undefined &&
 		!isAccessTokenExpired(credentials, now())
 	) {
 		try {
-			await revokeSession(authConfig, credentials.refresh_token);
+			await revokeSession(authConfig, credentials.refreshToken);
 		} catch {}
 	}
 
 	await deleteCredentials(fileSystem, homeDirectory);
 
 	if (jsonMode) {
-		writeJson(stdout, { logged_out: true });
+		writeJson(stdout, { loggedOut: true });
 		return 0;
 	}
 

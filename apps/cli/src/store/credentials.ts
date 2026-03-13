@@ -4,10 +4,10 @@ import { InvalidStoredStateError } from "@/errors";
 import type { FileSystem } from "@/runtime";
 
 const storedCredentialsSchema = z.object({
-	access_token: z.string(),
-	expires_at: z.string(),
-	id_token: z.string().optional(),
-	refresh_token: z.string().optional(),
+	accessToken: z.string(),
+	expiresAt: z.string(),
+	idToken: z.string().optional(),
+	refreshToken: z.string().optional(),
 	user: z.string(),
 });
 

@@ -45,25 +45,25 @@ const broadbandSchema: ProductSchema = {
 		postcode: z
 			.string()
 			.describe("UK postcode where the broadband service is needed"),
-		current_provider: z
+		currentProvider: z
 			.string()
 			.optional()
 			.describe("Current broadband provider, if any"),
-		current_speed: z
+		currentSpeed: z
 			.string()
 			.optional()
 			.describe("Current broadband speed, e.g. '36Mbps'"),
 		preferences: z
 			.object({
-				min_speed: z
+				minSpeed: z
 					.string()
 					.optional()
 					.describe("Minimum acceptable speed, e.g. '50Mbps'"),
-				max_monthly_cost: z
+				maxMonthlyCost: z
 					.number()
 					.optional()
 					.describe("Maximum monthly cost in GBP"),
-				contract_length: z
+				contractLength: z
 					.enum(["12", "18", "24", "any"])
 					.optional()
 					.describe("Preferred contract length in months, or 'any'"),
@@ -78,9 +78,9 @@ const travelSchema: ProductSchema = {
 	description: "Travel insurance comparison data schema",
 	schema: z.object({
 		destination: z.string().describe("Country being visited"),
-		departure_date: z.string().describe("Departure date in YYYY-MM-DD format"),
-		return_date: z.string().describe("Return date in YYYY-MM-DD format"),
-		cover_level: z
+		departureDate: z.string().describe("Departure date in YYYY-MM-DD format"),
+		returnDate: z.string().describe("Return date in YYYY-MM-DD format"),
+		coverLevel: z
 			.enum(["single", "annual", "backpacker"])
 			.optional()
 			.describe("Preferred travel insurance cover level"),

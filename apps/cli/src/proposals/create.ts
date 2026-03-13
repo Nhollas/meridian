@@ -28,7 +28,7 @@ export async function handleProposalsCreate(
 	}
 
 	const dataStore = await readDataStore(dependencies.fileSystem, homeDirectory);
-	const proposalRequest = dataStore.proposal_requests[options.proposalRequest];
+	const proposalRequest = dataStore.proposalRequests[options.proposalRequest];
 
 	if (proposalRequest === undefined) {
 		writeError(
@@ -52,11 +52,11 @@ export async function handleProposalsCreate(
 	);
 
 	dataStore.proposals[id] = {
-		proposal_request: options.proposalRequest,
+		proposalRequestId: options.proposalRequest,
 		product: proposalRequest.product,
 		version: proposalRequest.version,
 		status: "completed",
-		created_at: createdAt,
+		createdAt,
 	};
 	dataStore.results[id] = result;
 
@@ -64,11 +64,11 @@ export async function handleProposalsCreate(
 
 	const payload = {
 		id,
-		proposal_request: options.proposalRequest,
+		proposalRequestId: options.proposalRequest,
 		product: proposalRequest.product,
 		version: proposalRequest.version,
 		status: "completed" as const,
-		created_at: createdAt,
+		createdAt,
 	};
 
 	if (jsonMode) {
@@ -82,6 +82,7 @@ export async function handleProposalsCreate(
 		`ID: ${id}`,
 		`Proposal request: ${options.proposalRequest}`,
 		`Product: ${proposalRequest.product}`,
+		`Version: ${proposalRequest.version}`,
 		"Status: completed",
 	]);
 	return 0;

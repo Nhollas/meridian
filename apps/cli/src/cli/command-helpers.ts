@@ -38,4 +38,16 @@ export function writeError(
 	}
 
 	stderr.write(`Error: ${message}\n`);
+
+	if (details?.["issues"] && Array.isArray(details["issues"])) {
+		stderr.write("\n");
+		for (const issue of details["issues"]) {
+			const { path, message: issueMessage } = issue as {
+				path: string;
+				message: string;
+			};
+			const label = path || "(root)";
+			stderr.write(`  ${label}: ${issueMessage}\n`);
+		}
+	}
 }

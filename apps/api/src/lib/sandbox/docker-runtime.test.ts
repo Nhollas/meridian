@@ -471,7 +471,7 @@ describe("createDockerRuntime", () => {
 		child.stdout.emit(
 			"data",
 			Buffer.from(
-				'{"status":"pending","interval_seconds":5,"user_code":"ABCD-1234"}\n',
+				'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}\n',
 			),
 		);
 
@@ -480,8 +480,7 @@ describe("createDockerRuntime", () => {
 			exitCode: null,
 			status: "running",
 			stderr: "",
-			stdout:
-				'{"status":"pending","interval_seconds":5,"user_code":"ABCD-1234"}',
+			stdout: '{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}',
 		});
 
 		vi.advanceTimersByTime(5 * 60 * 1000 + 1);
@@ -525,7 +524,7 @@ describe("createDockerRuntime", () => {
 		child.stdout.emit(
 			"data",
 			Buffer.from(
-				'{"status":"pending","interval_seconds":5,"user_code":"ABCD-1234"}\n',
+				'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}\n',
 			),
 		);
 
@@ -536,8 +535,7 @@ describe("createDockerRuntime", () => {
 			exitCode: null,
 			status: "running",
 			stderr: "",
-			stdout:
-				'{"status":"pending","interval_seconds":5,"user_code":"ABCD-1234"}',
+			stdout: '{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}',
 		});
 		expect(child.unref).toHaveBeenCalled();
 
@@ -565,13 +563,13 @@ describe("createDockerRuntime", () => {
 			status: "running",
 			stderr: "",
 			stdout:
-				'{"status":"pending","interval_seconds":5,"user_code":"ABCD-1234"}\n',
+				'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}\n',
 		});
 
 		child.stdout.emit(
 			"data",
 			Buffer.from(
-				'{"status":"authenticated","interval_seconds":5,"user":"john.doe@example.com"}\n',
+				'{"status":"authenticated","intervalSeconds":5,"user":"john.doe@example.com"}\n',
 			),
 		);
 		child.emit("close", 0);
@@ -590,7 +588,7 @@ describe("createDockerRuntime", () => {
 			status: "completed",
 			stderr: "",
 			stdout:
-				'{"status":"pending","interval_seconds":5,"user_code":"ABCD-1234"}\n{"status":"authenticated","interval_seconds":5,"user":"john.doe@example.com"}\n',
+				'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}\n{"status":"authenticated","intervalSeconds":5,"user":"john.doe@example.com"}\n',
 		});
 	});
 
