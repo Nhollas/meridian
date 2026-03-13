@@ -10,17 +10,6 @@ Messages go from the chat UI to the API, which runs a LangGraph agent. The agent
   <img src="docs/architecture/current.svg" alt="Current architecture" />
 </p>
 
-## Production architecture (under review)
-
-Exploring two changes:
-
-- **Multi-client support** — adding WhatsApp, Slack, and other messaging services as clients, not just the chat UI
-- **Firecracker microVMs** — swapping Docker for Firecracker to get faster boot times and better isolation
-
-<p align="center">
-  <img src="docs/architecture/production.svg" alt="Production architecture" />
-</p>
-
 ## Getting started
 
 ### Prerequisites

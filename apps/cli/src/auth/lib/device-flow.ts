@@ -26,6 +26,8 @@ const tokenErrorResponseSchema = z.object({
 	error: z.string().min(1).optional(),
 });
 
+const HOST_DOCKER_INTERNAL = "host.docker.internal";
+
 async function parseResponse<TSchema extends z.ZodType>(
 	response: Response,
 	schema: TSchema,
@@ -90,7 +92,9 @@ export async function requestDeviceAuthorisation(
 		device_code: devicePayload.device_code,
 		interval: devicePayload.interval ?? 5,
 		user_code: devicePayload.user_code,
-		verification_uri_complete: devicePayload.verification_uri_complete,
+		verification_uri_complete: normalizeVerificationUriComplete(
+			devicePayload.verification_uri_complete,
+		),
 	};
 }
 
@@ -195,4 +199,18 @@ export async function authenticateWithDeviceFlow(
 	);
 
 	return pollDeviceAuthorisation(authConfig, deviceAuthorisation, dependencies);
+}
+
+function normalizeVerificationUriComplete(uri: string): string {
+	try {
+		const parsed = new URL(uri);
+		if (parsed.hostname !== HOST_DOCKER_INTERNAL) {
+			return uri;
+		}
+
+		parsed.hostname = "localhost";
+		return parsed.toString();
+	} catch {
+		return uri;
+	}
 }

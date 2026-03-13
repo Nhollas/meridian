@@ -1,81 +1,115 @@
 direction: right
 
-chat: Web {
-  icon: https://cdn.simpleicons.org/googlechrome
+clients: "" {
+  direction: down
+  grid-gap: 48
+  style.stroke-width: 0
+  style.fill: transparent
+
+  chat: Web {
+    icon: ./icons/googlechrome.svg
+  }
 }
 
-api: Hono API Server {
-  grid-columns: 1
-  grid-gap: 16
-  style.font-size: 16
-  style.bold: true
+core: "" {
+  direction: down
+  grid-gap: 140
+  style.stroke-width: 0
+  style.fill: transparent
 
-  hono-icon: "" {
-    icon: https://cdn.simpleicons.org/hono
-    shape: image
-    width: 64
-    height: 64
+  api: Hono API Server {
+    grid-columns: 1
+    grid-gap: 16
+    style.font-size: 16
+    style.bold: true
+
+    hono-icon: "" {
+      icon: ./icons/hono.svg
+      shape: image
+      width: 64
+      height: 64
+    }
+
+    spacer: "" {
+      width: 200
+      height: 1
+      style.opacity: 0
+      style.stroke-width: 0
+    }
+
+    agent: LangGraph Agent {
+      icon: ./icons/langchain.svg
+    }
   }
 
-  spacer: "" {
-    width: 200
-    height: 1
+  service-gap: "" {
+    width: 1
+    height: 120
     style.opacity: 0
     style.stroke-width: 0
   }
 
-  agent: LangGraph Agent {
-    icon: https://cdn.simpleicons.org/langchain
+  sandbox: Docker Sandbox {
+    grid-columns: 1
+    grid-gap: 16
+    style.font-size: 16
+    style.bold: true
+
+    docker-icon: "" {
+      icon: ./icons/docker.svg
+      shape: image
+      width: 64
+      height: 64
+    }
+
+    spacer: "" {
+      width: 200
+      height: 1
+      style.opacity: 0
+      style.stroke-width: 0
+    }
+
+    cli: CLI {
+      icon: ./icons/gnubash.svg
+    }
   }
 }
 
-openai: OpenAI {
-  icon: https://cdn.simpleicons.org/openai
-  near: top-right
-}
+external: "" {
+  direction: down
+  grid-gap: 56
+  style.stroke-width: 0
+  style.fill: transparent
 
-sandbox: Docker Sandbox {
-  grid-columns: 1
-  grid-gap: 16
-  style.font-size: 16
-  style.bold: true
-
-  docker-icon: "" {
-    icon: https://cdn.simpleicons.org/docker
-    shape: image
-    width: 64
-    height: 64
+  openai: OpenAI {
+    icon: ./icons/openai.svg
   }
 
-  spacer: "" {
-    width: 200
-    height: 1
-    style.opacity: 0
+  identity: "" {
+    direction: down
+    grid-gap: 28
     style.stroke-width: 0
+    style.fill: transparent
+
+    user: User {
+      shape: person
+    }
+
+    keycloak: Keycloak {
+      icon: ./icons/letsencrypt.svg
+    }
   }
-
-  cli: CLI {
-    icon: https://cdn.simpleicons.org/gnubash
-  }
 }
 
-keycloak: Keycloak {
-  icon: https://cdn.simpleicons.org/letsencrypt
-}
-
-user: User {
-  shape: person
-}
-
-chat <-> api: NDJSON
-api.agent -> openai: inference {
+clients.chat <-> core.api: NDJSON
+core.api -> external.openai: inference {
   style.stroke-dash: 3
 }
-api.agent -> sandbox: exec commands
+core.api.agent -> core.sandbox: exec commands
 
-sandbox -> user: OAuth 2.0 device flow login URL {
+core.sandbox -> external.identity.user: OAuth 2.0 device flow login URL {
   style.stroke-dash: 3
 }
-user -> keycloak: authenticates {
+external.identity.user -> external.identity.keycloak: authenticates {
   style.stroke-dash: 3
 }
