@@ -79,6 +79,39 @@ describe("device flow", () => {
 		});
 	});
 
+	it("normalizes host.docker.internal verification URLs for the browser flow", async () => {
+		mswServer.use(
+			http.post(authDeviceUrl, () =>
+				HttpResponse.json({
+					device_code: "device-code",
+					user_code: "ABCD-1234",
+					verification_uri_complete:
+						"http://host.docker.internal:8080/realms/meridian/device?user_code=ABCD-1234",
+					interval: 5,
+				}),
+			),
+		);
+
+		const result = await requestDeviceAuthorisation(
+			{
+				issuer,
+				clientId: "meridian-cli",
+			},
+			{
+				now: () => new Date("2026-03-06T12:00:00Z"),
+				sleep: async () => {},
+			},
+		);
+
+		expect(result).toEqual({
+			device_code: "device-code",
+			interval: 5,
+			user_code: "ABCD-1234",
+			verification_uri_complete:
+				"http://localhost:8080/realms/meridian/device?user_code=ABCD-1234",
+		});
+	});
+
 	it("fails when the device authorisation response shape is invalid", async () => {
 		mswServer.use(
 			http.post(authDeviceUrl, () =>

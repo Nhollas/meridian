@@ -123,6 +123,56 @@ describe("auth login", () => {
 		expect(stdout.output()).toContain('"status":"authenticated"');
 	});
 
+	it("prints a localhost verification URL when the issuer uses host.docker.internal", async () => {
+		await using home = await createTempHome();
+		const stdout = createWritable(false);
+		const stderr = createWritable();
+		mswServer.use(
+			http.post(
+				"http://host.docker.internal:8080/realms/meridian/protocol/openid-connect/auth/device",
+				() =>
+					HttpResponse.json({
+						device_code: "device-code",
+						user_code: "ABCD-1234",
+						verification_uri_complete:
+							"http://host.docker.internal:8080/realms/meridian/device?user_code=ABCD-1234",
+						interval: 5,
+					}),
+			),
+			http.post(
+				"http://host.docker.internal:8080/realms/meridian/protocol/openid-connect/token",
+				() =>
+					HttpResponse.json({
+						access_token: "access-token",
+						refresh_token: "refresh-token",
+						id_token: createUnsignedJwt({
+							email: "john.doe@example.com",
+						}),
+						expires_in: 300,
+					}),
+			),
+		);
+
+		const exitCode = await runCli(["auth", "login", "--json"], {
+			env: {
+				MERIDIAN_AUTH_ISSUER:
+					"http://host.docker.internal:8080/realms/meridian",
+				MERIDIAN_AUTH_CLIENT_ID: "meridian-cli",
+			},
+			homeDirectory: home.homeDirectory,
+			now: () => new Date("2026-03-06T12:00:00Z"),
+			sleep: async () => {},
+			stdout: stdout.stream,
+			stderr: stderr.stream,
+		});
+
+		expect(exitCode).toBe(0);
+		expect(stdout.output()).toContain(
+			'"verification_uri_complete":"http://localhost:8080/realms/meridian/device?user_code=ABCD-1234"',
+		);
+		expect(stderr.output()).toBe("");
+	});
+
 	it("completes the device flow and stores credentials", async () => {
 		await using home = await createTempHome();
 		const stdout = createWritable(false);
