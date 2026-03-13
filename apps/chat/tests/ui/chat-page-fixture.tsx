@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { test as base } from "vitest";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -11,7 +12,12 @@ export interface ChatPageFixtures {
 export const test = base.extend<ChatPageFixtures>({
 	// biome-ignore lint/correctness/noEmptyPattern: Vitest fixtures require destructuring in the first parameter
 	chatPage: async ({}, use) => {
-		await render(<Chat />);
+		const queryClient = new QueryClient();
+		await render(
+			<QueryClientProvider client={queryClient}>
+				<Chat />
+			</QueryClientProvider>,
+		);
 		await use(chatPageObject(page));
 	},
 });

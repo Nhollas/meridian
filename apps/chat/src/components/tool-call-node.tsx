@@ -20,11 +20,9 @@ const TOOL_STATUS_LABELS = {
 
 function ToolSection({
 	label,
-	maxHeight,
 	children,
 }: {
 	label: string;
-	maxHeight: string;
 	children: React.ReactNode;
 }) {
 	return (
@@ -32,9 +30,7 @@ function ToolSection({
 			<div className="border-border-subtle border-b px-3 py-2 font-medium text-[11px] text-text-muted uppercase tracking-[0.12em]">
 				{label}
 			</div>
-			<pre
-				className={`${maxHeight} overflow-auto p-3 font-mono text-text-secondary text-xs leading-relaxed`}
-			>
+			<pre className="max-h-60 overflow-auto p-3 font-mono text-text-secondary text-xs leading-relaxed">
 				{children}
 			</pre>
 		</div>
@@ -77,9 +73,7 @@ export function ToolCallNode({ toolCall }: ToolCallNodeProps) {
 			>
 				<div className="rounded-xl border border-border-subtle bg-surface-1/70 px-3 py-2.5">
 					<div className="flex flex-wrap items-center gap-1.5 text-text-muted text-xs">
-						<span className="inline-block rounded-full border border-flow/20 bg-flow-muted px-2.5 py-0.5 font-medium text-flow text-xs">
-							{label}
-						</span>
+						<span className="tool-badge">{label}</span>
 						<span
 							className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-medium text-[10px] uppercase tracking-[0.16em] ${TOOL_STATUS_STYLES[status]}`}
 						>
@@ -118,9 +112,7 @@ export function ToolCallNode({ toolCall }: ToolCallNodeProps) {
 							strokeLinejoin="round"
 						/>
 					</svg>
-					<span className="inline-block rounded-full border border-flow/20 bg-flow-muted px-2.5 py-0.5 font-medium text-flow text-xs">
-						{label}
-					</span>
+					<span className="tool-badge">{label}</span>
 					<span
 						className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-medium text-[10px] uppercase tracking-[0.16em] ${TOOL_STATUS_STYLES[status]}`}
 					>
@@ -129,11 +121,9 @@ export function ToolCallNode({ toolCall }: ToolCallNodeProps) {
 				</summary>
 				<div className="mt-2 flex flex-col gap-2">
 					{toolCall.input && (
-						<ToolSection label="Arguments" maxHeight="max-h-48">
-							{formattedInput}
-						</ToolSection>
+						<ToolSection label="Arguments">{formattedInput}</ToolSection>
 					)}
-					<ToolSection label="Result" maxHeight="max-h-60">
+					<ToolSection label="Result">
 						{formattedResult || "Awaiting tool output..."}
 					</ToolSection>
 				</div>
