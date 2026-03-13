@@ -1,6 +1,6 @@
 # Meridian
 
-Chat UI, API server, and CLI for building and running AI agents with sandboxed code execution.
+Give AI agents a safe environment to write and run code, manage files, and execute tasks — with a chat UI, API, and CLI to interact with them.
 
 ## How it works
 
