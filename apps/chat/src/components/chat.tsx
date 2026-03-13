@@ -5,11 +5,7 @@ import {
 	type RuntimeEventEnvelope,
 } from "@meridian/contracts/runtime-events";
 import { startTransition, useEffect, useRef, useState } from "react";
-import {
-	buildDebugTrace,
-	type ChatTurnTrace,
-	createTurnTrace,
-} from "@/lib/chat/debug-trace";
+import { buildCopyDebugTrace } from "@/lib/chat/debug-trace";
 import {
 	mapRuntimeToolEventToViewModel,
 	mapRuntimeTurnToolCallsToViewModels,
@@ -66,7 +62,6 @@ export function Chat() {
 	const [messages, setMessages] = useState<ChatMessageType[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [sessionId, setSessionId] = useState<string | null>(null);
-	const [turnLogs, setTurnLogs] = useState<ChatTurnTrace[]>([]);
 	const [traceStatus, setTraceStatus] = useState<string | null>(null);
 	const [debugStreamDelayMs, setDebugStreamDelayMs] = useState(0);
 	const scrollRef = useRef<HTMLDivElement>(null);
@@ -115,20 +110,6 @@ export function Chat() {
 		shouldAutoScrollRef.current = true;
 		setMessages([...conversationMessages, assistantMessage]);
 		setLoading(true);
-
-		const runtimeEvents: RuntimeEventEnvelope[] = [];
-
-		function recordTurn(response: NonNullable<ChatTurnTrace["response"]>) {
-			setTurnLogs((prev) => [
-				...prev,
-				createTurnTrace({
-					response,
-					runtimeEvents,
-					sessionId: activeSessionId,
-					userMessageId: userMessage.id,
-				}),
-			]);
-		}
 
 		let streamedContent = "";
 		let streamedToolCalls: ToolCallInfo[] = [];
@@ -179,8 +160,6 @@ export function Chat() {
 			}
 
 			await readChatStream(res, (event) => {
-				runtimeEvents.push(event);
-
 				if (event.type === "assistant.delta") {
 					streamedContent += event.payload.delta;
 					scheduleFlush();
@@ -206,10 +185,6 @@ export function Chat() {
 					streamedToolCalls = mapRuntimeTurnToolCallsToViewModels(
 						event.payload.toolCalls,
 					);
-					recordTurn({
-						content: event.payload.content,
-						toolCalls: streamedToolCalls,
-					});
 
 					if (frameId !== null) {
 						window.cancelAnimationFrame(frameId);
@@ -231,9 +206,6 @@ export function Chat() {
 			}
 
 			console.error("Chat API error:", error);
-			recordTurn({
-				error: error instanceof Error ? error.message : String(error),
-			});
 
 			startTransition(() => {
 				setMessages((prev) =>
@@ -252,10 +224,9 @@ export function Chat() {
 	}
 
 	async function handleCopyTrace() {
-		const trace = buildDebugTrace({
+		const trace = buildCopyDebugTrace({
 			messages,
 			sessionId,
-			turnLogs,
 		});
 
 		try {
@@ -268,10 +239,9 @@ export function Chat() {
 	}
 
 	function handleDownloadTrace() {
-		const trace = buildDebugTrace({
+		const trace = buildCopyDebugTrace({
 			messages,
 			sessionId,
-			turnLogs,
 		});
 		const blob = new Blob([JSON.stringify(trace, null, 2)], {
 			type: "application/json",
