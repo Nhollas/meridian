@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	createChatRequest,
+	getParsedToolOutput,
 	readRuntimeEvents,
 } from "../../tests/support/chat-route";
 import { createInMemorySandboxRuntime } from "../../tests/support/in-memory-runtime";
@@ -46,15 +47,7 @@ describe("POST /api/chat integration - runtime files", () => {
 				}),
 			),
 		);
-		const listedDirectory = JSON.parse(
-			(
-				events.find((event) => event.type === "tool.completed")!.payload as {
-					toolCall: { output: string };
-				}
-			).toolCall.output,
-		);
-
-		expect(listedDirectory).toEqual([
+		expect(getParsedToolOutput(events, "list_directory")).toEqual([
 			{
 				name: "offers.json",
 				path: "offers.json",

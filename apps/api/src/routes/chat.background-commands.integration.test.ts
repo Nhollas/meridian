@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
 	createChatRequest,
+	getCompletedToolOutput,
+	getParsedToolOutput,
 	readRuntimeEvents,
 } from "../../tests/support/chat-route";
 import { createInMemorySandboxRuntime } from "../../tests/support/in-memory-runtime";
@@ -724,39 +726,3 @@ describe("POST /api/chat integration - background commands", () => {
 		]);
 	});
 });
-
-function getParsedToolOutput(
-	events: Awaited<ReturnType<typeof readRuntimeEvents>>,
-	name: string,
-) {
-	const event = events.find(
-		(candidate) =>
-			candidate.type === "tool.completed" &&
-			candidate.payload.toolCall.name === name,
-	);
-
-	if (!event) {
-		throw new Error(`Tool ${name} was not completed`);
-	}
-
-	return JSON.parse(
-		(event.payload as { toolCall: { output: string } }).toolCall.output,
-	);
-}
-
-function getCompletedToolOutput(
-	events: Awaited<ReturnType<typeof readRuntimeEvents>>,
-	name: string,
-) {
-	const event = events.find(
-		(candidate) =>
-			candidate.type === "tool.completed" &&
-			candidate.payload.toolCall.name === name,
-	);
-
-	if (!event) {
-		throw new Error(`Tool ${name} was not completed`);
-	}
-
-	return (event.payload as { toolCall: { output: string } }).toolCall.output;
-}
