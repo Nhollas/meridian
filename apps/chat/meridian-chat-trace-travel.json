@@ -1,0 +1,155 @@
+{
+	"exportedAt": "2026-03-14T09:23:33.324Z",
+	"sessionId": "e3bb5e1b-8beb-495c-a7a1-b9de6bbcfda7",
+	"messages": [
+		{
+			"id": "b56f229a-c635-40f6-87bb-517f7cd29970",
+			"role": "user",
+			"content": "Help me compare travel insurance",
+			"timestamp": "2026-03-14T09:22:33.356Z"
+		},
+		{
+			"id": "0018c467-2749-45fe-b127-a1325b640e25",
+			"role": "assistant",
+			"content": "I can do the comparison, but I need two things from you first.\n\n1. Sign in to Meridian using this link and code:  \n   http://localhost:8080/realms/meridian/device?user_code=NZGH-CTXQ  \n   Code: NZGH-CTXQ\n\n2. Send me the required travel details:\n   - Your email address\n   - Destination country\n   - Departure date\n   - Return date\n   - Number of adults\n   - Number of children, if any\n\nOptional: if you have a preference, you can also include cover type:\n- single\n- annual\n- backpacker\n\nOnce you send those, I’ll run the travel insurance comparison for you.",
+			"toolCalls": [
+				{
+					"id": "call_mUCmfLCOre0aVy6vrin8HQDD",
+					"input": "{}",
+					"name": "get_runtime_instructions",
+					"result": "The runtime may have one or more installed tools. Discover capabilities from the runtime itself rather than assuming them.\n\nThe `meridian` CLI is installed and is currently the primary tool in this runtime. Start with `meridian --help` to discover available commands and how to get started.\n\nRules:\n\n- For any product, proposal, or comparison question, use the runtime tools and installed CLIs first. Do not answer from world knowledge.\n- Try to fulfill the user's request end to end with the available tools rather than stopping to ask for permission for routine prerequisite steps.\n- Use the product schema to determine what fields are required. Do not guess.\n- Use the schema to distinguish required fields from optional preferences. Do not ask the user to confirm missing optional fields; treat them as no preference unless they volunteer them.\n- In user-facing replies, describe fields in plain English. Do not mirror raw schema property names unless the user explicitly wants the schema.\n- Do not ask the user to reply in JSON unless the workflow actually requires them to paste JSON.\n- For a new runtime or unfamiliar command, inspect `--help` before making assumptions.\n\nAuthentication:\n\n- Check auth early with `meridian auth status --json`.\n- If unauthenticated, start `meridian auth login --json` with `waitFor: \"first-stdout-line\"` and `keepAlive: true`.\n- Starting the login flow is a routine prerequisite step. Do not ask whether to start it when the user's task depends on authenticated commands.\n- `meridian auth login --json` emits NDJSON events. Capture the pending event with the verification URL and user code, continue any useful read-only work, then inspect or wait on the returned background command.\n- On later turns, if login may have completed in the background or the user says they finished it, check `meridian auth status --json` again before asking them to log in. If needed, inspect or wait on the existing background command for confirmation.\n- For other commands, default to waiting for command exit so you receive the full JSON result.\n- Only use `waitFor: \"first-stdout-line\"` with `keepAlive: true` for device-flow login or another command that is known to stay running and emit a useful first line early.\n- Do not use `first-stdout-line` for `proposal-requests create`, `proposals create`, or `results get`; these should be awaited to completion.\n",
+					"status": "completed"
+				},
+				{
+					"id": "call_HLea8oYGwVQ0KbVNPQ29Ctxt",
+					"input": "{\"command\":[\"meridian\",\"--help\"],\"timeoutMs\":120000}",
+					"name": "run_command",
+					"result": "{\"exitCode\":0,\"stderr\":\"\",\"stdout\":\"Usage: meridian <command> [options]\\n\\nMeridian CLI\\n\\nOptions:\\n  -h, --help         Show help for any command\\n\\nCommands:\\n  auth               Manage authentication\\n  products           Available product verticals\\n  product-schemas    Product data schemas\\n  proposal-requests  Manage proposal requests (drafts)\\n  proposals          Manage proposals (comparisons)\\n  results            View comparison results\\n  help [command]     display help for command\\n\\nExample workflow:\\n  1. Authenticate (if needed)\\n       meridian auth status --json\\n       meridian auth login --json\\n     Most commands require authentication. Login uses Device Flow\\n     and emits newline-delimited JSON. Keep the command running\\n     until it emits a final status.\\n\\n  2. Discover products and their schemas\\n       meridian products list --json\\n       meridian product-schemas get --product <name> --version <ver>\\n     The schema is the source of truth for what a comparison\\n     requires — use it to determine the exact fields to collect.\\n\\n  3. Create a proposal request from a JSON file\\n       meridian proposal-requests create --product <name> --version <ver> --file <path> --json\\n     The request file must conform to the product schema. Build it\\n     from collected answers rather than assuming or hard-coding values.\\n\\n  4. Create a proposal and retrieve results\\n       meridian proposals create --proposal-request <id> --json\\n       meridian results get --proposal <id> --json\\n     A proposal triggers the actual comparison. Results may take a\\n     moment to become available.\\n\\n\\nGlobal options:\\n  -V, --version  Show CLI version\\n\\n\"}",
+					"status": "completed"
+				},
+				{
+					"id": "call_IVc3TK3aeSJEENWsq6Zb3lY9",
+					"input": "{\"command\":[\"meridian\",\"auth\",\"status\",\"--json\"],\"timeoutMs\":120000}",
+					"name": "run_command",
+					"result": "{\"exitCode\":0,\"stderr\":\"\",\"stdout\":\"{\\n  \\\"authenticated\\\": false\\n}\\n\"}",
+					"status": "completed"
+				},
+				{
+					"id": "call_A5K9TKqfXWsZMwESQSW7DKcO",
+					"input": "{\"command\":[\"meridian\",\"auth\",\"login\",\"--json\"],\"waitFor\":\"first-stdout-line\",\"keepAlive\":true,\"timeoutMs\":120000}",
+					"name": "run_command",
+					"result": "{\"exitCode\":null,\"stderr\":\"\",\"stdout\":\"{\\\"interval_seconds\\\":5,\\\"verification_uri_complete\\\":\\\"http://localhost:8080/realms/meridian/device?user_code=NZGH-CTXQ\\\",\\\"user_code\\\":\\\"NZGH-CTXQ\\\",\\\"status\\\":\\\"pending\\\"}\",\"backgroundCommandId\":\"e1239654-901c-46b5-8388-ee4dbb81998d\",\"status\":\"running\"}",
+					"status": "completed"
+				},
+				{
+					"id": "call_SyNBZI6k5hiXvZZsKYJOdwJb",
+					"input": "{\"command\":[\"meridian\",\"products\",\"list\",\"--json\"],\"timeoutMs\":120000}",
+					"name": "run_command",
+					"result": "{\"exitCode\":0,\"stderr\":\"\",\"stdout\":\"{\\n  \\\"products\\\": [\\n    {\\n      \\\"name\\\": \\\"broadband\\\",\\n      \\\"description\\\": \\\"Compare broadband deals by speed, price, and contract length\\\",\\n      \\\"versions\\\": [\\n        {\\n          \\\"version\\\": \\\"1.0\\\",\\n          \\\"status\\\": \\\"current\\\"\\n        }\\n      ]\\n    },\\n    {\\n      \\\"name\\\": \\\"travel\\\",\\n      \\\"description\\\": \\\"Compare travel insurance policies by destination, cover level, and trip type\\\",\\n      \\\"versions\\\": [\\n        {\\n          \\\"version\\\": \\\"1.0\\\",\\n          \\\"status\\\": \\\"current\\\"\\n        }\\n      ]\\n    }\\n  ]\\n}\\n\"}",
+					"status": "completed"
+				},
+				{
+					"id": "call_qRlefYRwzmVWNj0LVeqOZaUm",
+					"input": "{\"command\":[\"meridian\",\"product-schemas\",\"--help\"],\"timeoutMs\":120000}",
+					"name": "run_command",
+					"result": "{\"exitCode\":0,\"stderr\":\"\",\"stdout\":\"Usage: meridian product-schemas [options] [command]\\n\\nProduct data schemas\\n\\nOptions:\\n  -h, --help      Show help for any command\\n\\nCommands:\\n  get [options]   Get the JSON schema for a product and version\\n  help [command]  display help for command\\n\\nGlobal options:\\n  -V, --version  Show CLI version\\n\\n\"}",
+					"status": "completed"
+				},
+				{
+					"id": "call_SgMpFiCJT7kGAOjmxKbDHm55",
+					"input": "{\"command\":[\"meridian\",\"product-schemas\",\"get\",\"--product\",\"travel\",\"--version\",\"1.0\",\"--json\"],\"timeoutMs\":120000}",
+					"name": "run_command",
+					"result": "{\"exitCode\":0,\"stderr\":\"\",\"stdout\":\"{\\n  \\\"$schema\\\": \\\"https://json-schema.org/draft/2020-12/schema\\\",\\n  \\\"type\\\": \\\"object\\\",\\n  \\\"properties\\\": {\\n    \\\"emailAddress\\\": {\\n      \\\"type\\\": \\\"string\\\",\\n      \\\"format\\\": \\\"email\\\",\\n      \\\"pattern\\\": \\\"^(?!\\\\\\\\.)(?!.*\\\\\\\\.\\\\\\\\.)([A-Za-z0-9_'+\\\\\\\\-\\\\\\\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\\\\\\\-]*\\\\\\\\.)+[A-Za-z]{2,}$\\\",\\n      \\\"description\\\": \\\"Email address for the customer requesting the comparison\\\"\\n    },\\n    \\\"data\\\": {\\n      \\\"type\\\": \\\"object\\\",\\n      \\\"properties\\\": {\\n        \\\"destination\\\": {\\n          \\\"type\\\": \\\"string\\\",\\n          \\\"description\\\": \\\"Country being visited\\\"\\n        },\\n        \\\"departure_date\\\": {\\n          \\\"type\\\": \\\"string\\\",\\n          \\\"description\\\": \\\"Departure date in YYYY-MM-DD format\\\"\\n        },\\n        \\\"return_date\\\": {\\n          \\\"type\\\": \\\"string\\\",\\n          \\\"description\\\": \\\"Return date in YYYY-MM-DD format\\\"\\n        },\\n        \\\"cover_level\\\": {\\n          \\\"description\\\": \\\"Preferred travel insurance cover level\\\",\\n          \\\"type\\\": \\\"string\\\",\\n          \\\"enum\\\": [\\n            \\\"single\\\",\\n            \\\"annual\\\",\\n            \\\"backpacker\\\"\\n          ]\\n        },\\n        \\\"travellers\\\": {\\n          \\\"type\\\": \\\"object\\\",\\n          \\\"properties\\\": {\\n            \\\"adults\\\": {\\n              \\\"type\\\": \\\"number\\\",\\n              \\\"description\\\": \\\"Number of adults travelling\\\"\\n            },\\n            \\\"children\\\": {\\n              \\\"description\\\": \\\"Number of children travelling\\\",\\n              \\\"type\\\": \\\"number\\\"\\n            }\\n          },\\n          \\\"required\\\": [\\n            \\\"adults\\\"\\n          ],\\n          \\\"additionalProperties\\\": false\\n        }\\n      },\\n      \\\"required\\\": [\\n        \\\"destination\\\",\\n        \\\"departure_date\\\",\\n        \\\"return_date\\\",\\n        \\\"travellers\\\"\\n      ],\\n      \\\"additionalProperties\\\": false,\\n      \\\"description\\\": \\\"Comparison input data for travel\\\"\\n    }\\n  },\\n  \\\"required\\\": [\\n    \\\"emailAddress\\\",\\n    \\\"data\\\"\\n  ],\\n  \\\"additionalProperties\\\": false\\n}\\n\"}",
+					"status": "completed"
+				}
+			],
+			"status": "complete",
+			"timestamp": "2026-03-14T09:22:33.356Z"
+		},
+		{
+			"id": "6a27e9f8-e5e9-44ee-8fad-fd8885ca121e",
+			"role": "user",
+			"content": "Email: tester@emailreaction.org Destination: Greece Departure Date: 1st April 2026 (7 nights) 2 Adults 0 Children",
+			"timestamp": "2026-03-14T09:22:57.103Z"
+		},
+		{
+			"id": "2f46e924-aa56-49ba-b20c-76b4f11fc2e2",
+			"role": "assistant",
+			"content": "I compared travel insurance for your Greece trip and found 2 options.\n\nYour trip details used:\n- Email: tester@emailreaction.org\n- Destination: Greece\n- Dates: 2026-04-01 to 2026-04-08\n- Travellers: 2 adults, 0 children\n\nResults\n1. Aviva — Single Trip Standard\n   - Price: £12.50\n   - Cover type: single\n   - Excess: £100\n\n2. Admiral — Annual Gold\n   - Price: £18.75\n   - Cover type: annual\n   - Excess: £75\n\nQuick comparison\n- Cheapest: Aviva Single Trip Standard at £12.50\n- Lower excess: Admiral Annual Gold with £75 excess\n- Best fit for this one trip: likely the Aviva single-trip option, unless you expect to travel again within the year\n\nIf you want, I can also help you:\n- choose the better option for your situation\n- rerun this with a specific cover type preference\n- summarize the results as a simple pros/cons table",
+			"toolCalls": [
+				{
+					"id": "call_XzmylrwGZGAEsZHC5HEl7G5E",
+					"input": "{\"command\":[\"meridian\",\"auth\",\"status\",\"--json\"],\"timeoutMs\":120000}",
+					"name": "run_command",
+					"result": "{\"exitCode\":0,\"stderr\":\"\",\"stdout\":\"{\\n  \\\"authenticated\\\": true,\\n  \\\"user\\\": \\\"meridian-dev@example.com\\\",\\n  \\\"expires_at\\\": \\\"2026-03-14T09:27:47.141Z\\\"\\n}\\n\"}",
+					"status": "completed"
+				},
+				{
+					"id": "call_NGzTjpEaY8x2SpnMk3yE1GY5",
+					"input": "{\"commandId\":\"e1239654-901c-46b5-8388-ee4dbb81998d\"}",
+					"name": "inspect_background_command",
+					"result": "{\"command\":[\"meridian\",\"auth\",\"login\",\"--json\"],\"exitCode\":0,\"id\":\"e1239654-901c-46b5-8388-ee4dbb81998d\",\"startedAt\":\"2026-03-14T09:22:37.082Z\",\"status\":\"completed\",\"endedAt\":\"2026-03-14T09:22:47.164Z\",\"stderr\":\"\",\"stdout\":\"{\\\"interval_seconds\\\":5,\\\"verification_uri_complete\\\":\\\"http://localhost:8080/realms/meridian/device?user_code=NZGH-CTXQ\\\",\\\"user_code\\\":\\\"NZGH-CTXQ\\\",\\\"status\\\":\\\"pending\\\"}\\n{\\\"interval_seconds\\\":5,\\\"verification_uri_complete\\\":\\\"http://localhost:8080/realms/meridian/device?user_code=NZGH-CTXQ\\\",\\\"user_code\\\":\\\"NZGH-CTXQ\\\",\\\"status\\\":\\\"authenticated\\\",\\\"user\\\":\\\"meridian-dev@example.com\\\",\\\"expires_at\\\":\\\"2026-03-14T09:27:47.141Z\\\"}\\n\"}",
+					"status": "completed"
+				},
+				{
+					"id": "call_9N5wkdD6JoA5fCxEobYLH8Cf",
+					"input": "{\"command\":[\"meridian\",\"proposal-requests\",\"--help\"],\"timeoutMs\":120000}",
+					"name": "run_command",
+					"result": "{\"exitCode\":0,\"stderr\":\"\",\"stdout\":\"Usage: meridian proposal-requests [options] [command]\\n\\nManage proposal requests (drafts)\\n\\nOptions:\\n  -h, --help        Show help for any command\\n\\nCommands:\\n  create [options]  Create a new proposal request from a JSON file\\n  help [command]    display help for command\\n\\nGlobal options:\\n  -V, --version  Show CLI version\\n\\n\"}",
+					"status": "completed"
+				},
+				{
+					"id": "call_U3gRJAcmkxWXPS5sI0sF5hKH",
+					"input": "{\"command\":[\"meridian\",\"proposal-requests\",\"create\",\"--help\"],\"timeoutMs\":120000}",
+					"name": "run_command",
+					"result": "{\"exitCode\":0,\"stderr\":\"\",\"stdout\":\"Usage: meridian proposal-requests create [options]\\n\\nCreate a new proposal request from a JSON file\\n\\nOptions:\\n  --product <product>  Product name\\n  --version <version>  Schema version\\n  --file <path>        Path to input JSON\\n  --json               Output as JSON (default when stdout is not a TTY)\\n  -h, --help           Show help for any command\\n\\nGlobal options:\\n  -V, --version  Show CLI version\\n\\n\"}",
+					"status": "completed"
+				},
+				{
+					"id": "call_roDzl9JqjWlJD5wtYn2sWCOP",
+					"input": "{\"command\":[\"meridian\",\"proposals\",\"create\",\"--help\"],\"timeoutMs\":120000}",
+					"name": "run_command",
+					"result": "{\"exitCode\":0,\"stderr\":\"\",\"stdout\":\"Usage: meridian proposals create [options]\\n\\nCreate a proposal from a proposal request\\n\\nOptions:\\n  --proposal-request <id>  Proposal request id\\n  --json                   Output as JSON (default when stdout is not a TTY)\\n  -h, --help               Show help for any command\\n\\nGlobal options:\\n  -V, --version  Show CLI version\\n\\n\"}",
+					"status": "completed"
+				},
+				{
+					"id": "call_Rz2DZoS2BzmFaoxoV9Gn4lkE",
+					"input": "{\"command\":[\"meridian\",\"results\",\"get\",\"--help\"],\"timeoutMs\":120000}",
+					"name": "run_command",
+					"result": "{\"exitCode\":0,\"stderr\":\"\",\"stdout\":\"Usage: meridian results get [options]\\n\\nGet the result for a proposal\\n\\nOptions:\\n  --proposal <id>  Proposal id\\n  --json           Output as JSON (default when stdout is not a TTY)\\n  -h, --help       Show help for any command\\n\\nGlobal options:\\n  -V, --version  Show CLI version\\n\\n\"}",
+					"status": "completed"
+				},
+				{
+					"id": "call_mHcIvz7qK0u32idPpnRuNzGE",
+					"input": "{\"path\":\"travel-request.json\",\"contents\":\"{\\n  \\\"emailAddress\\\": \\\"tester@emailreaction.org\\\",\\n  \\\"data\\\": {\\n    \\\"destination\\\": \\\"Greece\\\",\\n    \\\"departure_date\\\": \\\"2026-04-01\\\",\\n    \\\"return_date\\\": \\\"2026-04-08\\\",\\n    \\\"travellers\\\": {\\n      \\\"adults\\\": 2,\\n      \\\"children\\\": 0\\n    }\\n  }\\n}\\n\"}",
+					"name": "write_file",
+					"result": "{\"path\":\"travel-request.json\"}",
+					"status": "completed"
+				},
+				{
+					"id": "call_jUX2EaWX50rD5OfH66PcIaPp",
+					"input": "{\"command\":[\"meridian\",\"proposal-requests\",\"create\",\"--product\",\"travel\",\"--version\",\"1.0\",\"--file\",\"travel-request.json\",\"--json\"],\"timeoutMs\":120000}",
+					"name": "run_command",
+					"result": "{\"exitCode\":0,\"stderr\":\"\",\"stdout\":\"{\\n  \\\"id\\\": \\\"pr-04p89ztn\\\",\\n  \\\"product\\\": \\\"travel\\\",\\n  \\\"version\\\": \\\"1.0\\\",\\n  \\\"status\\\": \\\"draft\\\",\\n  \\\"created_at\\\": \\\"2026-03-14T09:23:04.999Z\\\"\\n}\\n\"}",
+					"status": "completed"
+				},
+				{
+					"id": "call_lAn7ccCBtIidePAgov3bet2F",
+					"input": "{\"command\":[\"meridian\",\"proposals\",\"create\",\"--proposal-request\",\"pr-04p89ztn\",\"--json\"],\"timeoutMs\":120000}",
+					"name": "run_command",
+					"result": "{\"exitCode\":0,\"stderr\":\"\",\"stdout\":\"{\\n  \\\"id\\\": \\\"prop-tm535q9h\\\",\\n  \\\"proposal_request\\\": \\\"pr-04p89ztn\\\",\\n  \\\"product\\\": \\\"travel\\\",\\n  \\\"version\\\": \\\"1.0\\\",\\n  \\\"status\\\": \\\"completed\\\",\\n  \\\"created_at\\\": \\\"2026-03-14T09:23:06.214Z\\\"\\n}\\n\"}",
+					"status": "completed"
+				},
+				{
+					"id": "call_Is0ch7qoSv92iZj65WLbxAya",
+					"input": "{\"command\":[\"meridian\",\"results\",\"get\",\"--proposal\",\"prop-tm535q9h\",\"--json\"],\"timeoutMs\":120000}",
+					"name": "run_command",
+					"result": "{\"exitCode\":0,\"stderr\":\"\",\"stdout\":\"{\\n  \\\"id\\\": \\\"prop-tm535q9h-result\\\",\\n  \\\"product\\\": \\\"travel\\\",\\n  \\\"version\\\": \\\"1.0\\\",\\n  \\\"proposalId\\\": \\\"prop-tm535q9h\\\",\\n  \\\"sessionId\\\": \\\"session-pr-04p89ztn\\\",\\n  \\\"customerId\\\": \\\"tester@emailreaction.org\\\",\\n  \\\"metadata\\\": {},\\n  \\\"offerings\\\": [\\n    {\\n      \\\"brandName\\\": \\\"Single Trip Standard\\\",\\n      \\\"brandCode\\\": \\\"aviva-single-trip-standard\\\",\\n      \\\"providerName\\\": \\\"Aviva\\\",\\n      \\\"pricing\\\": {\\n        \\\"paymentOptions\\\": [\\n          {\\n            \\\"type\\\": \\\"OneTime\\\",\\n            \\\"totalCost\\\": 12.5,\\n            \\\"installmentDetails\\\": null\\n          }\\n        ]\\n      },\\n      \\\"metadata\\\": {\\n        \\\"coverLevel\\\": \\\"single\\\",\\n        \\\"excess\\\": 100\\n      }\\n    },\\n    {\\n      \\\"brandName\\\": \\\"Annual Gold\\\",\\n      \\\"brandCode\\\": \\\"admiral-annual-gold\\\",\\n      \\\"providerName\\\": \\\"Admiral\\\",\\n      \\\"pricing\\\": {\\n        \\\"paymentOptions\\\": [\\n          {\\n            \\\"type\\\": \\\"OneTime\\\",\\n            \\\"totalCost\\\": 18.75,\\n            \\\"installmentDetails\\\": null\\n          }\\n        ]\\n      },\\n      \\\"metadata\\\": {\\n        \\\"coverLevel\\\": \\\"annual\\\",\\n        \\\"excess\\\": 75\\n      }\\n    }\\n  ]\\n}\\n\"}",
+					"status": "completed"
+				}
+			],
+			"status": "complete",
+			"timestamp": "2026-03-14T09:22:57.103Z"
+		}
+	]
+}
