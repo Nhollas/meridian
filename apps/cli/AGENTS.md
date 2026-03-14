@@ -14,6 +14,6 @@ pnpm build          # esbuild bundle
 
 ## Testing
 
-- Unit tests: `tests/unit/` — organized by command domain
+- Unit tests: colocated with source in `src/` as `*.test.ts` files
 - MSW for HTTP mocking, setup in `tests/setup/msw.ts`
 - Test helpers in `tests/helpers/` (JWT creation, stream mocking, temp home directory)

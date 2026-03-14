@@ -5,6 +5,7 @@ export default defineConfig({
 	test: {
 		silent: "passed-only",
 		setupFiles: ["./tests/setup/msw.ts"],
+		include: ["src/**/*.test.ts"],
 		coverage: {
 			provider: "v8",
 			include: ["src/**/*.ts"],

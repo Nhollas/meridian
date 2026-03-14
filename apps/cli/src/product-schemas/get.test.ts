@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { runCli } from "@/cli";
-import { createWritable } from "../../../helpers/streams";
+import { createWritable } from "../../tests/helpers/streams";
 
 describe("product-schemas get", () => {
 	it("accepts the spaced version option form", async () => {

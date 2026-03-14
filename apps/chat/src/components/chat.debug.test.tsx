@@ -3,9 +3,9 @@ import { describe, expect, vi } from "vitest";
 import {
 	createChatEventFactory,
 	createChatStreamResponse,
-} from "./chat-contract";
-import { test } from "./chat-page-fixture";
-import { browserWorker } from "./msw";
+} from "../../tests/support/chat-contract";
+import { test } from "../../tests/support/chat-page-fixture";
+import { browserWorker } from "../../tests/support/msw";
 
 describe("Chat UI - debug controls", () => {
 	test("sends the debug delay header when slow stream mode is enabled", async ({

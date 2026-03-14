@@ -3,9 +3,9 @@ import { describe } from "vitest";
 import {
 	createChatEventFactory,
 	createChatStreamResponse,
-} from "./chat-contract";
-import { test } from "./chat-page-fixture";
-import { browserWorker } from "./msw";
+} from "../../tests/support/chat-contract";
+import { test } from "../../tests/support/chat-page-fixture";
+import { browserWorker } from "../../tests/support/msw";
 
 /**
  * Realistic journey tests that exercise the chat UI with multi-tool-call

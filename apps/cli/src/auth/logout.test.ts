@@ -3,9 +3,9 @@ import { join } from "node:path";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
 import { runCli } from "@/cli";
-import { createWritable } from "../../../helpers/streams";
-import { createTempHome } from "../../../helpers/temp-home";
-import { mswServer } from "../../../setup/msw";
+import { createWritable } from "../../tests/helpers/streams";
+import { createTempHome } from "../../tests/helpers/temp-home";
+import { mswServer } from "../../tests/setup/msw";
 
 describe("auth logout", () => {
 	it("revokes the session and deletes stored credentials", async () => {
