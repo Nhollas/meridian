@@ -49,7 +49,8 @@ interface ProgressThreadProps {
 
 export function ProgressThread({ toolCalls }: ProgressThreadProps) {
 	const [isExpanded, setIsExpanded] = useState(false);
-	const isRunning = toolCalls.some((tc) => tc.status === "running");
+	const anyRunning = toolCalls.some((tc) => tc.status === "running");
+	const allRunning = toolCalls.every((tc) => tc.status === "running");
 	const hasError = toolCalls.some((tc) => tc.status === "error");
 	const summary = useMemo(() => formatActivitySummary(toolCalls), [toolCalls]);
 
@@ -65,7 +66,7 @@ export function ProgressThread({ toolCalls }: ProgressThreadProps) {
 
 				<span
 					className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-						isRunning
+						anyRunning
 							? "animate-pulse bg-warning"
 							: hasError
 								? "bg-error"
@@ -74,7 +75,7 @@ export function ProgressThread({ toolCalls }: ProgressThreadProps) {
 				/>
 
 				<span className="min-w-0 flex-1 truncate font-mono text-[11px] text-text-muted transition-colors group-hover/summary:text-text-secondary">
-					{isRunning ? "Working..." : summary}
+					{allRunning ? "Working..." : summary}
 				</span>
 			</button>
 

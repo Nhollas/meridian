@@ -15,17 +15,17 @@ export function formatToolSummary(name: string, input?: string): string {
 			case "run_command":
 				return parsed.command ? `$ ${parsed.command.join(" ")}` : label;
 			case "read_file":
-				return parsed.path ?? label;
+				return `read ${parsed.path ?? "file"}`;
 			case "write_file":
-				return parsed.path ?? label;
+				return `write ${parsed.path ?? "file"}`;
 			case "list_directory":
 				return `ls ${parsed.path ?? "."}`;
 			case "inspect_background_command":
-				return `inspect ${parsed.commandId ?? "process"}`;
+				return "inspect background process";
 			case "wait_for_background_command":
-				return `await ${parsed.commandId ?? "process"}`;
+				return "await background process";
 			case "terminate_background_command":
-				return `kill ${parsed.commandId ?? "process"}`;
+				return "terminate background process";
 			default:
 				return label;
 		}
