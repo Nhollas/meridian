@@ -4,6 +4,12 @@ import { useEffect, useState } from "react";
 import { buildCopyDebugTrace } from "@/lib/chat/debug-trace";
 import type { ChatMessageViewModel } from "@/lib/chat/view-models";
 
+function safeJsonStringify(value: unknown): string {
+	return JSON.stringify(value, null, 2)
+		.replaceAll("\u2028", "\\u2028")
+		.replaceAll("\u2029", "\\u2029");
+}
+
 const TRACE_BUTTON_CLASS =
 	"rounded-md border border-border bg-surface-1 px-3 py-1.5 text-text-secondary text-xs transition-colors hover:border-flow hover:text-text-primary";
 
@@ -38,7 +44,7 @@ export function DebugToolbar({
 		const trace = buildCopyDebugTrace({ messages, sessionId });
 
 		try {
-			await navigator.clipboard.writeText(JSON.stringify(trace, null, 2));
+			await navigator.clipboard.writeText(safeJsonStringify(trace));
 			setTraceStatus("Debug trace copied");
 		} catch (error) {
 			console.error("Trace copy failed:", error);
@@ -48,7 +54,7 @@ export function DebugToolbar({
 
 	function handleDownloadTrace() {
 		const trace = buildCopyDebugTrace({ messages, sessionId });
-		const blob = new Blob([JSON.stringify(trace, null, 2)], {
+		const blob = new Blob([safeJsonStringify(trace)], {
 			type: "application/json",
 		});
 		const url = URL.createObjectURL(blob);
