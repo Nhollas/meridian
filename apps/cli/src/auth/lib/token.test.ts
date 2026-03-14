@@ -5,9 +5,8 @@ import {
 	isAccessTokenExpired,
 	refreshStoredCredentials,
 } from "@/auth/lib/token";
-import { createUnsignedJwt } from "../../../tests/helpers/jwt";
-import { withFormBody } from "../../../tests/helpers/msw-predicates";
-import { mswServer } from "../../../tests/setup/msw";
+import { mswServer, withFormBody } from "../../../tests/setup/msw";
+import { createUnsignedJwt } from "../../../tests/support/jwt";
 
 const issuer = "http://localhost:8180/realms/meridian";
 const tokenUrl = `${issuer}/protocol/openid-connect/token`;

@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useAutoScroll } from "@/lib/chat/use-auto-scroll";
-import { useChat } from "@/lib/chat/use-chat";
+import { useAutoScroll } from "@/lib/use-auto-scroll";
+import { useChat } from "@/lib/use-chat";
 import { ChatInput } from "./chat-input";
 import { ChatMessage } from "./chat-message";
 import { DebugToolbar } from "./debug-toolbar";

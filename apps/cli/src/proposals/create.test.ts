@@ -2,8 +2,8 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { runCli } from "@/cli";
-import { createWritable } from "../../tests/helpers/streams";
-import { createTempHome } from "../../tests/helpers/temp-home";
+import { createWritable } from "../../tests/support/streams";
+import { createTempHome } from "../../tests/support/temp-home";
 
 describe("proposals create", () => {
 	it("creates a proposal and generates mock results", async () => {

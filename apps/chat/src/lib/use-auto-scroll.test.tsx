@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { describe, expect, test } from "vitest";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { useAutoScroll } from "@/lib/chat/use-auto-scroll";
-import type { ChatMessageViewModel } from "@/lib/chat/view-models";
+import { useAutoScroll } from "@/lib/use-auto-scroll";
+import type { ChatMessageViewModel } from "@/lib/view-models";
 
 function msg(content: string): ChatMessageViewModel {
 	return {

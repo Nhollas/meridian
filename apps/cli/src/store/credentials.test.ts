@@ -5,7 +5,7 @@ import {
 	readCredentials,
 	writeCredentials,
 } from "@/store/credentials";
-import { createTempHome } from "../../tests/helpers/temp-home";
+import { createTempHome } from "../../tests/support/temp-home";
 
 describe("credentials store", () => {
 	it("writes then reads credentials", async () => {

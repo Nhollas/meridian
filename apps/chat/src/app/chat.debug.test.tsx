@@ -5,8 +5,11 @@ import {
 	createChatStreamResponse,
 } from "../../tests/support/chat-contract";
 import { test } from "../../tests/support/chat-page-fixture";
-import { browserWorker } from "../../tests/support/msw";
-import { withHeaders, withJsonBody } from "../../tests/support/msw-predicates";
+import {
+	browserWorker,
+	withHeaders,
+	withJsonBody,
+} from "../../tests/support/msw";
 
 describe("Chat UI - debug controls", () => {
 	test("sends the debug delay header when slow stream mode is enabled", async ({

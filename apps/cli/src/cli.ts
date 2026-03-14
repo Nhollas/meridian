@@ -1,18 +1,18 @@
 import { readFileSync } from "node:fs";
 import { Command, CommanderError } from "commander";
 import { registerAuthCommands } from "./auth/command";
-import { writeError } from "./cli/command-helpers";
+import { writeError } from "./command-helpers";
 import {
 	InputFileParseError,
 	InputFileReadError,
 	InvalidStoredStateError,
 } from "./errors";
-import { configureProcessNetworking } from "./network/proxy";
 import { getOutputMode } from "./output";
 import { registerProductSchemaCommands } from "./product-schemas/command";
 import { registerProductsCommands } from "./products/command";
 import { registerProposalRequestCommands } from "./proposal-requests/command";
 import { registerProposalCommands } from "./proposals/command";
+import { configureProcessNetworking } from "./proxy";
 import { registerResultCommands } from "./results/command";
 import {
 	type CliDependencies,

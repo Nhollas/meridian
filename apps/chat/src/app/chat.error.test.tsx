@@ -5,8 +5,7 @@ import {
 	createControllableChatStream,
 } from "../../tests/support/chat-contract";
 import { test } from "../../tests/support/chat-page-fixture";
-import { browserWorker } from "../../tests/support/msw";
-import { withJsonBody } from "../../tests/support/msw-predicates";
+import { browserWorker, withJsonBody } from "../../tests/support/msw";
 
 describe("Chat UI - error handling", () => {
 	test("shows an interrupted assistant message when the request fails", async ({

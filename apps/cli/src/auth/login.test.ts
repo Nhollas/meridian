@@ -2,11 +2,10 @@ import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_AUTH_CLIENT_ID, DEFAULT_AUTH_ISSUER } from "@/auth/session";
 import { runCli } from "@/cli";
-import { createUnsignedJwt } from "../../tests/helpers/jwt";
-import { withFormBody } from "../../tests/helpers/msw-predicates";
-import { createWritable } from "../../tests/helpers/streams";
-import { createTempHome } from "../../tests/helpers/temp-home";
-import { mswServer } from "../../tests/setup/msw";
+import { mswServer, withFormBody } from "../../tests/setup/msw";
+import { createUnsignedJwt } from "../../tests/support/jwt";
+import { createWritable } from "../../tests/support/streams";
+import { createTempHome } from "../../tests/support/temp-home";
 
 describe("auth login", () => {
 	it("uses the official Meridian auth defaults when no overrides are set", async () => {

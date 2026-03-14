@@ -3,10 +3,9 @@ import { join } from "node:path";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
 import { runCli } from "@/cli";
-import { withFormBody } from "../../tests/helpers/msw-predicates";
-import { createWritable } from "../../tests/helpers/streams";
-import { createTempHome } from "../../tests/helpers/temp-home";
-import { mswServer } from "../../tests/setup/msw";
+import { mswServer, withFormBody } from "../../tests/setup/msw";
+import { createWritable } from "../../tests/support/streams";
+import { createTempHome } from "../../tests/support/temp-home";
 
 describe("proposal-requests create", () => {
 	it("accepts the spaced version option form", async () => {
