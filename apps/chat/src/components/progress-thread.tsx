@@ -12,18 +12,14 @@ import type { ToolCallViewModel } from "@/lib/chat/view-models";
  * SVG tree connectors — pixel-aligned to a 12×12 grid so they
  * center perfectly via flexbox alongside the status dot and text.
  */
-function TreeConnector({
-	type,
-}: {
-	type: "dash" | "tee" | "branch" | "corner";
-}) {
-	const paths: Record<typeof type, string> = {
-		dash: "M 2 6 H 10",
-		tee: "M 6 6 H 10 M 6 6 V 12",
-		branch: "M 6 0 V 12 M 6 6 H 10",
-		corner: "M 6 0 V 6 H 10",
-	};
+const CONNECTOR_PATHS = {
+	dash: "M 2 6 H 10",
+	tee: "M 6 6 H 10 M 6 6 V 12",
+	branch: "M 6 0 V 12 M 6 6 H 10",
+	corner: "M 6 0 V 6 H 10",
+} as const;
 
+function TreeConnector({ type }: { type: keyof typeof CONNECTOR_PATHS }) {
 	return (
 		<svg
 			aria-hidden="true"
@@ -34,7 +30,7 @@ function TreeConnector({
 			className="shrink-0 text-border"
 		>
 			<path
-				d={paths[type]}
+				d={CONNECTOR_PATHS[type]}
 				stroke="currentColor"
 				strokeWidth="1"
 				strokeLinecap="round"
@@ -59,7 +55,7 @@ export function ProgressThread({ toolCalls }: ProgressThreadProps) {
 			{/* Collapsed summary line */}
 			<button
 				type="button"
-				onClick={() => setIsExpanded(!isExpanded)}
+				onClick={() => setIsExpanded((prev) => !prev)}
 				className="group/summary flex w-full items-center gap-2 py-1 text-left"
 			>
 				<TreeConnector type={isExpanded ? "tee" : "dash"} />
@@ -123,7 +119,7 @@ function ThreadLine({
 		<li className="tool-thread-line">
 			<button
 				type="button"
-				onClick={() => hasOutput && setShowOutput(!showOutput)}
+				onClick={() => hasOutput && setShowOutput((prev) => !prev)}
 				disabled={isRunning || !hasOutput}
 				className="group/line flex w-full items-center gap-2 py-1 text-left transition-colors disabled:cursor-default"
 			>

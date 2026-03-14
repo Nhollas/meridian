@@ -35,7 +35,7 @@ export function Chat() {
 					<div className="flex items-center gap-1">
 						<button
 							type="button"
-							onClick={() => setShowDebug(!showDebug)}
+							onClick={() => setShowDebug((prev) => !prev)}
 							aria-label="Toggle debug tools"
 							className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
 								showDebug
