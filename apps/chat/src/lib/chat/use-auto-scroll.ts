@@ -6,6 +6,7 @@ const AUTO_SCROLL_THRESHOLD_PX = 96;
 export function useAutoScroll(messages: ChatMessageViewModel[]) {
 	const scrollRef = useRef<HTMLDivElement>(null);
 	const shouldAutoScrollRef = useRef(true);
+	const isProgrammaticScrollRef = useRef(false);
 	const latestMessageFingerprint = getMessageFingerprint(messages.at(-1));
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: auto-scroll should respond to streamed message/tool updates only
@@ -15,10 +16,16 @@ export function useAutoScroll(messages: ChatMessageViewModel[]) {
 			return;
 		}
 
+		isProgrammaticScrollRef.current = true;
 		el.scrollTop = el.scrollHeight;
 	}, [messages.length, latestMessageFingerprint]);
 
 	function handleScroll() {
+		if (isProgrammaticScrollRef.current) {
+			isProgrammaticScrollRef.current = false;
+			return;
+		}
+
 		const el = scrollRef.current;
 		if (!el) {
 			return;
