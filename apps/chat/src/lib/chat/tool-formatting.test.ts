@@ -99,10 +99,34 @@ describe("formatToolOutput", () => {
 		expect(formatToolOutput("run_command", result)).toBe("(no output)");
 	});
 
-	it("formats write_file with the written path", () => {
+	it("shows file contents for write_file when input has contents", () => {
+		const input = JSON.stringify({
+			path: "output.txt",
+			contents: '{\n  "key": "value"\n}',
+		});
+		const result = JSON.stringify({ path: "output.txt" });
+		expect(formatToolOutput("write_file", result, input)).toBe(
+			'{\n  "key": "value"\n}',
+		);
+	});
+
+	it("falls back to 'Written to' for write_file without input", () => {
 		const result = JSON.stringify({ path: "output.txt" });
 		expect(formatToolOutput("write_file", result)).toBe(
 			"Written to output.txt",
+		);
+	});
+
+	it("extracts stdout from inspect_background_command", () => {
+		const result = JSON.stringify({
+			command: ["meridian", "auth", "login", "--json"],
+			exitCode: 0,
+			status: "completed",
+			stdout: '{"status":"authenticated"}\n',
+			stderr: "",
+		});
+		expect(formatToolOutput("inspect_background_command", result)).toBe(
+			'{"status":"authenticated"}',
 		);
 	});
 

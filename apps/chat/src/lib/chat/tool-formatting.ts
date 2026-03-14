@@ -102,23 +102,41 @@ export function formatActivitySummary(toolCalls: ToolCallViewModel[]): string {
  * Extracts the meaningful output from a tool call result,
  * showing terminal-style output rather than the raw JSON envelope.
  */
-export function formatToolOutput(name: string, result: string): string {
+function formatCommandOutput(parsed: {
+	stdout?: string;
+	stderr?: string;
+	exitCode?: number;
+}): string {
+	const parts: string[] = [];
+	if (parsed.stdout) parts.push(parsed.stdout.trimEnd());
+	if (parsed.stderr) parts.push(parsed.stderr.trimEnd());
+	if (parsed.exitCode !== undefined && parsed.exitCode !== 0) {
+		parts.push(`exit ${parsed.exitCode}`);
+	}
+	return parts.join("\n") || "(no output)";
+}
+
+export function formatToolOutput(
+	name: string,
+	result: string,
+	input?: string,
+): string {
 	if (!result) return "";
 
 	try {
 		const parsed = JSON.parse(result);
 		switch (name) {
-			case "run_command": {
-				const parts: string[] = [];
-				if (parsed.stdout) parts.push(parsed.stdout.trimEnd());
-				if (parsed.stderr) parts.push(parsed.stderr.trimEnd());
-				if (parsed.exitCode !== undefined && parsed.exitCode !== 0) {
-					parts.push(`exit ${parsed.exitCode}`);
-				}
-				return parts.join("\n") || "(no output)";
-			}
-			case "write_file":
+			case "run_command":
+				return formatCommandOutput(parsed);
+			case "inspect_background_command":
+			case "wait_for_background_command":
+			case "terminate_background_command":
+				return formatCommandOutput(parsed);
+			case "write_file": {
+				const parsedInput = input ? JSON.parse(input) : null;
+				if (parsedInput?.contents) return parsedInput.contents;
 				return parsed.path ? `Written to ${parsed.path}` : result;
+			}
 			case "list_directory": {
 				if (Array.isArray(parsed)) {
 					return parsed

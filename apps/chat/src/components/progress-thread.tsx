@@ -110,8 +110,11 @@ function ThreadLine({
 	const isError = toolCall.status === "error";
 
 	const output = useMemo(
-		() => (!isRunning ? formatToolOutput(toolCall.name, toolCall.result) : ""),
-		[isRunning, toolCall.name, toolCall.result],
+		() =>
+			!isRunning
+				? formatToolOutput(toolCall.name, toolCall.result, toolCall.input)
+				: "",
+		[isRunning, toolCall.name, toolCall.result, toolCall.input],
 	);
 
 	const hasOutput = output.length > 0;

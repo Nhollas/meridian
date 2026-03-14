@@ -231,12 +231,12 @@ describe("ProgressThread - expanded thread", () => {
 		await expect.element(item.getByText("exit 1")).toBeVisible();
 	});
 
-	test("shows write_file output as 'Written to' message", async () => {
+	test("shows file contents for write_file output", async () => {
 		renderThread([
 			tc({
 				id: "1",
 				name: "write_file",
-				input: '{"path":"output.txt","contents":"data"}',
+				input: '{"path":"output.txt","contents":"hello from the file"}',
 				result: '{"path":"output.txt"}',
 			}),
 		]);
@@ -246,6 +246,6 @@ describe("ProgressThread - expanded thread", () => {
 		const item = toolItem("write output.txt");
 		await item.getByRole("button").click();
 
-		await expect.element(item.getByText("Written to output.txt")).toBeVisible();
+		await expect.element(item.getByText("hello from the file")).toBeVisible();
 	});
 });
