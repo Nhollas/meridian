@@ -6,6 +6,7 @@ import {
 	refreshStoredCredentials,
 } from "@/auth/lib/token";
 import { createUnsignedJwt } from "../../../tests/helpers/jwt";
+import { withFormBody } from "../../../tests/helpers/msw-predicates";
 import { mswServer } from "../../../tests/setup/msw";
 
 const issuer = "http://localhost:8180/realms/meridian";
@@ -43,19 +44,25 @@ describe("token", () => {
 
 	it("refreshes expired credentials using the refresh token", async () => {
 		mswServer.use(
-			http.post(tokenUrl, async ({ request }) => {
-				expect(await request.text()).toBe(
-					"grant_type=refresh_token&client_id=meridian-cli&refresh_token=old-refresh",
-				);
-				return HttpResponse.json({
-					access_token: "new-access",
-					refresh_token: "new-refresh",
-					id_token: createUnsignedJwt({
-						email: "john.doe@example.com",
-					}),
-					expires_in: 300,
-				});
-			}),
+			http.post(
+				tokenUrl,
+				withFormBody(
+					{
+						grant_type: "refresh_token",
+						client_id: "meridian-cli",
+						refresh_token: "old-refresh",
+					},
+					() =>
+						HttpResponse.json({
+							access_token: "new-access",
+							refresh_token: "new-refresh",
+							id_token: createUnsignedJwt({
+								email: "john.doe@example.com",
+							}),
+							expires_in: 300,
+						}),
+				),
+			),
 		);
 
 		const refreshed = await refreshStoredCredentials(
@@ -85,10 +92,19 @@ describe("token", () => {
 
 	it("returns null when the refresh response shape is invalid", async () => {
 		mswServer.use(
-			http.post(tokenUrl, () =>
-				HttpResponse.json({
-					token: "new-access",
-				}),
+			http.post(
+				tokenUrl,
+				withFormBody(
+					{
+						grant_type: "refresh_token",
+						client_id: "meridian-cli",
+						refresh_token: "old-refresh",
+					},
+					() =>
+						HttpResponse.json({
+							token: "new-access",
+						}),
+				),
 			),
 		);
 
@@ -113,13 +129,22 @@ describe("token", () => {
 
 	it("falls back to the existing user when the refreshed id token payload is malformed", async () => {
 		mswServer.use(
-			http.post(tokenUrl, () =>
-				HttpResponse.json({
-					access_token: "new-access",
-					refresh_token: "new-refresh",
-					id_token: "not.a.valid.jwt",
-					expires_in: 300,
-				}),
+			http.post(
+				tokenUrl,
+				withFormBody(
+					{
+						grant_type: "refresh_token",
+						client_id: "meridian-cli",
+						refresh_token: "old-refresh",
+					},
+					() =>
+						HttpResponse.json({
+							access_token: "new-access",
+							refresh_token: "new-refresh",
+							id_token: "not.a.valid.jwt",
+							expires_in: 300,
+						}),
+				),
 			),
 		);
 

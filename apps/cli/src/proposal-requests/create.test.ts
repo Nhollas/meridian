@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
 import { runCli } from "@/cli";
+import { withFormBody } from "../../tests/helpers/msw-predicates";
 import { createWritable } from "../../tests/helpers/streams";
 import { createTempHome } from "../../tests/helpers/temp-home";
 import { mswServer } from "../../tests/setup/msw";
@@ -313,17 +314,24 @@ describe("proposal-requests create", () => {
 		mswServer.use(
 			http.post(
 				"http://localhost:8180/realms/meridian/protocol/openid-connect/token",
-				() =>
-					HttpResponse.json({
-						access_token: "fresh-access",
-						refresh_token: "fresh-refresh",
-						id_token: [
-							"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0",
-							"eyJlbWFpbCI6ImphbmUuZG9lQGV4YW1wbGUuY29tIn0",
-							"",
-						].join("."),
-						expires_in: 300,
-					}),
+				withFormBody(
+					{
+						grant_type: "refresh_token",
+						client_id: "meridian-cli",
+						refresh_token: "refresh-token",
+					},
+					() =>
+						HttpResponse.json({
+							access_token: "fresh-access",
+							refresh_token: "fresh-refresh",
+							id_token: [
+								"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0",
+								"eyJlbWFpbCI6ImphbmUuZG9lQGV4YW1wbGUuY29tIn0",
+								"",
+							].join("."),
+							expires_in: 300,
+						}),
+				),
 			),
 		);
 

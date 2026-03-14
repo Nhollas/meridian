@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_AUTH_CLIENT_ID, DEFAULT_AUTH_ISSUER } from "@/auth/session";
 import { runCli } from "@/cli";
 import { createUnsignedJwt } from "../../tests/helpers/jwt";
+import { withFormBody } from "../../tests/helpers/msw-predicates";
 import { createWritable } from "../../tests/helpers/streams";
 import { createTempHome } from "../../tests/helpers/temp-home";
 import { mswServer } from "../../tests/setup/msw";
@@ -12,29 +13,41 @@ describe("auth login", () => {
 		await using home = await createTempHome();
 		const stdout = createWritable(false);
 		const stderr = createWritable();
-		let requestBody = "";
 		mswServer.use(
 			http.post(
 				`${DEFAULT_AUTH_ISSUER}/protocol/openid-connect/auth/device`,
-				async ({ request }) => {
-					requestBody = await request.text();
-					return HttpResponse.json({
-						device_code: "device-code",
-						user_code: "ABCD-1234",
-						verification_uri_complete: `${DEFAULT_AUTH_ISSUER}/device?user_code=ABCD-1234`,
-						interval: 5,
-					});
-				},
+				withFormBody(
+					{
+						client_id: DEFAULT_AUTH_CLIENT_ID,
+						scope: "openid email profile",
+					},
+					() =>
+						HttpResponse.json({
+							device_code: "device-code",
+							user_code: "ABCD-1234",
+							verification_uri_complete: `${DEFAULT_AUTH_ISSUER}/device?user_code=ABCD-1234`,
+							interval: 5,
+						}),
+				),
 			),
-			http.post(`${DEFAULT_AUTH_ISSUER}/protocol/openid-connect/token`, () =>
-				HttpResponse.json({
-					access_token: "access-token",
-					refresh_token: "refresh-token",
-					id_token: createUnsignedJwt({
-						email: "john.doe@example.com",
-					}),
-					expires_in: 300,
-				}),
+			http.post(
+				`${DEFAULT_AUTH_ISSUER}/protocol/openid-connect/token`,
+				withFormBody(
+					{
+						grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+						client_id: DEFAULT_AUTH_CLIENT_ID,
+						device_code: "device-code",
+					},
+					() =>
+						HttpResponse.json({
+							access_token: "access-token",
+							refresh_token: "refresh-token",
+							id_token: createUnsignedJwt({
+								email: "john.doe@example.com",
+							}),
+							expires_in: 300,
+						}),
+				),
 			),
 		);
 
@@ -47,7 +60,6 @@ describe("auth login", () => {
 		});
 
 		expect(exitCode).toBe(0);
-		expect(requestBody).toContain(`client_id=${DEFAULT_AUTH_CLIENT_ID}`);
 		expect(stdout.output()).toContain('"status":"pending"');
 		expect(stdout.output()).toContain('"status":"authenticated"');
 		expect(stderr.output()).toBe("");
@@ -62,35 +74,48 @@ describe("auth login", () => {
 		mswServer.use(
 			http.post(
 				"http://localhost:8180/realms/meridian/protocol/openid-connect/auth/device",
-				() =>
-					HttpResponse.json({
-						device_code: "device-code",
-						user_code: "ABCD-1234",
-						verification_uri_complete:
-							"http://localhost:8180/device?user_code=ABCD-1234",
-						interval: 5,
-					}),
+				withFormBody(
+					{
+						client_id: "meridian-cli",
+						scope: "openid email profile",
+					},
+					() =>
+						HttpResponse.json({
+							device_code: "device-code",
+							user_code: "ABCD-1234",
+							verification_uri_complete:
+								"http://localhost:8180/device?user_code=ABCD-1234",
+							interval: 5,
+						}),
+				),
 			),
 			http.post(
 				"http://localhost:8180/realms/meridian/protocol/openid-connect/token",
-				() => {
-					tokenPolls += 1;
-					if (tokenPolls === 1) {
-						return HttpResponse.json(
-							{ error: "authorization_pending" },
-							{ status: 400 },
-						);
-					}
+				withFormBody(
+					{
+						grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+						client_id: "meridian-cli",
+						device_code: "device-code",
+					},
+					() => {
+						tokenPolls += 1;
+						if (tokenPolls === 1) {
+							return HttpResponse.json(
+								{ error: "authorization_pending" },
+								{ status: 400 },
+							);
+						}
 
-					return HttpResponse.json({
-						access_token: "access-token",
-						refresh_token: "refresh-token",
-						id_token: createUnsignedJwt({
-							email: "john.doe@example.com",
-						}),
-						expires_in: 300,
-					});
-				},
+						return HttpResponse.json({
+							access_token: "access-token",
+							refresh_token: "refresh-token",
+							id_token: createUnsignedJwt({
+								email: "john.doe@example.com",
+							}),
+							expires_in: 300,
+						});
+					},
+				),
 			),
 		);
 
@@ -130,26 +155,39 @@ describe("auth login", () => {
 		mswServer.use(
 			http.post(
 				"http://host.docker.internal:8080/realms/meridian/protocol/openid-connect/auth/device",
-				() =>
-					HttpResponse.json({
-						device_code: "device-code",
-						user_code: "ABCD-1234",
-						verification_uri_complete:
-							"http://host.docker.internal:8080/realms/meridian/device?user_code=ABCD-1234",
-						interval: 5,
-					}),
+				withFormBody(
+					{
+						client_id: "meridian-cli",
+						scope: "openid email profile",
+					},
+					() =>
+						HttpResponse.json({
+							device_code: "device-code",
+							user_code: "ABCD-1234",
+							verification_uri_complete:
+								"http://host.docker.internal:8080/realms/meridian/device?user_code=ABCD-1234",
+							interval: 5,
+						}),
+				),
 			),
 			http.post(
 				"http://host.docker.internal:8080/realms/meridian/protocol/openid-connect/token",
-				() =>
-					HttpResponse.json({
-						access_token: "access-token",
-						refresh_token: "refresh-token",
-						id_token: createUnsignedJwt({
-							email: "john.doe@example.com",
+				withFormBody(
+					{
+						grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+						client_id: "meridian-cli",
+						device_code: "device-code",
+					},
+					() =>
+						HttpResponse.json({
+							access_token: "access-token",
+							refresh_token: "refresh-token",
+							id_token: createUnsignedJwt({
+								email: "john.doe@example.com",
+							}),
+							expires_in: 300,
 						}),
-						expires_in: 300,
-					}),
+				),
 			),
 		);
 
@@ -181,35 +219,48 @@ describe("auth login", () => {
 		mswServer.use(
 			http.post(
 				"http://localhost:8180/realms/meridian/protocol/openid-connect/auth/device",
-				() =>
-					HttpResponse.json({
-						device_code: "device-code",
-						user_code: "ABCD-1234",
-						verification_uri_complete:
-							"http://localhost:8180/device?user_code=ABCD-1234",
-						interval: 5,
-					}),
+				withFormBody(
+					{
+						client_id: "meridian-cli",
+						scope: "openid email profile",
+					},
+					() =>
+						HttpResponse.json({
+							device_code: "device-code",
+							user_code: "ABCD-1234",
+							verification_uri_complete:
+								"http://localhost:8180/device?user_code=ABCD-1234",
+							interval: 5,
+						}),
+				),
 			),
 			http.post(
 				"http://localhost:8180/realms/meridian/protocol/openid-connect/token",
-				() => {
-					tokenPolls += 1;
-					if (tokenPolls === 1) {
-						return HttpResponse.json(
-							{ error: "authorization_pending" },
-							{ status: 400 },
-						);
-					}
+				withFormBody(
+					{
+						grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+						client_id: "meridian-cli",
+						device_code: "device-code",
+					},
+					() => {
+						tokenPolls += 1;
+						if (tokenPolls === 1) {
+							return HttpResponse.json(
+								{ error: "authorization_pending" },
+								{ status: 400 },
+							);
+						}
 
-					return HttpResponse.json({
-						access_token: "access-token",
-						refresh_token: "refresh-token",
-						id_token: createUnsignedJwt({
-							email: "john.doe@example.com",
-						}),
-						expires_in: 300,
-					});
-				},
+						return HttpResponse.json({
+							access_token: "access-token",
+							refresh_token: "refresh-token",
+							id_token: createUnsignedJwt({
+								email: "john.doe@example.com",
+							}),
+							expires_in: 300,
+						});
+					},
+				),
 			),
 		);
 
@@ -291,14 +342,20 @@ describe("auth login", () => {
 		mswServer.use(
 			http.post(
 				"http://localhost:8180/realms/meridian/protocol/openid-connect/auth/device",
-				() =>
-					HttpResponse.json({
-						device_code: "device-code",
-						user_code: "ABCD-1234",
-						verification_uri_complete:
-							"http://localhost:8180/device?user_code=ABCD-1234",
-						interval: 5,
-					}),
+				withFormBody(
+					{
+						client_id: "meridian-cli",
+						scope: "openid email profile",
+					},
+					() =>
+						HttpResponse.json({
+							device_code: "device-code",
+							user_code: "ABCD-1234",
+							verification_uri_complete:
+								"http://localhost:8180/device?user_code=ABCD-1234",
+							interval: 5,
+						}),
+				),
 			),
 			http.post(
 				"http://localhost:8180/realms/meridian/protocol/openid-connect/token",

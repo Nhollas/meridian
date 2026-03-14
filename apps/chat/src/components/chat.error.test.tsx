@@ -6,6 +6,7 @@ import {
 } from "../../tests/support/chat-contract";
 import { test } from "../../tests/support/chat-page-fixture";
 import { browserWorker } from "../../tests/support/msw";
+import { withJsonBody } from "../../tests/support/msw-predicates";
 
 describe("Chat UI - error handling", () => {
 	test("shows an interrupted assistant message when the request fails", async ({
@@ -14,8 +15,14 @@ describe("Chat UI - error handling", () => {
 		browserWorker.use(
 			http.post(
 				"http://localhost:3201/api/chat",
-				() =>
-					new HttpResponse(null, { status: 500, statusText: "Server Error" }),
+				withJsonBody(
+					{ message: "Trigger an error" },
+					() =>
+						new HttpResponse(null, {
+							status: 500,
+							statusText: "Server Error",
+						}),
+				),
 			),
 		);
 
@@ -34,7 +41,10 @@ describe("Chat UI - error handling", () => {
 		const eventFactory = createChatEventFactory();
 
 		browserWorker.use(
-			http.post("http://localhost:3201/api/chat", () => stream.response),
+			http.post(
+				"http://localhost:3201/api/chat",
+				withJsonBody({ message: "Start login" }, () => stream.response),
+			),
 		);
 
 		await chatPage.sendMessage("Start login");

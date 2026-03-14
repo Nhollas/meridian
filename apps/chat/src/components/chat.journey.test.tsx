@@ -6,6 +6,7 @@ import {
 } from "../../tests/support/chat-contract";
 import { test } from "../../tests/support/chat-page-fixture";
 import { browserWorker } from "../../tests/support/msw";
+import { withJsonBody } from "../../tests/support/msw-predicates";
 
 /**
  * Realistic journey tests that exercise the chat UI with multi-tool-call
@@ -18,14 +19,12 @@ describe("Chat UI - broadband comparison journey", () => {
 		chatPage,
 	}) => {
 		const eventFactory = createChatEventFactory();
-		let requestCount = 0;
 
 		browserWorker.use(
-			http.post("http://localhost:3201/api/chat", () => {
-				requestCount++;
-
-				if (requestCount === 1) {
-					return createChatStreamResponse([
+			http.post(
+				"http://localhost:3201/api/chat",
+				withJsonBody({ message: "Help me compare broadband" }, () =>
+					createChatStreamResponse([
 						eventFactory.create("tool.completed", {
 							toolCall: {
 								id: "tc-1",
@@ -121,126 +120,130 @@ describe("Chat UI - broadband comparison journey", () => {
 								},
 							],
 						}),
-					]);
-				}
-
-				return createChatStreamResponse([
-					eventFactory.create("tool.completed", {
-						toolCall: {
-							id: "tc-6",
-							input:
-								'{"command":["meridian","auth","status","--json"],"timeoutMs":120000}',
-							name: "run_command",
-							output:
-								'{"exitCode":0,"stderr":"","stdout":"{\\"authenticated\\": true}\\n"}',
-						},
-					}),
-					eventFactory.create("tool.completed", {
-						toolCall: {
-							id: "tc-7",
-							input: '{"commandId":"bg-1"}',
-							name: "inspect_background_command",
-							output:
-								'{"command":["meridian","auth","login","--json"],"exitCode":0,"status":"completed"}',
-						},
-					}),
-					eventFactory.create("tool.completed", {
-						toolCall: {
-							id: "tc-8",
-							input:
-								'{"path":"broadband-request.json","contents":"{\\"emailAddress\\":\\"test@test.com\\",\\"data\\":{\\"postcode\\":\\"PE9 UUU\\"}}"}',
-							name: "write_file",
-							output: '{"path":"broadband-request.json"}',
-						},
-					}),
-					eventFactory.create("tool.completed", {
-						toolCall: {
-							id: "tc-9",
-							input:
-								'{"command":["meridian","proposal-requests","create","--product","broadband","--version","1.0","--file","broadband-request.json","--json"],"timeoutMs":120000}',
-							name: "run_command",
-							output:
-								'{"exitCode":0,"stderr":"","stdout":"{\\"id\\":\\"pr-abc123\\",\\"status\\":\\"draft\\"}\\n"}',
-						},
-					}),
-					eventFactory.create("tool.completed", {
-						toolCall: {
-							id: "tc-10",
-							input:
-								'{"command":["meridian","proposals","create","--proposal-request","pr-abc123","--json"],"timeoutMs":120000}',
-							name: "run_command",
-							output:
-								'{"exitCode":0,"stderr":"","stdout":"{\\"id\\":\\"prop-xyz\\",\\"status\\":\\"completed\\"}\\n"}',
-						},
-					}),
-					eventFactory.create("tool.completed", {
-						toolCall: {
-							id: "tc-11",
-							input:
-								'{"command":["meridian","results","get","--proposal","prop-xyz","--json"],"timeoutMs":120000}',
-							name: "run_command",
-							output:
-								'{"exitCode":0,"stderr":"","stdout":"{\\"offerings\\":[{\\"providerName\\":\\"TalkTalk\\",\\"brandName\\":\\"Fibre 65\\"}]}\\n"}',
-						},
-					}),
-					eventFactory.create("turn.completed", {
-						content:
-							"Here are your broadband results:\n\n| Provider | Package | Speed | Monthly |\n|---|---|---:|---:|\n| TalkTalk | Fibre 65 | 67Mbps | £26.00 |",
-						toolCalls: [
-							{
+					]),
+				),
+			),
+			http.post(
+				"http://localhost:3201/api/chat",
+				withJsonBody({ message: "test@test.com, PE9 UUU" }, () =>
+					createChatStreamResponse([
+						eventFactory.create("tool.completed", {
+							toolCall: {
 								id: "tc-6",
+								input:
+									'{"command":["meridian","auth","status","--json"],"timeoutMs":120000}',
 								name: "run_command",
-								input: '{"command":["meridian","auth","status","--json"]}',
 								output:
 									'{"exitCode":0,"stderr":"","stdout":"{\\"authenticated\\": true}\\n"}',
-								state: "completed",
 							},
-							{
+						}),
+						eventFactory.create("tool.completed", {
+							toolCall: {
 								id: "tc-7",
-								name: "inspect_background_command",
 								input: '{"commandId":"bg-1"}',
+								name: "inspect_background_command",
 								output:
-									'{"command":["meridian","auth","login"],"exitCode":0,"status":"completed"}',
-								state: "completed",
+									'{"command":["meridian","auth","login","--json"],"exitCode":0,"status":"completed"}',
 							},
-							{
+						}),
+						eventFactory.create("tool.completed", {
+							toolCall: {
 								id: "tc-8",
+								input:
+									'{"path":"broadband-request.json","contents":"{\\"emailAddress\\":\\"test@test.com\\",\\"data\\":{\\"postcode\\":\\"PE9 UUU\\"}}"}',
 								name: "write_file",
-								input: '{"path":"broadband-request.json","contents":"{}"}',
 								output: '{"path":"broadband-request.json"}',
-								state: "completed",
 							},
-							{
+						}),
+						eventFactory.create("tool.completed", {
+							toolCall: {
 								id: "tc-9",
-								name: "run_command",
 								input:
-									'{"command":["meridian","proposal-requests","create","--product","broadband","--version","1.0","--file","broadband-request.json","--json"]}',
+									'{"command":["meridian","proposal-requests","create","--product","broadband","--version","1.0","--file","broadband-request.json","--json"],"timeoutMs":120000}',
+								name: "run_command",
 								output:
-									'{"exitCode":0,"stderr":"","stdout":"{\\"id\\":\\"pr-abc123\\"}\\n"}',
-								state: "completed",
+									'{"exitCode":0,"stderr":"","stdout":"{\\"id\\":\\"pr-abc123\\",\\"status\\":\\"draft\\"}\\n"}',
 							},
-							{
+						}),
+						eventFactory.create("tool.completed", {
+							toolCall: {
 								id: "tc-10",
-								name: "run_command",
 								input:
-									'{"command":["meridian","proposals","create","--proposal-request","pr-abc123","--json"]}',
+									'{"command":["meridian","proposals","create","--proposal-request","pr-abc123","--json"],"timeoutMs":120000}',
+								name: "run_command",
 								output:
-									'{"exitCode":0,"stderr":"","stdout":"{\\"id\\":\\"prop-xyz\\"}\\n"}',
-								state: "completed",
+									'{"exitCode":0,"stderr":"","stdout":"{\\"id\\":\\"prop-xyz\\",\\"status\\":\\"completed\\"}\\n"}',
 							},
-							{
+						}),
+						eventFactory.create("tool.completed", {
+							toolCall: {
 								id: "tc-11",
-								name: "run_command",
 								input:
-									'{"command":["meridian","results","get","--proposal","prop-xyz","--json"]}',
+									'{"command":["meridian","results","get","--proposal","prop-xyz","--json"],"timeoutMs":120000}',
+								name: "run_command",
 								output:
-									'{"exitCode":0,"stderr":"","stdout":"{\\"offerings\\":[]}\\n"}',
-								state: "completed",
+									'{"exitCode":0,"stderr":"","stdout":"{\\"offerings\\":[{\\"providerName\\":\\"TalkTalk\\",\\"brandName\\":\\"Fibre 65\\"}]}\\n"}',
 							},
-						],
-					}),
-				]);
-			}),
+						}),
+						eventFactory.create("turn.completed", {
+							content:
+								"Here are your broadband results:\n\n| Provider | Package | Speed | Monthly |\n|---|---|---:|---:|\n| TalkTalk | Fibre 65 | 67Mbps | £26.00 |",
+							toolCalls: [
+								{
+									id: "tc-6",
+									name: "run_command",
+									input: '{"command":["meridian","auth","status","--json"]}',
+									output:
+										'{"exitCode":0,"stderr":"","stdout":"{\\"authenticated\\": true}\\n"}',
+									state: "completed",
+								},
+								{
+									id: "tc-7",
+									name: "inspect_background_command",
+									input: '{"commandId":"bg-1"}',
+									output:
+										'{"command":["meridian","auth","login"],"exitCode":0,"status":"completed"}',
+									state: "completed",
+								},
+								{
+									id: "tc-8",
+									name: "write_file",
+									input: '{"path":"broadband-request.json","contents":"{}"}',
+									output: '{"path":"broadband-request.json"}',
+									state: "completed",
+								},
+								{
+									id: "tc-9",
+									name: "run_command",
+									input:
+										'{"command":["meridian","proposal-requests","create","--product","broadband","--version","1.0","--file","broadband-request.json","--json"]}',
+									output:
+										'{"exitCode":0,"stderr":"","stdout":"{\\"id\\":\\"pr-abc123\\"}\\n"}',
+									state: "completed",
+								},
+								{
+									id: "tc-10",
+									name: "run_command",
+									input:
+										'{"command":["meridian","proposals","create","--proposal-request","pr-abc123","--json"]}',
+									output:
+										'{"exitCode":0,"stderr":"","stdout":"{\\"id\\":\\"prop-xyz\\"}\\n"}',
+									state: "completed",
+								},
+								{
+									id: "tc-11",
+									name: "run_command",
+									input:
+										'{"command":["meridian","results","get","--proposal","prop-xyz","--json"]}',
+									output:
+										'{"exitCode":0,"stderr":"","stdout":"{\\"offerings\\":[]}\\n"}',
+									state: "completed",
+								},
+							],
+						}),
+					]),
+				),
+			),
 		);
 
 		// Turn 1: user asks for broadband comparison
@@ -270,14 +273,12 @@ describe("Chat UI - travel insurance journey", () => {
 		chatPage,
 	}) => {
 		const eventFactory = createChatEventFactory();
-		let requestCount = 0;
 
 		browserWorker.use(
-			http.post("http://localhost:3201/api/chat", () => {
-				requestCount++;
-
-				if (requestCount === 1) {
-					return createChatStreamResponse([
+			http.post(
+				"http://localhost:3201/api/chat",
+				withJsonBody({ message: "Help me compare travel insurance" }, () =>
+					createChatStreamResponse([
 						eventFactory.create("tool.completed", {
 							toolCall: {
 								id: "tc-1",
@@ -317,91 +318,100 @@ describe("Chat UI - travel insurance journey", () => {
 								},
 							],
 						}),
-					]);
-				}
-
-				return createChatStreamResponse([
-					eventFactory.create("tool.completed", {
-						toolCall: {
-							id: "tc-3",
-							input:
-								'{"path":"travel-request.json","contents":"{\\"emailAddress\\":\\"tester@email.org\\",\\"data\\":{\\"destination\\":\\"Greece\\"}}"}',
-							name: "write_file",
-							output: '{"path":"travel-request.json"}',
-						},
-					}),
-					eventFactory.create("tool.completed", {
-						toolCall: {
-							id: "tc-4",
-							input:
-								'{"command":["meridian","proposal-requests","create","--product","travel","--version","1.0","--file","travel-request.json","--json"],"timeoutMs":120000}',
-							name: "run_command",
-							output:
-								'{"exitCode":0,"stderr":"","stdout":"{\\"id\\":\\"pr-travel-1\\"}\\n"}',
-						},
-					}),
-					eventFactory.create("tool.completed", {
-						toolCall: {
-							id: "tc-5",
-							input:
-								'{"command":["meridian","proposals","create","--proposal-request","pr-travel-1","--json"],"timeoutMs":120000}',
-							name: "run_command",
-							output:
-								'{"exitCode":0,"stderr":"","stdout":"{\\"id\\":\\"prop-travel-1\\",\\"status\\":\\"completed\\"}\\n"}',
-						},
-					}),
-					eventFactory.create("tool.completed", {
-						toolCall: {
-							id: "tc-6",
-							input:
-								'{"command":["meridian","results","get","--proposal","prop-travel-1","--json"],"timeoutMs":120000}',
-							name: "run_command",
-							output:
-								'{"exitCode":0,"stderr":"","stdout":"{\\"offerings\\":[{\\"providerName\\":\\"Aviva\\",\\"brandName\\":\\"Single Trip Standard\\"}]}\\n"}',
-						},
-					}),
-					eventFactory.create("turn.completed", {
-						content:
-							"I found 2 travel insurance options for Greece:\n\n1. **Aviva** — Single Trip Standard\n   - Price: £12.50\n   - Excess: £100\n\n2. **Admiral** — Annual Gold\n   - Price: £18.75\n   - Excess: £75\n\n**Cheapest**: Aviva at £12.50",
-						toolCalls: [
-							{
-								id: "tc-3",
-								name: "write_file",
-								input: '{"path":"travel-request.json","contents":"{}"}',
-								output: '{"path":"travel-request.json"}',
-								state: "completed",
-							},
-							{
-								id: "tc-4",
-								name: "run_command",
-								input:
-									'{"command":["meridian","proposal-requests","create","--product","travel","--version","1.0","--file","travel-request.json","--json"]}',
-								output:
-									'{"exitCode":0,"stderr":"","stdout":"{\\"id\\":\\"pr-travel-1\\"}\\n"}',
-								state: "completed",
-							},
-							{
-								id: "tc-5",
-								name: "run_command",
-								input:
-									'{"command":["meridian","proposals","create","--proposal-request","pr-travel-1","--json"]}',
-								output:
-									'{"exitCode":0,"stderr":"","stdout":"{\\"id\\":\\"prop-travel-1\\"}\\n"}',
-								state: "completed",
-							},
-							{
-								id: "tc-6",
-								name: "run_command",
-								input:
-									'{"command":["meridian","results","get","--proposal","prop-travel-1","--json"]}',
-								output:
-									'{"exitCode":0,"stderr":"","stdout":"{\\"offerings\\":[]}\\n"}',
-								state: "completed",
-							},
-						],
-					}),
-				]);
-			}),
+					]),
+				),
+			),
+			http.post(
+				"http://localhost:3201/api/chat",
+				withJsonBody(
+					{
+						message:
+							"Email: tester@email.org, Greece, 1st April 2026, 7 nights, 2 adults",
+					},
+					() =>
+						createChatStreamResponse([
+							eventFactory.create("tool.completed", {
+								toolCall: {
+									id: "tc-3",
+									input:
+										'{"path":"travel-request.json","contents":"{\\"emailAddress\\":\\"tester@email.org\\",\\"data\\":{\\"destination\\":\\"Greece\\"}}"}',
+									name: "write_file",
+									output: '{"path":"travel-request.json"}',
+								},
+							}),
+							eventFactory.create("tool.completed", {
+								toolCall: {
+									id: "tc-4",
+									input:
+										'{"command":["meridian","proposal-requests","create","--product","travel","--version","1.0","--file","travel-request.json","--json"],"timeoutMs":120000}',
+									name: "run_command",
+									output:
+										'{"exitCode":0,"stderr":"","stdout":"{\\"id\\":\\"pr-travel-1\\"}\\n"}',
+								},
+							}),
+							eventFactory.create("tool.completed", {
+								toolCall: {
+									id: "tc-5",
+									input:
+										'{"command":["meridian","proposals","create","--proposal-request","pr-travel-1","--json"],"timeoutMs":120000}',
+									name: "run_command",
+									output:
+										'{"exitCode":0,"stderr":"","stdout":"{\\"id\\":\\"prop-travel-1\\",\\"status\\":\\"completed\\"}\\n"}',
+								},
+							}),
+							eventFactory.create("tool.completed", {
+								toolCall: {
+									id: "tc-6",
+									input:
+										'{"command":["meridian","results","get","--proposal","prop-travel-1","--json"],"timeoutMs":120000}',
+									name: "run_command",
+									output:
+										'{"exitCode":0,"stderr":"","stdout":"{\\"offerings\\":[{\\"providerName\\":\\"Aviva\\",\\"brandName\\":\\"Single Trip Standard\\"}]}\\n"}',
+								},
+							}),
+							eventFactory.create("turn.completed", {
+								content:
+									"I found 2 travel insurance options for Greece:\n\n1. **Aviva** — Single Trip Standard\n   - Price: £12.50\n   - Excess: £100\n\n2. **Admiral** — Annual Gold\n   - Price: £18.75\n   - Excess: £75\n\n**Cheapest**: Aviva at £12.50",
+								toolCalls: [
+									{
+										id: "tc-3",
+										name: "write_file",
+										input: '{"path":"travel-request.json","contents":"{}"}',
+										output: '{"path":"travel-request.json"}',
+										state: "completed",
+									},
+									{
+										id: "tc-4",
+										name: "run_command",
+										input:
+											'{"command":["meridian","proposal-requests","create","--product","travel","--version","1.0","--file","travel-request.json","--json"]}',
+										output:
+											'{"exitCode":0,"stderr":"","stdout":"{\\"id\\":\\"pr-travel-1\\"}\\n"}',
+										state: "completed",
+									},
+									{
+										id: "tc-5",
+										name: "run_command",
+										input:
+											'{"command":["meridian","proposals","create","--proposal-request","pr-travel-1","--json"]}',
+										output:
+											'{"exitCode":0,"stderr":"","stdout":"{\\"id\\":\\"prop-travel-1\\"}\\n"}',
+										state: "completed",
+									},
+									{
+										id: "tc-6",
+										name: "run_command",
+										input:
+											'{"command":["meridian","results","get","--proposal","prop-travel-1","--json"]}',
+										output:
+											'{"exitCode":0,"stderr":"","stdout":"{\\"offerings\\":[]}\\n"}',
+										state: "completed",
+									},
+								],
+							}),
+						]),
+				),
+			),
 		);
 
 		// Turn 1: user asks about travel insurance

@@ -6,34 +6,33 @@ import {
 } from "../../tests/support/chat-contract";
 import { test } from "../../tests/support/chat-page-fixture";
 import { browserWorker } from "../../tests/support/msw";
+import { withHeaders, withJsonBody } from "../../tests/support/msw-predicates";
 
 describe("Chat UI - debug controls", () => {
 	test("sends the debug delay header when slow stream mode is enabled", async ({
 		chatPage,
 	}) => {
-		let requestHeaders: Record<string, string> | null = null;
 		const eventFactory = createChatEventFactory();
 
 		browserWorker.use(
-			http.post("http://localhost:3201/api/chat", ({ request }) => {
-				requestHeaders = Object.fromEntries(request.headers.entries());
-
-				return createChatStreamResponse([
-					eventFactory.create("turn.completed", {
-						content: "Done.",
-						toolCalls: [],
-					}),
-				]);
-			}),
+			http.post(
+				"http://localhost:3201/api/chat",
+				withHeaders(
+					(headers) => headers.get("meridian-debug-stream-delay-ms") === "120",
+					() =>
+						createChatStreamResponse([
+							eventFactory.create("turn.completed", {
+								content: "Done.",
+								toolCalls: [],
+							}),
+						]),
+				),
+			),
 		);
 
 		await chatPage.toggleSlowStream();
 		await chatPage.sendMessage("Enable slow mode");
 		await chatPage.expectAssistantResponse("Done.");
-
-		expect(requestHeaders).toMatchObject({
-			"meridian-debug-stream-delay-ms": "120",
-		});
 	});
 
 	test("copies a compact debug trace with conversation messages and tool calls", async ({
@@ -50,32 +49,35 @@ describe("Chat UI - debug controls", () => {
 		});
 
 		browserWorker.use(
-			http.post("http://localhost:3201/api/chat", () =>
-				createChatStreamResponse([
-					eventFactory.create("assistant.delta", {
-						delta: "Working through the options...",
-					}),
-					eventFactory.create("tool.completed", {
-						toolCall: {
-							id: "tool-1",
-							input: '{"path":"offers.json"}',
-							name: "read_file",
-							output: '{"offers":2}',
-						},
-					}),
-					eventFactory.create("turn.completed", {
-						content: "I found 2 offers worth comparing.",
-						toolCalls: [
-							{
+			http.post(
+				"http://localhost:3201/api/chat",
+				withJsonBody({ message: "Find me a deal" }, () =>
+					createChatStreamResponse([
+						eventFactory.create("assistant.delta", {
+							delta: "Working through the options...",
+						}),
+						eventFactory.create("tool.completed", {
+							toolCall: {
 								id: "tool-1",
 								input: '{"path":"offers.json"}',
 								name: "read_file",
 								output: '{"offers":2}',
-								state: "completed",
 							},
-						],
-					}),
-				]),
+						}),
+						eventFactory.create("turn.completed", {
+							content: "I found 2 offers worth comparing.",
+							toolCalls: [
+								{
+									id: "tool-1",
+									input: '{"path":"offers.json"}',
+									name: "read_file",
+									output: '{"offers":2}',
+									state: "completed",
+								},
+							],
+						}),
+					]),
+				),
 			),
 		);
 
@@ -127,32 +129,35 @@ describe("Chat UI - debug controls", () => {
 		const eventFactory = createChatEventFactory();
 
 		browserWorker.use(
-			http.post("http://localhost:3201/api/chat", () =>
-				createChatStreamResponse([
-					eventFactory.create("assistant.delta", {
-						delta: "Working through the options...",
-					}),
-					eventFactory.create("tool.completed", {
-						toolCall: {
-							id: "tool-1",
-							input: '{"path":"offers.json"}',
-							name: "read_file",
-							output: '{"offers":2}',
-						},
-					}),
-					eventFactory.create("turn.completed", {
-						content: "I found 2 offers worth comparing.",
-						toolCalls: [
-							{
+			http.post(
+				"http://localhost:3201/api/chat",
+				withJsonBody({ message: "Find me a deal" }, () =>
+					createChatStreamResponse([
+						eventFactory.create("assistant.delta", {
+							delta: "Working through the options...",
+						}),
+						eventFactory.create("tool.completed", {
+							toolCall: {
 								id: "tool-1",
 								input: '{"path":"offers.json"}',
 								name: "read_file",
 								output: '{"offers":2}',
-								state: "completed",
 							},
-						],
-					}),
-				]),
+						}),
+						eventFactory.create("turn.completed", {
+							content: "I found 2 offers worth comparing.",
+							toolCalls: [
+								{
+									id: "tool-1",
+									input: '{"path":"offers.json"}',
+									name: "read_file",
+									output: '{"offers":2}',
+									state: "completed",
+								},
+							],
+						}),
+					]),
+				),
 			),
 		);
 
