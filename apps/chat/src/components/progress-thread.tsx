@@ -8,6 +8,41 @@ import {
 } from "@/lib/chat/tool-formatting";
 import type { ToolCallViewModel } from "@/lib/chat/view-models";
 
+/**
+ * SVG tree connectors — pixel-aligned to a 12×12 grid so they
+ * center perfectly via flexbox alongside the status dot and text.
+ */
+function TreeConnector({
+	type,
+}: {
+	type: "dash" | "tee" | "branch" | "corner";
+}) {
+	const paths: Record<typeof type, string> = {
+		dash: "M 2 6 H 10",
+		tee: "M 6 6 H 10 M 6 6 V 12",
+		branch: "M 6 0 V 12 M 6 6 H 10",
+		corner: "M 6 0 V 6 H 10",
+	};
+
+	return (
+		<svg
+			aria-hidden="true"
+			width="12"
+			height="12"
+			viewBox="0 0 12 12"
+			fill="none"
+			className="shrink-0 text-border"
+		>
+			<path
+				d={paths[type]}
+				stroke="currentColor"
+				strokeWidth="1"
+				strokeLinecap="round"
+			/>
+		</svg>
+	);
+}
+
 interface ProgressThreadProps {
 	toolCalls: ToolCallViewModel[];
 }
@@ -26,12 +61,7 @@ export function ProgressThread({ toolCalls }: ProgressThreadProps) {
 				onClick={() => setIsExpanded(!isExpanded)}
 				className="group/summary flex w-full items-center gap-2 py-1 text-left"
 			>
-				<span
-					className="w-3 shrink-0 select-none text-center font-mono text-[11px] text-border"
-					aria-hidden="true"
-				>
-					{isExpanded ? "┬" : "─"}
-				</span>
+				<TreeConnector type={isExpanded ? "tee" : "dash"} />
 
 				<span
 					className={`h-1.5 w-1.5 shrink-0 rounded-full ${
@@ -96,13 +126,7 @@ function ThreadLine({
 				disabled={isRunning || !hasOutput}
 				className="group/line flex w-full items-center gap-2 py-1 text-left transition-colors disabled:cursor-default"
 			>
-				{/* Tree connector */}
-				<span
-					className="w-3 shrink-0 select-none text-center font-mono text-[11px] text-border"
-					aria-hidden="true"
-				>
-					{isLast ? "└" : "├"}
-				</span>
+				<TreeConnector type={isLast ? "corner" : "branch"} />
 
 				{/* Status dot */}
 				<span
