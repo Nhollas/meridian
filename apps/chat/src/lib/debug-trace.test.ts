@@ -4,8 +4,8 @@ import {
 	buildCopyDebugTrace,
 	buildDebugTrace,
 	createTurnTrace,
-} from "@/lib/chat/debug-trace";
-import type { ChatMessageViewModel } from "@/lib/chat/view-models";
+} from "@/lib/debug-trace";
+import type { ChatMessageViewModel } from "@/lib/view-models";
 
 const runtimeEvents: RuntimeEventEnvelope[] = [
 	{

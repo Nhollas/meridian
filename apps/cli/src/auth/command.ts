@@ -3,7 +3,7 @@ import {
 	addJsonOption,
 	getActionCommand,
 	getJsonMode,
-} from "@/cli/command-helpers";
+} from "@/command-helpers";
 import type { ResolvedCliDependencies } from "@/runtime";
 import { handleAuthLogin } from "./login";
 import { handleAuthLogout } from "./logout";

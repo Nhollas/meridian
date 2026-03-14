@@ -3,11 +3,10 @@ import { join } from "node:path";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
 import { runCli } from "@/cli";
-import { createUnsignedJwt } from "../../tests/helpers/jwt";
-import { withFormBody } from "../../tests/helpers/msw-predicates";
-import { createWritable } from "../../tests/helpers/streams";
-import { createTempHome } from "../../tests/helpers/temp-home";
-import { mswServer } from "../../tests/setup/msw";
+import { mswServer, withFormBody } from "../../tests/setup/msw";
+import { createUnsignedJwt } from "../../tests/support/jwt";
+import { createWritable } from "../../tests/support/streams";
+import { createTempHome } from "../../tests/support/temp-home";
 
 describe("auth status", () => {
 	it("returns unauthenticated when no credentials are stored", async () => {

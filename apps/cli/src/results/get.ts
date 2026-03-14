@@ -1,5 +1,5 @@
 import { requireAuthentication } from "@/auth/session";
-import { type JsonOption, writeError } from "@/cli/command-helpers";
+import { type JsonOption, writeError } from "@/command-helpers";
 import { writeJson, writeLines } from "@/output";
 import type { ResolvedCliDependencies } from "@/runtime";
 import { readDataStore } from "@/store/data";

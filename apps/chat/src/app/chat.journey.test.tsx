@@ -5,8 +5,7 @@ import {
 	createChatStreamResponse,
 } from "../../tests/support/chat-contract";
 import { test } from "../../tests/support/chat-page-fixture";
-import { browserWorker } from "../../tests/support/msw";
-import { withJsonBody } from "../../tests/support/msw-predicates";
+import { browserWorker, withJsonBody } from "../../tests/support/msw";
 
 /**
  * Realistic journey tests that exercise the chat UI with multi-tool-call

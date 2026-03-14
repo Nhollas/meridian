@@ -1,6 +1,6 @@
 "use client";
 
-import type { ChatMessageViewModel as ChatMessageType } from "@/lib/chat/view-models";
+import type { ChatMessageViewModel as ChatMessageType } from "@/lib/view-models";
 import { Markdown } from "./markdown";
 import { ProgressThread } from "./progress-thread";
 

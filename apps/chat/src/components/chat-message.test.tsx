@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { ChatMessage } from "@/components/chat-message";
-import type { ChatMessageViewModel } from "@/lib/chat/view-models";
+import type { ChatMessageViewModel } from "@/lib/view-models";
 
 function userMessage(
 	overrides?: Partial<ChatMessageViewModel>,

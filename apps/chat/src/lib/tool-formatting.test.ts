@@ -3,8 +3,8 @@ import {
 	formatActivitySummary,
 	formatToolOutput,
 	formatToolSummary,
-} from "@/lib/chat/tool-formatting";
-import type { ToolCallViewModel } from "@/lib/chat/view-models";
+} from "@/lib/tool-formatting";
+import type { ToolCallViewModel } from "@/lib/view-models";
 
 function toolCall(
 	overrides: Partial<ToolCallViewModel> & Pick<ToolCallViewModel, "name">,

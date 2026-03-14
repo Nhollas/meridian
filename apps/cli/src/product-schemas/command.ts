@@ -3,7 +3,7 @@ import {
 	addJsonOption,
 	getActionCommand,
 	getJsonMode,
-} from "@/cli/command-helpers";
+} from "@/command-helpers";
 import type { ResolvedCliDependencies } from "@/runtime";
 import { handleProductSchemasGet, type ProductSchemaOptions } from "./get";
 

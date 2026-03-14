@@ -1,6 +1,6 @@
 import { requireAuthentication } from "@/auth/session";
-import { type JsonOption, writeError } from "@/cli/command-helpers";
-import { getMockResults } from "@/mock/providers";
+import { type JsonOption, writeError } from "@/command-helpers";
+import { getMockResults } from "@/mock-providers";
 import { writeJson, writeLines } from "@/output";
 import { sortResultOfferings } from "@/results/presenter";
 import type { ResolvedCliDependencies } from "@/runtime";

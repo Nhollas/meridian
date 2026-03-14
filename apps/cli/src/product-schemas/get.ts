@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { getProduct, getProposalRequestSchema } from "@/catalogue/registry";
-import { writeError } from "@/cli/command-helpers";
+import { writeError } from "@/command-helpers";
 import { writeJson } from "@/output";
 import type { ResolvedCliDependencies } from "@/runtime";
 

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { buildCopyDebugTrace } from "@/lib/chat/debug-trace";
-import type { ChatMessageViewModel } from "@/lib/chat/view-models";
+import { buildCopyDebugTrace } from "@/lib/debug-trace";
+import type { ChatMessageViewModel } from "@/lib/view-models";
 
 function safeJsonStringify(value: unknown): string {
 	return JSON.stringify(value, null, 2)

@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { ProgressThread } from "@/components/progress-thread";
-import type { ToolCallViewModel } from "@/lib/chat/view-models";
+import type { ToolCallViewModel } from "@/lib/view-models";
 
 function tc(
 	overrides: Partial<ToolCallViewModel> &
