@@ -131,7 +131,6 @@ export function formatToolOutput(
 		const parsed = JSON.parse(result);
 		switch (name) {
 			case "run_command":
-				return formatCommandOutput(parsed);
 			case "inspect_background_command":
 			case "wait_for_background_command":
 			case "terminate_background_command":

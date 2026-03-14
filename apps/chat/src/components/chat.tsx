@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useAutoScroll } from "@/lib/chat/use-auto-scroll";
 import { useChat } from "@/lib/chat/use-chat";
 import { ChatInput } from "./chat-input";
@@ -20,10 +20,13 @@ export function Chat() {
 	const { scrollRef, handleScroll, enableAutoScroll } = useAutoScroll(messages);
 	const [showDebug, setShowDebug] = useState(false);
 
-	function handleSend(content: string) {
-		enableAutoScroll();
-		sendMessage(content);
-	}
+	const handleSend = useCallback(
+		(content: string) => {
+			enableAutoScroll();
+			sendMessage(content);
+		},
+		[enableAutoScroll, sendMessage],
+	);
 
 	return (
 		<div className="flex h-full min-h-0 flex-col">

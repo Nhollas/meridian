@@ -8,13 +8,16 @@ interface ChatMessageProps {
 	message: ChatMessageType;
 }
 
+const timeFormatter = new Intl.DateTimeFormat("en-GB", {
+	hour: "2-digit",
+	minute: "2-digit",
+});
+
 function formatTime(iso: string) {
-	const d = new Date(iso);
-	return d.toLocaleString("en-GB", {
-		hour: "2-digit",
-		minute: "2-digit",
-	});
+	return timeFormatter.format(new Date(iso));
 }
+
+const EMPTY_TOOL_CALLS: NonNullable<ChatMessageType["toolCalls"]> = [];
 
 function UserMessage({ message }: { message: ChatMessageType }) {
 	return (
@@ -36,7 +39,7 @@ function UserMessage({ message }: { message: ChatMessageType }) {
 function AssistantMessage({ message }: { message: ChatMessageType }) {
 	const isStreaming = message.status === "streaming";
 	const isError = message.status === "error";
-	const visibleToolCalls = message.toolCalls ?? [];
+	const visibleToolCalls = message.toolCalls ?? EMPTY_TOOL_CALLS;
 
 	return (
 		<article aria-label="Assistant message" className="max-w-full">

@@ -19,6 +19,28 @@ const CONNECTOR_PATHS = {
 	corner: "M 6 0 V 6 H 10",
 } as const;
 
+function StatusDot({ status }: { status: "running" | "error" | "completed" }) {
+	const label =
+		status === "running"
+			? "Running"
+			: status === "error"
+				? "Error"
+				: "Completed";
+	const color =
+		status === "running"
+			? "animate-pulse bg-warning"
+			: status === "error"
+				? "bg-error"
+				: "bg-success";
+	return (
+		<span
+			role="img"
+			aria-label={label}
+			className={`h-1.5 w-1.5 shrink-0 rounded-full ${color}`}
+		/>
+	);
+}
+
 function TreeConnector({ type }: { type: keyof typeof CONNECTOR_PATHS }) {
 	return (
 		<svg
@@ -61,22 +83,14 @@ export function ProgressThread({ toolCalls }: ProgressThreadProps) {
 			>
 				<TreeConnector type={isExpanded ? "tee" : "dash"} />
 
-				<span
-					role="img"
-					aria-label={
+				<StatusDot
+					status={
 						anyRunning && !isExpanded
-							? "Running"
+							? "running"
 							: hasError
-								? "Error"
-								: "Completed"
+								? "error"
+								: "completed"
 					}
-					className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-						anyRunning && !isExpanded
-							? "animate-pulse bg-warning"
-							: hasError
-								? "bg-error"
-								: "bg-success"
-					}`}
 				/>
 
 				<span className="min-w-0 flex-1 truncate font-mono text-[11px] text-text-muted transition-colors group-hover/summary:text-text-secondary">
@@ -113,7 +127,10 @@ function ThreadLine({
 	isLast: boolean;
 }) {
 	const [showOutput, setShowOutput] = useState(false);
-	const summary = formatToolSummary(toolCall.name, toolCall.input);
+	const summary = useMemo(
+		() => formatToolSummary(toolCall.name, toolCall.input),
+		[toolCall.name, toolCall.input],
+	);
 	const isRunning = toolCall.status === "running";
 	const isError = toolCall.status === "error";
 
@@ -137,17 +154,8 @@ function ThreadLine({
 			>
 				<TreeConnector type={isLast ? "corner" : "branch"} />
 
-				{/* Status dot */}
-				<span
-					role="img"
-					aria-label={isRunning ? "Running" : isError ? "Error" : "Completed"}
-					className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-						isRunning
-							? "animate-pulse bg-warning"
-							: isError
-								? "bg-error"
-								: "bg-success"
-					}`}
+				<StatusDot
+					status={isRunning ? "running" : isError ? "error" : "completed"}
 				/>
 
 				{/* Summary text */}

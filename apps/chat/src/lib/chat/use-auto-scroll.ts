@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { ChatMessageViewModel } from "./view-models";
 
 const AUTO_SCROLL_THRESHOLD_PX = 96;
@@ -35,7 +35,7 @@ export function useAutoScroll(messages: ChatMessageViewModel[]) {
 		prevScrollTopRef.current = el.scrollTop;
 	}, [messages.length, latestMessageFingerprint]);
 
-	function handleScroll() {
+	const handleScroll = useCallback(() => {
 		const el = scrollRef.current;
 		if (!el) {
 			return;
@@ -61,13 +61,13 @@ export function useAutoScroll(messages: ChatMessageViewModel[]) {
 				shouldAutoScrollRef.current = true;
 			}
 		}
-	}
+	}, []);
 
-	function enableAutoScroll() {
+	const enableAutoScroll = useCallback(() => {
 		shouldAutoScrollRef.current = true;
 		userDisengagedAtRef.current = 0;
 		prevScrollTopRef.current = 0;
-	}
+	}, []);
 
 	return { scrollRef, handleScroll, enableAutoScroll };
 }
