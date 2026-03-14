@@ -25,11 +25,11 @@ export function chatPageObject(page: BrowserPage) {
 		getSendButton: () => page.getByRole("button", { name: "Send message" }),
 		getSlowStreamButton: () =>
 			page.getByRole("button", { name: "Slow Stream" }),
-		getToolCall: (name: string) =>
+		getToolActivity: (summary: string) =>
 			self
 				.getConversation()
 				.getByRole("article", { name: "Assistant message" })
-				.getByText(name),
+				.getByText(summary),
 		getUserMessage: (text: string) =>
 			self
 				.getConversation()
@@ -64,8 +64,8 @@ export function chatPageObject(page: BrowserPage) {
 			await expect.element(self.getSlowStreamButton()).toBeVisible();
 		},
 
-		expectToolCallVisible: async (name: string) => {
-			await expect.element(self.getToolCall(name)).toBeVisible();
+		expectToolActivityVisible: async (summary: string) => {
+			await expect.element(self.getToolActivity(summary)).toBeVisible();
 		},
 
 		expectUserMessage: async (text: string) => {

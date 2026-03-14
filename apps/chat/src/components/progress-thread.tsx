@@ -27,7 +27,7 @@ export function ProgressThread({ toolCalls }: ProgressThreadProps) {
 				className="group/summary flex w-full items-center gap-2 py-1 text-left"
 			>
 				<span
-					className="w-3 shrink-0 select-none font-mono text-[11px] text-border leading-none"
+					className="w-3 shrink-0 select-none text-center font-mono text-[11px] text-border"
 					aria-hidden="true"
 				>
 					{isExpanded ? "┬" : "─"}
@@ -98,7 +98,7 @@ function ThreadLine({
 			>
 				{/* Tree connector */}
 				<span
-					className="w-3 shrink-0 select-none font-mono text-[11px] text-border leading-none"
+					className="w-3 shrink-0 select-none text-center font-mono text-[11px] text-border"
 					aria-hidden="true"
 				>
 					{isLast ? "└" : "├"}
@@ -143,11 +143,8 @@ function ThreadLine({
 
 			{/* Output panel */}
 			<div
-				className="grid transition-[grid-template-rows] duration-150 ease-out"
-				style={{
-					gridTemplateRows: showOutput && hasOutput ? "1fr" : "0fr",
-					marginLeft: "20px",
-				}}
+				className="ml-5 grid transition-[grid-template-rows] duration-150 ease-out"
+				style={{ gridTemplateRows: showOutput && hasOutput ? "1fr" : "0fr" }}
 			>
 				<div className="overflow-hidden">
 					<pre className="mb-1 max-h-32 overflow-auto rounded-lg bg-surface-1/50 p-2.5 font-mono text-[11px] text-text-muted leading-relaxed">

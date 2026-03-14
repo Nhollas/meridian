@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { buildCopyDebugTrace } from "@/lib/chat/debug-trace";
 import type { ChatMessageViewModel } from "@/lib/chat/view-models";
-import { type ToolDisplayMode, ToolDisplayToggle } from "./tool-display-toggle";
 
 const TRACE_BUTTON_CLASS =
 	"rounded-md border border-border bg-surface-1 px-3 py-1.5 text-text-secondary text-xs transition-colors hover:border-flow hover:text-text-primary";
@@ -13,8 +12,6 @@ interface DebugToolbarProps {
 	sessionId: string | null;
 	debugStreamDelayMs: number;
 	onToggleDebugStreamDelay: () => void;
-	toolDisplayMode: ToolDisplayMode;
-	onToolDisplayModeChange: (mode: ToolDisplayMode) => void;
 }
 
 export function DebugToolbar({
@@ -22,8 +19,6 @@ export function DebugToolbar({
 	sessionId,
 	debugStreamDelayMs,
 	onToggleDebugStreamDelay,
-	toolDisplayMode,
-	onToolDisplayModeChange,
 }: DebugToolbarProps) {
 	const [traceStatus, setTraceStatus] = useState<string | null>(null);
 
@@ -68,13 +63,9 @@ export function DebugToolbar({
 	return (
 		<div className="shrink-0 border-border border-b bg-surface-0/90 backdrop-blur">
 			<div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-6 py-2">
-				<div className="flex items-center gap-3">
-					<p className="text-text-muted text-xs">Tool display</p>
-					<ToolDisplayToggle
-						value={toolDisplayMode}
-						onChange={onToolDisplayModeChange}
-					/>
-				</div>
+				<p className="text-text-muted text-xs">
+					Export the current chat trace when something goes wrong.
+				</p>
 				<div className="flex items-center gap-2">
 					{traceStatus && (
 						<span className="text-text-muted text-xs">{traceStatus}</span>
