@@ -51,10 +51,11 @@ export function ProgressThread({ toolCalls }: ProgressThreadProps) {
 	const summary = useMemo(() => formatActivitySummary(toolCalls), [toolCalls]);
 
 	return (
-		<div className="mt-3">
+		<section className="mt-3" aria-label="Tool activity">
 			{/* Collapsed summary line */}
 			<button
 				type="button"
+				aria-label={allRunning ? "Working..." : summary}
 				onClick={() => setIsExpanded((prev) => !prev)}
 				className="group/summary flex w-full items-center gap-2 py-1 text-left"
 			>
@@ -92,7 +93,7 @@ export function ProgressThread({ toolCalls }: ProgressThreadProps) {
 					</ul>
 				</div>
 			</div>
-		</div>
+		</section>
 	);
 }
 
@@ -116,7 +117,7 @@ function ThreadLine({
 	const hasOutput = output.length > 0;
 
 	return (
-		<li className="tool-thread-line">
+		<li className="tool-thread-line" aria-label={summary}>
 			<button
 				type="button"
 				onClick={() => hasOutput && setShowOutput((prev) => !prev)}

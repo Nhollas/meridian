@@ -15,9 +15,24 @@ function renderThread(toolCalls: ToolCallViewModel[]) {
 	return render(<ProgressThread toolCalls={toolCalls} />);
 }
 
+function toolActivity() {
+	return page.getByRole("region", { name: "Tool activity" });
+}
+
+function summaryButton() {
+	return toolActivity().getByRole("button").first();
+}
+
+function toolList() {
+	return toolActivity().getByRole("list", { name: "Tool calls" });
+}
+
+function toolItem(label: string) {
+	return toolList().getByRole("listitem", { name: label });
+}
+
 async function expandThread() {
-	const summary = page.getByRole("button").first();
-	await summary.click();
+	await summaryButton().click();
 }
 
 describe("ProgressThread - collapsed summary", () => {
@@ -27,7 +42,7 @@ describe("ProgressThread - collapsed summary", () => {
 			tc({ id: "2", name: "read_file", status: "running" }),
 		]);
 
-		await expect.element(page.getByText("Working...")).toBeVisible();
+		await expect.element(summaryButton()).toHaveAccessibleName("Working...");
 	});
 
 	test("shows activity summary once any tool completes", async () => {
@@ -37,14 +52,14 @@ describe("ProgressThread - collapsed summary", () => {
 		]);
 
 		await expect
-			.element(page.getByText("Ran a command, read a file"))
-			.toBeVisible();
+			.element(summaryButton())
+			.toHaveAccessibleName("Ran a command, read a file");
 	});
 
 	test("shows summary for a single completed tool", async () => {
 		renderThread([tc({ id: "1", name: "write_file", status: "completed" })]);
 
-		await expect.element(page.getByText("Wrote a file")).toBeVisible();
+		await expect.element(summaryButton()).toHaveAccessibleName("Wrote a file");
 	});
 
 	test("shows plural summary for multiple same-type tools", async () => {
@@ -54,7 +69,9 @@ describe("ProgressThread - collapsed summary", () => {
 			tc({ id: "3", name: "run_command", status: "completed" }),
 		]);
 
-		await expect.element(page.getByText("Ran 3 commands")).toBeVisible();
+		await expect
+			.element(summaryButton())
+			.toHaveAccessibleName("Ran 3 commands");
 	});
 
 	test("shows mixed summary for different tool types", async () => {
@@ -70,12 +87,10 @@ describe("ProgressThread - collapsed summary", () => {
 		]);
 
 		await expect
-			.element(
-				page.getByText(
-					"Read a file, ran a command, wrote a file, inspected a process",
-				),
-			)
-			.toBeVisible();
+			.element(summaryButton())
+			.toHaveAccessibleName(
+				"Read a file, ran a command, wrote a file, inspected a process",
+			);
 	});
 
 	test("shows summary even when all tools errored", async () => {
@@ -84,7 +99,9 @@ describe("ProgressThread - collapsed summary", () => {
 			tc({ id: "2", name: "run_command", status: "error" }),
 		]);
 
-		await expect.element(page.getByText("Ran 2 commands")).toBeVisible();
+		await expect
+			.element(summaryButton())
+			.toHaveAccessibleName("Ran 2 commands");
 	});
 });
 
@@ -114,10 +131,10 @@ describe("ProgressThread - expanded thread", () => {
 		await expandThread();
 
 		await expect
-			.element(page.getByText("$ meridian auth status --json"))
+			.element(toolItem("$ meridian auth status --json"))
 			.toBeVisible();
-		await expect.element(page.getByText("write request.json")).toBeVisible();
-		await expect.element(page.getByText("read config.json")).toBeVisible();
+		await expect.element(toolItem("write request.json")).toBeVisible();
+		await expect.element(toolItem("read config.json")).toBeVisible();
 	});
 
 	test("shows human-readable labels for background command tools", async () => {
@@ -144,14 +161,10 @@ describe("ProgressThread - expanded thread", () => {
 
 		await expandThread();
 
+		await expect.element(toolItem("inspect background process")).toBeVisible();
+		await expect.element(toolItem("await background process")).toBeVisible();
 		await expect
-			.element(page.getByText("inspect background process"))
-			.toBeVisible();
-		await expect
-			.element(page.getByText("await background process"))
-			.toBeVisible();
-		await expect
-			.element(page.getByText("terminate background process"))
+			.element(toolItem("terminate background process"))
 			.toBeVisible();
 	});
 
@@ -161,16 +174,24 @@ describe("ProgressThread - expanded thread", () => {
 				id: "1",
 				name: "run_command",
 				status: "completed",
+				input: '{"command":["echo","done"]}',
 				result: '{"exitCode":0,"stderr":"","stdout":"done"}',
 			}),
-			tc({ id: "2", name: "run_command", status: "running" }),
+			tc({
+				id: "2",
+				name: "run_command",
+				status: "running",
+				input: '{"command":["slow-cmd"]}',
+			}),
 		]);
 
 		await expandThread();
 
-		const buttons = page.getByRole("listitem").getByRole("button");
-		await expect.element(buttons.nth(0)).toBeEnabled();
-		await expect.element(buttons.nth(1)).toBeDisabled();
+		const completedRow = toolItem("$ echo done").getByRole("button");
+		const runningRow = toolItem("$ slow-cmd").getByRole("button");
+
+		await expect.element(completedRow).toBeEnabled();
+		await expect.element(runningRow).toBeDisabled();
 	});
 
 	test("shows tool output when a completed tool row is clicked", async () => {
@@ -185,9 +206,10 @@ describe("ProgressThread - expanded thread", () => {
 
 		await expandThread();
 
-		// Click the tool row to expand output
-		await page.getByText("$ echo hello").click();
-		await expect.element(page.getByText("hello world")).toBeVisible();
+		const item = toolItem("$ echo hello");
+		await item.getByRole("button").click();
+
+		await expect.element(item.getByText("hello world")).toBeVisible();
 	});
 
 	test("shows stderr and non-zero exit code in output", async () => {
@@ -201,10 +223,12 @@ describe("ProgressThread - expanded thread", () => {
 		]);
 
 		await expandThread();
-		await page.getByText("$ failing-cmd").click();
 
-		await expect.element(page.getByText("something went wrong")).toBeVisible();
-		await expect.element(page.getByText("exit 1")).toBeVisible();
+		const item = toolItem("$ failing-cmd");
+		await item.getByRole("button").click();
+
+		await expect.element(item.getByText("something went wrong")).toBeVisible();
+		await expect.element(item.getByText("exit 1")).toBeVisible();
 	});
 
 	test("shows write_file output as 'Written to' message", async () => {
@@ -218,8 +242,10 @@ describe("ProgressThread - expanded thread", () => {
 		]);
 
 		await expandThread();
-		await page.getByText("write output.txt").click();
 
-		await expect.element(page.getByText("Written to output.txt")).toBeVisible();
+		const item = toolItem("write output.txt");
+		await item.getByRole("button").click();
+
+		await expect.element(item.getByText("Written to output.txt")).toBeVisible();
 	});
 });

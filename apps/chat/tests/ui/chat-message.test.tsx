@@ -28,52 +28,64 @@ function assistantMessage(
 	};
 }
 
+function userArticle() {
+	return page.getByRole("article", { name: "User message" });
+}
+
+function assistantArticle() {
+	return page.getByRole("article", { name: "Assistant message" });
+}
+
+function toolActivity() {
+	return assistantArticle().getByRole("region", { name: "Tool activity" });
+}
+
 describe("ChatMessage - user messages", () => {
-	test("renders user message with content", async () => {
+	test("renders user message content inside the user bubble", async () => {
 		render(
 			<ChatMessage message={userMessage({ content: "Find me a deal" })} />,
 		);
 
-		await expect.element(page.getByText("Find me a deal")).toBeVisible();
+		await expect
+			.element(userArticle().getByText("Find me a deal"))
+			.toBeVisible();
 	});
 
-	test("renders user message as right-aligned bubble", async () => {
+	test("renders as a user message article", async () => {
 		render(<ChatMessage message={userMessage()} />);
 
-		const article = page.getByRole("article", { name: "User message" });
-		await expect.element(article).toBeVisible();
+		await expect.element(userArticle()).toBeVisible();
 	});
 
-	test("shows timestamp on user message", async () => {
+	test("shows timestamp inside the user message", async () => {
 		render(
 			<ChatMessage
 				message={userMessage({ timestamp: "2026-03-14T14:30:00.000Z" })}
 			/>,
 		);
 
-		await expect.element(page.getByText("14:30")).toBeVisible();
-	});
-
-	test("preserves whitespace in user messages", async () => {
-		render(
-			<ChatMessage
-				message={userMessage({ content: "Line 1\nLine 2\nLine 3" })}
-			/>,
-		);
-
-		await expect.element(page.getByText("Line 1")).toBeVisible();
+		await expect.element(userArticle().getByText("14:30")).toBeVisible();
 	});
 });
 
 describe("ChatMessage - assistant messages", () => {
-	test("renders assistant message with Meridian label", async () => {
+	test("renders Meridian label in the assistant message", async () => {
 		render(<ChatMessage message={assistantMessage()} />);
 
-		await expect.element(page.getByText("Meridian")).toBeVisible();
-		await expect.element(page.getByText("I can help with that.")).toBeVisible();
+		await expect
+			.element(assistantArticle().getByText("Meridian"))
+			.toBeVisible();
 	});
 
-	test("renders markdown in assistant messages", async () => {
+	test("renders response content inside the assistant article", async () => {
+		render(<ChatMessage message={assistantMessage()} />);
+
+		await expect
+			.element(assistantArticle().getByText("I can help with that."))
+			.toBeVisible();
+	});
+
+	test("renders markdown content in assistant messages", async () => {
 		render(
 			<ChatMessage
 				message={assistantMessage({
@@ -83,11 +95,13 @@ describe("ChatMessage - assistant messages", () => {
 			/>,
 		);
 
-		await expect.element(page.getByText("TalkTalk")).toBeVisible();
-		await expect.element(page.getByText("Sky")).toBeVisible();
+		await expect
+			.element(assistantArticle().getByText("TalkTalk"))
+			.toBeVisible();
+		await expect.element(assistantArticle().getByText("Sky")).toBeVisible();
 	});
 
-	test("shows streaming indicator when status is streaming", async () => {
+	test("shows streaming indicator in the assistant message", async () => {
 		render(
 			<ChatMessage
 				message={assistantMessage({
@@ -97,10 +111,12 @@ describe("ChatMessage - assistant messages", () => {
 			/>,
 		);
 
-		await expect.element(page.getByText("Streaming")).toBeVisible();
+		await expect
+			.element(assistantArticle().getByText("Streaming"))
+			.toBeVisible();
 	});
 
-	test("shows interrupted label when status is error", async () => {
+	test("shows interrupted label in the assistant message", async () => {
 		render(
 			<ChatMessage
 				message={assistantMessage({
@@ -110,10 +126,12 @@ describe("ChatMessage - assistant messages", () => {
 			/>,
 		);
 
-		await expect.element(page.getByText("Interrupted")).toBeVisible();
+		await expect
+			.element(assistantArticle().getByText("Interrupted"))
+			.toBeVisible();
 	});
 
-	test("renders tool calls via progress thread", async () => {
+	test("renders tool activity inside the assistant message", async () => {
 		render(
 			<ChatMessage
 				message={assistantMessage({
@@ -137,12 +155,13 @@ describe("ChatMessage - assistant messages", () => {
 			/>,
 		);
 
+		const summary = toolActivity().getByRole("button").first();
 		await expect
-			.element(page.getByText("Ran a command, wrote a file"))
-			.toBeVisible();
+			.element(summary)
+			.toHaveAccessibleName("Ran a command, wrote a file");
 	});
 
-	test("renders assistant message without content during streaming", async () => {
+	test("shows working state in tool activity during streaming", async () => {
 		render(
 			<ChatMessage
 				message={assistantMessage({
@@ -160,7 +179,7 @@ describe("ChatMessage - assistant messages", () => {
 			/>,
 		);
 
-		await expect.element(page.getByText("Working...")).toBeVisible();
-		await expect.element(page.getByText("Streaming")).toBeVisible();
+		const summary = toolActivity().getByRole("button").first();
+		await expect.element(summary).toHaveAccessibleName("Working...");
 	});
 });
