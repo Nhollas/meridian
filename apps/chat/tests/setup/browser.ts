@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll } from "vitest";
-import { browserWorker } from "../ui/msw";
+import { browserWorker } from "../support/msw";
 import "../../src/app/globals.css";
 
 function loadGoogleFonts() {

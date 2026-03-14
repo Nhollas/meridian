@@ -3,9 +3,9 @@ import { describe } from "vitest";
 import {
 	createChatEventFactory,
 	createControllableChatStream,
-} from "./chat-contract";
-import { test } from "./chat-page-fixture";
-import { browserWorker } from "./msw";
+} from "../../tests/support/chat-contract";
+import { test } from "../../tests/support/chat-page-fixture";
+import { browserWorker } from "../../tests/support/msw";
 
 describe("Chat UI - error handling", () => {
 	test("shows an interrupted assistant message when the request fails", async ({

@@ -13,5 +13,6 @@ pnpm test:browser:watch # browser tests in watch mode
 
 ## Testing
 
-- Browser tests: `tests/ui/**/*.test.tsx` — Playwright with Chromium, React component testing
-- MSW browser worker setup in `tests/ui/msw.ts`, global setup in `tests/setup/browser.ts`
+- Browser tests: colocated with source in `src/` as `*.test.tsx` files — Playwright with Chromium, React component testing
+- Test support files in `tests/support/` (page objects, fixtures, MSW, contracts)
+- Global setup in `tests/setup/browser.ts`

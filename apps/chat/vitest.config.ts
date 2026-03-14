@@ -22,7 +22,7 @@ export default defineConfig({
 				plugins: [react()],
 				test: {
 					name: "browser",
-					include: ["tests/ui/**/*.test.tsx"],
+					include: ["src/**/*.test.tsx"],
 					setupFiles: ["tests/setup/browser.ts"],
 					browser: {
 						enabled: true,

@@ -3,9 +3,9 @@ import { describe } from "vitest";
 import {
 	createChatEventFactory,
 	createChatStreamResponse,
-} from "./chat-contract";
-import { expect, test } from "./chat-page-fixture";
-import { browserWorker } from "./msw";
+} from "../../tests/support/chat-contract";
+import { expect, test } from "../../tests/support/chat-page-fixture";
+import { browserWorker } from "../../tests/support/msw";
 
 describe("Chat UI - submission and streaming", () => {
 	test("submits a message and renders streamed contract events", async ({

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { resolveDependencies } from "@/runtime";
 import { readDataStore, writeDataStore } from "@/store/data";
-import { createTempHome } from "../../helpers/temp-home";
+import { createTempHome } from "../../tests/helpers/temp-home";
 
 describe("data store", () => {
 	it("returns an empty store when the file does not exist", async () => {
