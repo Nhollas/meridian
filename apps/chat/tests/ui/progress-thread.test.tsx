@@ -168,6 +168,41 @@ describe("ProgressThread - expanded thread", () => {
 			.toBeVisible();
 	});
 
+	test("suppresses top-level running indicator when expanded", async () => {
+		renderThread([
+			tc({
+				id: "1",
+				name: "run_command",
+				status: "completed",
+				input: '{"command":["echo","done"]}',
+				result: '{"exitCode":0,"stderr":"","stdout":"done"}',
+			}),
+			tc({
+				id: "2",
+				name: "run_command",
+				status: "running",
+				input: '{"command":["slow-cmd"]}',
+			}),
+		]);
+
+		// Collapsed: top-level indicator should show "Running"
+		const summaryDot = summaryButton().getByRole("img", { name: "Running" });
+		await expect.element(summaryDot).toBeVisible();
+
+		// Expand the thread
+		await expandThread();
+
+		// Expanded: top-level indicator should switch to "Completed"
+		await expect
+			.element(summaryButton().getByRole("img", { name: "Completed" }))
+			.toBeVisible();
+
+		// But the running tool's own indicator should still show "Running"
+		await expect
+			.element(toolItem("$ slow-cmd").getByRole("img", { name: "Running" }))
+			.toBeVisible();
+	});
+
 	test("disables running tool rows", async () => {
 		renderThread([
 			tc({

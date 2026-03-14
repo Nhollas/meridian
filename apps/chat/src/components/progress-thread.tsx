@@ -62,8 +62,16 @@ export function ProgressThread({ toolCalls }: ProgressThreadProps) {
 				<TreeConnector type={isExpanded ? "tee" : "dash"} />
 
 				<span
+					role="img"
+					aria-label={
+						anyRunning && !isExpanded
+							? "Running"
+							: hasError
+								? "Error"
+								: "Completed"
+					}
 					className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-						anyRunning
+						anyRunning && !isExpanded
 							? "animate-pulse bg-warning"
 							: hasError
 								? "bg-error"
@@ -131,6 +139,8 @@ function ThreadLine({
 
 				{/* Status dot */}
 				<span
+					role="img"
+					aria-label={isRunning ? "Running" : isError ? "Error" : "Completed"}
 					className={`h-1.5 w-1.5 shrink-0 rounded-full ${
 						isRunning
 							? "animate-pulse bg-warning"

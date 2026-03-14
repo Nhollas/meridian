@@ -61,6 +61,20 @@ describe("formatToolSummary", () => {
 		);
 	});
 
+	it("uses a human-readable label for list_background_commands", () => {
+		const input = JSON.stringify({});
+		expect(formatToolSummary("list_background_commands", input)).toBe(
+			"list background processes",
+		);
+	});
+
+	it("uses a human-readable label for get_runtime_instructions", () => {
+		const input = JSON.stringify({});
+		expect(formatToolSummary("get_runtime_instructions", input)).toBe(
+			"load instructions",
+		);
+	});
+
 	it("falls back to the display name on invalid JSON", () => {
 		expect(formatToolSummary("read_file", "not-json")).toBe("Read File");
 	});
@@ -137,6 +151,35 @@ describe("formatToolOutput", () => {
 		]);
 		expect(formatToolOutput("list_directory", result)).toBe(
 			"src/  package.json",
+		);
+	});
+
+	it("formats list_background_commands as status lines", () => {
+		const result = JSON.stringify([
+			{
+				id: "cmd-1",
+				command: ["node", "server.js"],
+				status: "running",
+				exitCode: null,
+				startedAt: "2026-03-14T10:00:00Z",
+			},
+			{
+				id: "cmd-2",
+				command: ["npm", "test"],
+				status: "completed",
+				exitCode: 0,
+				startedAt: "2026-03-14T09:55:00Z",
+			},
+		]);
+		expect(formatToolOutput("list_background_commands", result)).toBe(
+			"[running] node server.js\n[completed] npm test",
+		);
+	});
+
+	it("shows empty message for list_background_commands with no processes", () => {
+		const result = JSON.stringify([]);
+		expect(formatToolOutput("list_background_commands", result)).toBe(
+			"(no background processes)",
 		);
 	});
 

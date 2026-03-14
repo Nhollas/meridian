@@ -26,6 +26,10 @@ export function formatToolSummary(name: string, input?: string): string {
 				return "await background process";
 			case "terminate_background_command":
 				return "terminate background process";
+			case "list_background_commands":
+				return "list background processes";
+			case "get_runtime_instructions":
+				return "load instructions";
 			default:
 				return label;
 		}
@@ -137,6 +141,23 @@ export function formatToolOutput(
 				if (parsedInput?.contents) return parsedInput.contents;
 				return parsed.path ? `Written to ${parsed.path}` : result;
 			}
+			case "list_background_commands": {
+				if (Array.isArray(parsed)) {
+					if (parsed.length === 0) return "(no background processes)";
+					return parsed
+						.map(
+							(cmd: { id?: string; command?: string[]; status?: string }) => {
+								const cmdStr = cmd.command?.join(" ") ?? "unknown";
+								const status = cmd.status ?? "unknown";
+								return `[${status}] ${cmdStr}`;
+							},
+						)
+						.join("\n");
+				}
+				return result;
+			}
+			case "get_runtime_instructions":
+				return typeof parsed === "string" ? parsed : result;
 			case "list_directory": {
 				if (Array.isArray(parsed)) {
 					return parsed
