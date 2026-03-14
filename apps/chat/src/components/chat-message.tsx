@@ -69,20 +69,6 @@ function AssistantMessage({ message }: { message: ChatMessageType }) {
 					<Markdown content={message.content} />
 				</div>
 			)}
-
-			{!message.content && isStreaming && (
-				<div className="mt-2 inline-flex items-center gap-2 text-text-muted text-xs">
-					<span className="h-1.5 w-1.5 animate-pulse rounded-full bg-flow" />
-					Opening live response stream
-				</div>
-			)}
-
-			{isStreaming && message.content && (
-				<div className="mt-2 inline-flex items-center gap-2 text-[11px] text-text-muted uppercase tracking-[0.12em]">
-					<span className="h-1.5 w-1.5 animate-pulse rounded-full bg-flow" />
-					Response in progress
-				</div>
-			)}
 		</article>
 	);
 }
