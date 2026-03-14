@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
 import { runCli } from "@/cli";
+import { withFormBody } from "../../tests/helpers/msw-predicates";
 import { createWritable } from "../../tests/helpers/streams";
 import { createTempHome } from "../../tests/helpers/temp-home";
 import { mswServer } from "../../tests/setup/msw";
@@ -18,14 +19,16 @@ describe("auth logout", () => {
 		});
 		const stdout = createWritable(false);
 		const stderr = createWritable();
-		let requestBody = "";
 		mswServer.use(
 			http.post(
 				"http://localhost:8180/realms/meridian/protocol/openid-connect/logout",
-				async ({ request }) => {
-					requestBody = await request.text();
-					return new HttpResponse(null, { status: 204 });
-				},
+				withFormBody(
+					{
+						client_id: "meridian-cli",
+						refresh_token: "refresh-token",
+					},
+					() => new HttpResponse(null, { status: 204 }),
+				),
 			),
 		);
 
@@ -41,9 +44,6 @@ describe("auth logout", () => {
 		});
 
 		expect(exitCode).toBe(0);
-		expect(requestBody).toBe(
-			"client_id=meridian-cli&refresh_token=refresh-token",
-		);
 		expect(JSON.parse(stdout.output())).toEqual({
 			loggedOut: true,
 		});

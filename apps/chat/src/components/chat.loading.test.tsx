@@ -6,6 +6,7 @@ import {
 } from "../../tests/support/chat-contract";
 import { test } from "../../tests/support/chat-page-fixture";
 import { browserWorker } from "../../tests/support/msw";
+import { withJsonBody } from "../../tests/support/msw-predicates";
 
 describe("Chat UI - loading state", () => {
 	test("disables controls while a chat request is still streaming", async ({
@@ -15,7 +16,10 @@ describe("Chat UI - loading state", () => {
 		const eventFactory = createChatEventFactory();
 
 		browserWorker.use(
-			http.post("http://localhost:3201/api/chat", () => stream.response),
+			http.post(
+				"http://localhost:3201/api/chat",
+				withJsonBody({ message: "Find me a deal" }, () => stream.response),
+			),
 		);
 
 		await chatPage.sendMessage("Find me a deal");

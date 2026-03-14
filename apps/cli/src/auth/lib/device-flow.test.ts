@@ -7,6 +7,7 @@ import {
 } from "@/auth/lib/device-flow";
 import { AuthDeviceFlowError } from "@/errors";
 import { createUnsignedJwt } from "../../../tests/helpers/jwt";
+import { withFormBody } from "../../../tests/helpers/msw-predicates";
 import { mswServer } from "../../../tests/setup/msw";
 
 const issuer = "http://localhost:8180/realms/meridian";
@@ -19,36 +20,51 @@ describe("device flow", () => {
 		let tokenPolls = 0;
 
 		mswServer.use(
-			http.post(authDeviceUrl, async ({ request }) => {
-				expect(await request.text()).toBe(
-					"client_id=meridian-cli&scope=openid+email+profile",
-				);
-				return HttpResponse.json({
-					device_code: "device-code",
-					user_code: "ABCD-1234",
-					verification_uri_complete:
-						"http://localhost:8180/device?user_code=ABCD-1234",
-					interval: 5,
-				});
-			}),
-			http.post(tokenUrl, () => {
-				tokenPolls += 1;
-				if (tokenPolls === 1) {
-					return HttpResponse.json(
-						{ error: "authorization_pending" },
-						{ status: 400 },
-					);
-				}
+			http.post(
+				authDeviceUrl,
+				withFormBody(
+					{
+						client_id: "meridian-cli",
+						scope: "openid email profile",
+					},
+					() =>
+						HttpResponse.json({
+							device_code: "device-code",
+							user_code: "ABCD-1234",
+							verification_uri_complete:
+								"http://localhost:8180/device?user_code=ABCD-1234",
+							interval: 5,
+						}),
+				),
+			),
+			http.post(
+				tokenUrl,
+				withFormBody(
+					{
+						grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+						client_id: "meridian-cli",
+						device_code: "device-code",
+					},
+					() => {
+						tokenPolls += 1;
+						if (tokenPolls === 1) {
+							return HttpResponse.json(
+								{ error: "authorization_pending" },
+								{ status: 400 },
+							);
+						}
 
-				return HttpResponse.json({
-					access_token: "access-token",
-					refresh_token: "refresh-token",
-					id_token: createUnsignedJwt({
-						email: "john.doe@example.com",
-					}),
-					expires_in: 300,
-				});
-			}),
+						return HttpResponse.json({
+							access_token: "access-token",
+							refresh_token: "refresh-token",
+							id_token: createUnsignedJwt({
+								email: "john.doe@example.com",
+							}),
+							expires_in: 300,
+						});
+					},
+				),
+			),
 		);
 
 		const result = await authenticateWithDeviceFlow(
@@ -81,14 +97,22 @@ describe("device flow", () => {
 
 	it("normalizes host.docker.internal verification URLs for the browser flow", async () => {
 		mswServer.use(
-			http.post(authDeviceUrl, () =>
-				HttpResponse.json({
-					device_code: "device-code",
-					user_code: "ABCD-1234",
-					verification_uri_complete:
-						"http://host.docker.internal:8080/realms/meridian/device?user_code=ABCD-1234",
-					interval: 5,
-				}),
+			http.post(
+				authDeviceUrl,
+				withFormBody(
+					{
+						client_id: "meridian-cli",
+						scope: "openid email profile",
+					},
+					() =>
+						HttpResponse.json({
+							device_code: "device-code",
+							user_code: "ABCD-1234",
+							verification_uri_complete:
+								"http://host.docker.internal:8080/realms/meridian/device?user_code=ABCD-1234",
+							interval: 5,
+						}),
+				),
 			),
 		);
 
@@ -114,10 +138,18 @@ describe("device flow", () => {
 
 	it("fails when the device authorisation response shape is invalid", async () => {
 		mswServer.use(
-			http.post(authDeviceUrl, () =>
-				HttpResponse.json({
-					device_code: "device-code",
-				}),
+			http.post(
+				authDeviceUrl,
+				withFormBody(
+					{
+						client_id: "meridian-cli",
+						scope: "openid email profile",
+					},
+					() =>
+						HttpResponse.json({
+							device_code: "device-code",
+						}),
+				),
 			),
 		);
 
@@ -137,12 +169,20 @@ describe("device flow", () => {
 
 	it("fails with an auth device flow error when device authorisation is rejected", async () => {
 		mswServer.use(
-			http.post(authDeviceUrl, () =>
-				HttpResponse.json(
+			http.post(
+				authDeviceUrl,
+				withFormBody(
 					{
-						error: "invalid_client",
+						client_id: "meridian-cli",
+						scope: "openid email profile",
 					},
-					{ status: 400 },
+					() =>
+						HttpResponse.json(
+							{
+								error: "invalid_client",
+							},
+							{ status: 400 },
+						),
 				),
 			),
 		);
@@ -163,10 +203,19 @@ describe("device flow", () => {
 
 	it("fails when the token success response shape is invalid", async () => {
 		mswServer.use(
-			http.post(tokenUrl, () =>
-				HttpResponse.json({
-					token: "access-token",
-				}),
+			http.post(
+				tokenUrl,
+				withFormBody(
+					{
+						grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+						client_id: "meridian-cli",
+						device_code: "device-code",
+					},
+					() =>
+						HttpResponse.json({
+							token: "access-token",
+						}),
+				),
 			),
 		);
 
@@ -193,13 +242,22 @@ describe("device flow", () => {
 
 	it("fails when the id token payload is malformed", async () => {
 		mswServer.use(
-			http.post(tokenUrl, () =>
-				HttpResponse.json({
-					access_token: "access-token",
-					refresh_token: "refresh-token",
-					id_token: "not.a.valid.jwt",
-					expires_in: 300,
-				}),
+			http.post(
+				tokenUrl,
+				withFormBody(
+					{
+						grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+						client_id: "meridian-cli",
+						device_code: "device-code",
+					},
+					() =>
+						HttpResponse.json({
+							access_token: "access-token",
+							refresh_token: "refresh-token",
+							id_token: "not.a.valid.jwt",
+							expires_in: 300,
+						}),
+				),
 			),
 		);
 
@@ -226,12 +284,21 @@ describe("device flow", () => {
 
 	it("fails when the token response does not include an id token", async () => {
 		mswServer.use(
-			http.post(tokenUrl, () =>
-				HttpResponse.json({
-					access_token: "access-token",
-					refresh_token: "refresh-token",
-					expires_in: 300,
-				}),
+			http.post(
+				tokenUrl,
+				withFormBody(
+					{
+						grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+						client_id: "meridian-cli",
+						device_code: "device-code",
+					},
+					() =>
+						HttpResponse.json({
+							access_token: "access-token",
+							refresh_token: "refresh-token",
+							expires_in: 300,
+						}),
+				),
 			),
 		);
 
