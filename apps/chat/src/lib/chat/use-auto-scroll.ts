@@ -4,17 +4,24 @@ import type { ChatMessageViewModel } from "./view-models";
 const AUTO_SCROLL_THRESHOLD_PX = 96;
 
 /**
- * How long (ms) after the user scrolls away from the bottom before
- * auto-scroll can re-engage. This prevents rapid programmatic scroll
- * events from immediately overriding the user's intent.
+ * Minimum upward scroll (px) to count as intentional user scroll.
+ * Browser rendering jitter can cause 1-3px differences between
+ * scroll events from a single programmatic scrollTop assignment.
  */
-const USER_SCROLL_COOLDOWN_MS = 1000;
+const USER_SCROLL_UP_THRESHOLD_PX = 5;
+
+/**
+ * How long (ms) after the user scrolls up before auto-scroll can
+ * re-engage. This prevents content growth from immediately pulling
+ * the user back to the bottom after a scroll up.
+ */
+const USER_SCROLL_COOLDOWN_MS = 1200;
 
 export function useAutoScroll(messages: ChatMessageViewModel[]) {
 	const scrollRef = useRef<HTMLDivElement>(null);
 	const shouldAutoScrollRef = useRef(true);
-	const isProgrammaticScrollRef = useRef(false);
-	const userScrolledAtRef = useRef(0);
+	const prevScrollTopRef = useRef(0);
+	const userDisengagedAtRef = useRef(0);
 	const latestMessageFingerprint = getMessageFingerprint(messages.at(-1));
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: auto-scroll should respond to streamed message/tool updates only
@@ -24,37 +31,42 @@ export function useAutoScroll(messages: ChatMessageViewModel[]) {
 			return;
 		}
 
-		isProgrammaticScrollRef.current = true;
 		el.scrollTop = el.scrollHeight;
+		prevScrollTopRef.current = el.scrollTop;
 	}, [messages.length, latestMessageFingerprint]);
 
 	function handleScroll() {
-		if (isProgrammaticScrollRef.current) {
-			isProgrammaticScrollRef.current = false;
-			return;
-		}
-
 		const el = scrollRef.current;
 		if (!el) {
 			return;
 		}
 
-		const nearBottom = isNearBottom(el);
+		const currentScrollTop = el.scrollTop;
+		const delta = prevScrollTopRef.current - currentScrollTop;
+		prevScrollTopRef.current = currentScrollTop;
 
-		if (!nearBottom) {
+		if (delta >= USER_SCROLL_UP_THRESHOLD_PX) {
+			// User scrolled up intentionally — disable auto-scroll
 			shouldAutoScrollRef.current = false;
-			userScrolledAtRef.current = Date.now();
-		} else if (
-			Date.now() - userScrolledAtRef.current >
-			USER_SCROLL_COOLDOWN_MS
-		) {
-			shouldAutoScrollRef.current = true;
+			userDisengagedAtRef.current = Date.now();
+			return;
+		}
+
+		// Only re-engage auto-scroll if the user is near the bottom
+		// AND the cooldown has expired
+		if (!shouldAutoScrollRef.current) {
+			const cooldownExpired =
+				Date.now() - userDisengagedAtRef.current > USER_SCROLL_COOLDOWN_MS;
+			if (isNearBottom(el) && cooldownExpired) {
+				shouldAutoScrollRef.current = true;
+			}
 		}
 	}
 
 	function enableAutoScroll() {
 		shouldAutoScrollRef.current = true;
-		userScrolledAtRef.current = 0;
+		userDisengagedAtRef.current = 0;
+		prevScrollTopRef.current = 0;
 	}
 
 	return { scrollRef, handleScroll, enableAutoScroll };
