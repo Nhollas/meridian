@@ -13,6 +13,8 @@ export function chatPageObject(page: BrowserPage) {
 		getConversation: () => page.getByRole("log", { name: "Conversation" }),
 		getCopyTraceButton: () =>
 			page.getByRole("button", { name: "Copy Debug Trace" }),
+		getDebugToggle: () =>
+			page.getByRole("button", { name: "Toggle debug tools" }),
 		getDownloadJsonButton: () =>
 			page.getByRole("button", { name: "Download JSON" }),
 		getInterruptedBadge: () =>
@@ -25,8 +27,11 @@ export function chatPageObject(page: BrowserPage) {
 		getSendButton: () => page.getByRole("button", { name: "Send message" }),
 		getSlowStreamButton: () =>
 			page.getByRole("button", { name: "Slow Stream" }),
-		getToolCall: (name: string) =>
-			self.getConversation().getByRole("group", { name: `Tool call ${name}` }),
+		getToolActivity: (summary: string) =>
+			self
+				.getConversation()
+				.getByRole("article", { name: "Assistant message" })
+				.getByText(summary),
 		getUserMessage: (text: string) =>
 			self
 				.getConversation()
@@ -56,13 +61,11 @@ export function chatPageObject(page: BrowserPage) {
 			await expect.element(self.getMessageInput()).toBeEnabled();
 			await expect.element(self.getSendButton()).toBeDisabled();
 			await expect.element(self.getWelcomeHeading()).toBeVisible();
-			await expect.element(self.getCopyTraceButton()).toBeVisible();
-			await expect.element(self.getDownloadJsonButton()).toBeVisible();
-			await expect.element(self.getSlowStreamButton()).toBeVisible();
+			await expect.element(self.getDebugToggle()).toBeVisible();
 		},
 
-		expectToolCallVisible: async (name: string) => {
-			await expect.element(self.getToolCall(name)).toBeVisible();
+		expectToolActivityVisible: async (summary: string) => {
+			await expect.element(self.getToolActivity(summary)).toBeVisible();
 		},
 
 		expectUserMessage: async (text: string) => {
@@ -73,12 +76,18 @@ export function chatPageObject(page: BrowserPage) {
 			await expect.element(self.getMessageInput()).toBeEnabled();
 		},
 
+		openDebugPanel: async () => {
+			await self.getDebugToggle().click();
+			await expect.element(self.getCopyTraceButton()).toBeVisible();
+		},
+
 		sendMessage: async (message: string) => {
 			await self.getMessageInput().fill(message);
 			await self.getSendButton().click();
 		},
 
 		toggleSlowStream: async () => {
+			await self.openDebugPanel();
 			await self.getSlowStreamButton().click();
 		},
 	};

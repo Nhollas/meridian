@@ -34,7 +34,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
 		const el = textareaRef.current;
 		if (!el) return;
 		el.style.height = "auto";
-		el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+		el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
 	}
 
 	return (
@@ -51,8 +51,8 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
 					onKeyDown={handleKeyDown}
 					placeholder={disabled ? "Thinking..." : "Message Meridian..."}
 					disabled={disabled}
-					rows={1}
-					className="min-h-10 flex-1 resize-none rounded-lg border border-border bg-surface-1 px-4 py-2.5 text-sm text-text-primary outline-none transition-colors placeholder:text-text-muted focus:border-flow disabled:opacity-50"
+					rows={2}
+					className="min-h-14 flex-1 resize-none rounded-xl border border-border bg-surface-1 px-4 py-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-muted focus:border-flow disabled:opacity-50"
 				/>
 				<button
 					type="button"

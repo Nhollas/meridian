@@ -81,6 +81,7 @@ describe("Chat UI - debug controls", () => {
 
 		await chatPage.sendMessage("Find me a deal");
 		await chatPage.expectAssistantResponse("I found 2 offers worth comparing.");
+		await chatPage.openDebugPanel();
 		await chatPage.getCopyTraceButton().click();
 
 		expect(writeText).toHaveBeenCalledTimes(1);
@@ -157,6 +158,7 @@ describe("Chat UI - debug controls", () => {
 
 		await chatPage.sendMessage("Find me a deal");
 		await chatPage.expectAssistantResponse("I found 2 offers worth comparing.");
+		await chatPage.openDebugPanel();
 		await chatPage.getDownloadJsonButton().click();
 
 		expect(createObjectUrl).toHaveBeenCalledTimes(1);

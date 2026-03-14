@@ -53,7 +53,7 @@ describe("Chat UI - submission and streaming", () => {
 
 		await chatPage.expectUserMessage("Find me a deal");
 		await chatPage.expectAssistantResponse("I found 2 offers worth comparing.");
-		await chatPage.expectToolCallVisible("Read File");
+		await chatPage.expectToolActivityVisible("Read a file");
 		await chatPage.expectMessageInputValue("");
 		expect(requestBody).toMatchObject({
 			message: "Find me a deal",
