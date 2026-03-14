@@ -1,3 +1,4 @@
+import type { ToolCallViewModel } from "./view-models";
 import { TOOL_NAMES } from "./view-models";
 
 /**
@@ -31,6 +32,70 @@ export function formatToolSummary(name: string, input?: string): string {
 	} catch {
 		return label;
 	}
+}
+
+const TOOL_ACTIVITY_VERBS: Record<
+	string,
+	{ singular: string; plural: string }
+> = {
+	get_runtime_instructions: {
+		singular: "loaded instructions",
+		plural: "loaded instructions",
+	},
+	inspect_background_command: {
+		singular: "inspected a process",
+		plural: "inspected %d processes",
+	},
+	list_background_commands: {
+		singular: "listed processes",
+		plural: "listed processes",
+	},
+	list_directory: {
+		singular: "listed a directory",
+		plural: "listed %d directories",
+	},
+	read_file: { singular: "read a file", plural: "read %d files" },
+	run_command: { singular: "ran a command", plural: "ran %d commands" },
+	terminate_background_command: {
+		singular: "terminated a process",
+		plural: "terminated %d processes",
+	},
+	wait_for_background_command: {
+		singular: "waited for a process",
+		plural: "waited for %d processes",
+	},
+	write_file: { singular: "wrote a file", plural: "wrote %d files" },
+};
+
+/**
+ * Creates a human-readable activity summary from a list of tool calls.
+ * e.g., "Read 2 files, ran 3 commands, wrote 1 file"
+ */
+export function formatActivitySummary(toolCalls: ToolCallViewModel[]): string {
+	const counts = new Map<string, number>();
+	for (const tc of toolCalls) {
+		counts.set(tc.name, (counts.get(tc.name) ?? 0) + 1);
+	}
+
+	const parts: string[] = [];
+	for (const [name, count] of counts) {
+		const verbs = TOOL_ACTIVITY_VERBS[name];
+		if (!verbs) {
+			parts.push(
+				count === 1
+					? `used ${TOOL_NAMES[name as keyof typeof TOOL_NAMES] ?? name}`
+					: `used ${TOOL_NAMES[name as keyof typeof TOOL_NAMES] ?? name} ${count}×`,
+			);
+			continue;
+		}
+		parts.push(
+			count === 1 ? verbs.singular : verbs.plural.replace("%d", String(count)),
+		);
+	}
+
+	if (parts.length === 0) return "No actions";
+	const summary = parts.join(", ");
+	return summary.charAt(0).toUpperCase() + summary.slice(1);
 }
 
 /**
