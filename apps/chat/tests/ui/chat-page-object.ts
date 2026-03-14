@@ -26,7 +26,10 @@ export function chatPageObject(page: BrowserPage) {
 		getSlowStreamButton: () =>
 			page.getByRole("button", { name: "Slow Stream" }),
 		getToolCall: (name: string) =>
-			self.getConversation().getByRole("group", { name: `Tool call ${name}` }),
+			self
+				.getConversation()
+				.getByRole("article", { name: "Assistant message" })
+				.getByText(name),
 		getUserMessage: (text: string) =>
 			self
 				.getConversation()

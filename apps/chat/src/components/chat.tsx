@@ -1,10 +1,32 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useAutoScroll } from "@/lib/chat/use-auto-scroll";
 import { useChat } from "@/lib/chat/use-chat";
 import { ChatInput } from "./chat-input";
 import { ChatMessage } from "./chat-message";
 import { DebugToolbar } from "./debug-toolbar";
+import type { ToolDisplayMode } from "./tool-display-toggle";
+
+const TOOL_DISPLAY_KEY = "meridian:tool-display-mode";
+
+function useToolDisplayMode() {
+	const [mode, setMode] = useState<ToolDisplayMode>("strip");
+
+	useEffect(() => {
+		const stored = localStorage.getItem(TOOL_DISPLAY_KEY);
+		if (stored === "strip" || stored === "thread" || stored === "classic") {
+			setMode(stored);
+		}
+	}, []);
+
+	function setAndPersist(next: ToolDisplayMode) {
+		setMode(next);
+		localStorage.setItem(TOOL_DISPLAY_KEY, next);
+	}
+
+	return [mode, setAndPersist] as const;
+}
 
 export function Chat() {
 	const {
@@ -16,6 +38,7 @@ export function Chat() {
 		toggleDebugStreamDelay,
 	} = useChat();
 	const { scrollRef, handleScroll, enableAutoScroll } = useAutoScroll(messages);
+	const [toolDisplayMode, setToolDisplayMode] = useToolDisplayMode();
 
 	function handleSend(content: string) {
 		enableAutoScroll();
@@ -29,6 +52,8 @@ export function Chat() {
 				sessionId={sessionId}
 				debugStreamDelayMs={debugStreamDelayMs}
 				onToggleDebugStreamDelay={toggleDebugStreamDelay}
+				toolDisplayMode={toolDisplayMode}
+				onToolDisplayModeChange={setToolDisplayMode}
 			/>
 			<div
 				ref={scrollRef}
@@ -55,7 +80,11 @@ export function Chat() {
 					)}
 
 					{messages.map((msg) => (
-						<ChatMessage key={msg.id} message={msg} />
+						<ChatMessage
+							key={msg.id}
+							message={msg}
+							toolDisplayMode={toolDisplayMode}
+						/>
 					))}
 				</div>
 			</div>

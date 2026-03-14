@@ -1,12 +1,16 @@
 "use client";
 
 import type { ChatMessageViewModel as ChatMessageType } from "@/lib/chat/view-models";
+import { ActivityStrip } from "./activity-strip";
 import { Markdown } from "./markdown";
+import { ProgressThread } from "./progress-thread";
 import { TimelineNode } from "./timeline-node";
 import { ToolCallNode } from "./tool-call-node";
+import type { ToolDisplayMode } from "./tool-display-toggle";
 
 interface ChatMessageProps {
 	message: ChatMessageType;
+	toolDisplayMode: ToolDisplayMode;
 }
 
 function formatTime(iso: string) {
@@ -17,11 +21,36 @@ function formatTime(iso: string) {
 	});
 }
 
-export function ChatMessage({ message }: ChatMessageProps) {
+function ToolCallsDisplay({
+	message,
+	mode,
+}: {
+	message: ChatMessageType;
+	mode: ToolDisplayMode;
+}) {
+	const toolCalls = message.toolCalls ?? [];
+	if (toolCalls.length === 0) return null;
+
+	switch (mode) {
+		case "strip":
+			return <ActivityStrip toolCalls={toolCalls} />;
+		case "thread":
+			return <ProgressThread toolCalls={toolCalls} />;
+		case "classic":
+			return (
+				<div className="mt-3 flex flex-col gap-2">
+					{toolCalls.map((tc) => (
+						<ToolCallNode key={tc.id} toolCall={tc} />
+					))}
+				</div>
+			);
+	}
+}
+
+export function ChatMessage({ message, toolDisplayMode }: ChatMessageProps) {
 	const isUser = message.role === "user";
 	const isStreaming = message.status === "streaming";
 	const isError = message.status === "error";
-	const visibleToolCalls = message.toolCalls ?? [];
 	const messageLabel = isUser ? "User message" : "Assistant message";
 
 	return (
@@ -58,13 +87,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
 					</div>
 				}
 			>
-				{visibleToolCalls.length > 0 && (
-					<div className="mt-3 flex flex-col gap-2">
-						{visibleToolCalls.map((tc) => (
-							<ToolCallNode key={tc.id} toolCall={tc} />
-						))}
-					</div>
-				)}
+				<ToolCallsDisplay message={message} mode={toolDisplayMode} />
 
 				{message.content && (
 					<div className="mt-1.5 text-sm text-text-secondary leading-relaxed">
