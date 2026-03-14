@@ -54,9 +54,11 @@ export function Chat() {
 						</div>
 					)}
 
-					{messages.map((msg) => (
-						<ChatMessage key={msg.id} message={msg} />
-					))}
+					<div className="flex flex-col gap-6">
+						{messages.map((msg) => (
+							<ChatMessage key={msg.id} message={msg} />
+						))}
+					</div>
 				</div>
 			</div>
 
