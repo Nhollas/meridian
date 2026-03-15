@@ -17,6 +17,9 @@ export function createSessionEventsRoute({
 				registry.unregister(sessionId);
 			});
 
+			// Keep the connection open — without this the callback returns and
+			// Hono closes the stream. The 30s sleep doubles as a keepalive ping
+			// so proxies/browsers don't time out the connection.
 			while (true) {
 				await stream.sleep(30000);
 			}
