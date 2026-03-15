@@ -1,9 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentToolCall, AgentTurnResult } from "@/lib/agent/contracts";
-import {
-	createChatRequest,
-	readRuntimeEvents,
-} from "../../tests/support/chat-route";
+import { createChatRequest } from "../../tests/support/chat-route";
+import { createCollectingRegistry } from "../../tests/support/collecting-registry";
 
 const mocks = vi.hoisted(() => ({
 	createAgentService: vi.fn(),
@@ -19,7 +17,7 @@ vi.mock("@/lib/sandbox/singleton", () => ({
 	getSandboxRuntime: mocks.getSandboxRuntime,
 }));
 
-import { handleChat } from "@/routes/chat";
+import { createChatRoute, handleChat } from "@/routes/chat";
 
 const completedToolCall: AgentToolCall = {
 	id: "tool-1",
@@ -69,7 +67,9 @@ describe("POST /api/chat", () => {
 		});
 	});
 
-	it("streams chat events and completes the turn", async () => {
+	it("returns 202 with turnId and pushes events through the registry", async () => {
+		const { registry, collectTurnEvents } = createCollectingRegistry();
+
 		mocks.streamConversation.mockImplementation(
 			async ({
 				message,
@@ -103,18 +103,22 @@ describe("POST /api/chat", () => {
 			},
 		);
 
-		const response = await handleChat(
+		const route = createChatRoute({ registry });
+		const eventsPromise = collectTurnEvents("session-123");
+		const response = await route(
 			createChatRequest({
 				message: "Find me an offer",
 				sessionId: "session-123",
 			}),
 		);
 
-		expect(response.status).toBe(200);
-		expect(response.headers.get("Content-Type")).toContain(
-			"application/x-ndjson",
-		);
-		await expect(readRuntimeEvents(response)).resolves.toEqual([
+		expect(response.status).toBe(202);
+		await expect(response.json()).resolves.toEqual({
+			turnId: expect.any(String),
+		});
+
+		const events = await eventsPromise;
+		expect(events).toEqual([
 			expect.objectContaining({
 				sequence: 1,
 				type: "assistant.delta",
@@ -146,16 +150,20 @@ describe("POST /api/chat", () => {
 	});
 
 	it("emits an error event when the agent service throws before streaming progress", async () => {
+		const { registry, collectTurnEvents } = createCollectingRegistry();
 		mocks.streamConversation.mockRejectedValue(new Error("agent exploded"));
 
-		const response = await handleChat(
+		const route = createChatRoute({ registry });
+		const eventsPromise = collectTurnEvents("session-123");
+		await route(
 			createChatRequest({
 				message: "Find me an offer",
 				sessionId: "session-123",
 			}),
 		);
 
-		await expect(readRuntimeEvents(response)).resolves.toEqual([
+		const events = await eventsPromise;
+		expect(events).toEqual([
 			expect.objectContaining({
 				sequence: 1,
 				type: "turn.failed",
@@ -167,16 +175,20 @@ describe("POST /api/chat", () => {
 	});
 
 	it("falls back to a non-empty error message when the thrown error message is empty", async () => {
+		const { registry, collectTurnEvents } = createCollectingRegistry();
 		mocks.streamConversation.mockRejectedValue(new Error(""));
 
-		const response = await handleChat(
+		const route = createChatRoute({ registry });
+		const eventsPromise = collectTurnEvents("session-123");
+		await route(
 			createChatRequest({
 				message: "Find me an offer",
 				sessionId: "session-123",
 			}),
 		);
 
-		await expect(readRuntimeEvents(response)).resolves.toEqual([
+		const events = await eventsPromise;
+		expect(events).toEqual([
 			expect.objectContaining({
 				sequence: 1,
 				type: "turn.failed",
@@ -188,6 +200,7 @@ describe("POST /api/chat", () => {
 	});
 
 	it("streams tool state transitions with unique IDs in turn.completed", async () => {
+		const { registry, collectTurnEvents } = createCollectingRegistry();
 		const runningToolCall: AgentToolCall = {
 			id: "tool-1",
 			input: '{"path":"offers.json"}',
@@ -216,14 +229,16 @@ describe("POST /api/chat", () => {
 			},
 		);
 
-		const response = await handleChat(
+		const route = createChatRoute({ registry });
+		const eventsPromise = collectTurnEvents("session-123");
+		await route(
 			createChatRequest({
 				message: "Read offers",
 				sessionId: "session-123",
 			}),
 		);
 
-		const events = await readRuntimeEvents(response);
+		const events = await eventsPromise;
 
 		expect(events[0]).toMatchObject({
 			sequence: 1,
@@ -249,6 +264,8 @@ describe("POST /api/chat", () => {
 	});
 
 	it("emits partial progress as a completed turn when the agent fails mid-stream", async () => {
+		const { registry, collectTurnEvents } = createCollectingRegistry();
+
 		mocks.streamConversation.mockImplementation(
 			async ({
 				onEvent,
@@ -268,14 +285,17 @@ describe("POST /api/chat", () => {
 			},
 		);
 
-		const response = await handleChat(
+		const route = createChatRoute({ registry });
+		const eventsPromise = collectTurnEvents("session-123");
+		await route(
 			createChatRequest({
 				message: "Start login",
 				sessionId: "session-123",
 			}),
 		);
 
-		await expect(readRuntimeEvents(response)).resolves.toEqual([
+		const events = await eventsPromise;
+		expect(events).toEqual([
 			expect.objectContaining({
 				sequence: 1,
 				type: "assistant.delta",

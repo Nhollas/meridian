@@ -16,16 +16,9 @@ const TRACE_BUTTON_CLASS =
 interface DebugToolbarProps {
 	messages: ChatMessageViewModel[];
 	sessionId: string | null;
-	debugStreamDelayMs: number;
-	onToggleDebugStreamDelay: () => void;
 }
 
-export function DebugToolbar({
-	messages,
-	sessionId,
-	debugStreamDelayMs,
-	onToggleDebugStreamDelay,
-}: DebugToolbarProps) {
+export function DebugToolbar({ messages, sessionId }: DebugToolbarProps) {
 	const [traceStatus, setTraceStatus] = useState<string | null>(null);
 
 	useEffect(() => {
@@ -76,17 +69,6 @@ export function DebugToolbar({
 					{traceStatus && (
 						<span className="text-text-muted text-xs">{traceStatus}</span>
 					)}
-					<button
-						type="button"
-						onClick={onToggleDebugStreamDelay}
-						className={
-							debugStreamDelayMs > 0
-								? "rounded-md border border-flow bg-flow-muted px-3 py-1.5 text-flow text-xs transition-colors hover:bg-flow/20"
-								: TRACE_BUTTON_CLASS
-						}
-					>
-						Slow Stream
-					</button>
 					<button
 						type="button"
 						onClick={handleCopyTrace}

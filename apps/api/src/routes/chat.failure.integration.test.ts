@@ -1,14 +1,11 @@
 import { describe, expect, it } from "vitest";
-import {
-	createChatRequest,
-	readRuntimeEvents,
-} from "../../tests/support/chat-route";
+import { createChatRequest } from "../../tests/support/chat-route";
 import { createInMemorySandboxRuntime } from "../../tests/support/in-memory-runtime";
 import {
 	assistantText,
 	createScriptedAgentRunner,
 } from "../../tests/support/scripted-agent-runner";
-import { createTestPost } from "./chat.integration-support";
+import { createTestChat } from "./chat.integration-support";
 
 describe("POST /api/chat integration - failure handling", () => {
 	it("emits turn.failed when the agent crashes before streaming any useful progress", async () => {
@@ -17,16 +14,19 @@ describe("POST /api/chat integration - failure handling", () => {
 		const createRunner = createScriptedAgentRunner(async function* () {
 			throw new Error("agent exploded");
 		});
-		const POST = createTestPost({ createRunner, runtime });
+		const { POST, collectTurnEvents } = createTestChat({
+			createRunner,
+			runtime,
+		});
 
-		const events = await readRuntimeEvents(
-			await POST(
-				createChatRequest({
-					message: "Find me an offer",
-					sessionId: "session-123",
-				}),
-			),
+		const eventsPromise = collectTurnEvents("session-123");
+		await POST(
+			createChatRequest({
+				message: "Find me an offer",
+				sessionId: "session-123",
+			}),
 		);
+		const events = await eventsPromise;
 
 		expect(events).toEqual([
 			expect.objectContaining({
@@ -49,16 +49,19 @@ describe("POST /api/chat integration - failure handling", () => {
 			);
 			throw new Error("device flow requires user interaction");
 		});
-		const POST = createTestPost({ createRunner, runtime });
+		const { POST, collectTurnEvents } = createTestChat({
+			createRunner,
+			runtime,
+		});
 
-		const events = await readRuntimeEvents(
-			await POST(
-				createChatRequest({
-					message: "Start login",
-					sessionId: "session-123",
-				}),
-			),
+		const eventsPromise = collectTurnEvents("session-123");
+		await POST(
+			createChatRequest({
+				message: "Start login",
+				sessionId: "session-123",
+			}),
 		);
+		const events = await eventsPromise;
 
 		expect(events).toEqual([
 			expect.objectContaining({

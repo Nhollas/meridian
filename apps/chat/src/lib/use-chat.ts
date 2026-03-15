@@ -1,11 +1,12 @@
+import type { RuntimeEventEnvelope } from "@meridian/contracts/runtime-events";
 import { useMutation } from "@tanstack/react-query";
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 import type { ToolCallViewModel } from "./contracts";
 import {
 	mapRuntimeToolEventToViewModel,
 	mapRuntimeTurnToolCallsToViewModels,
 } from "./runtime-event-mappers";
-import { readChatStream } from "./stream-reader";
+import { readSSEStream } from "./stream-reader";
 import type { ChatMessageStatus, ChatMessageViewModel } from "./view-models";
 
 const API_URL =
@@ -14,17 +15,127 @@ const API_URL =
 		: "http://localhost:3201";
 
 const SESSION_STORAGE_KEY = "meridian.chat.session-id";
-const DEBUG_STREAM_DELAY_STORAGE_KEY = "meridian.chat.debug-stream-delay-ms";
-const DEBUG_STREAM_DELAY_MS = 120;
+const TURN_TIMEOUT_MS = 300_000;
+const SSE_RECONNECT_DELAY_MS = 1000;
+
+type TurnHandler = {
+	assistantMessageId: string;
+	flushAssistantState: (status?: ChatMessageStatus) => void;
+	scheduleFlush: () => void;
+	streamedContent: string;
+	streamedToolCalls: ToolCallViewModel[];
+};
+
+function dispatchEvent(
+	turnHandlers: Map<string, TurnHandler>,
+	handler: TurnHandler,
+	event: RuntimeEventEnvelope,
+) {
+	if (event.type === "assistant.delta") {
+		handler.streamedContent += event.payload.delta;
+		handler.scheduleFlush();
+		return;
+	}
+
+	if (
+		event.type === "tool.started" ||
+		event.type === "tool.completed" ||
+		event.type === "tool.failed"
+	) {
+		handler.streamedToolCalls = upsertToolCall(
+			handler.streamedToolCalls,
+			mapRuntimeToolEventToViewModel(event),
+		);
+		handler.scheduleFlush();
+		return;
+	}
+
+	if (event.type === "turn.completed") {
+		handler.streamedContent = event.payload.content;
+		handler.streamedToolCalls = mapRuntimeTurnToolCallsToViewModels(
+			event.payload.toolCalls,
+		);
+		handler.flushAssistantState("complete");
+		turnHandlers.delete(event.turnId);
+		return;
+	}
+
+	if (event.type === "turn.failed") {
+		handler.flushAssistantState("error");
+		turnHandlers.delete(event.turnId);
+	}
+}
 
 export function useChat() {
 	const [messages, setMessages] = useState<ChatMessageViewModel[]>([]);
 	const [sessionId, setSessionId] = useState<string | null>(null);
-	const [debugStreamDelayMs, setDebugStreamDelayMs] = useState(0);
+	const turnHandlersRef = useRef(new Map<string, TurnHandler>());
+	const eventBufferRef = useRef(new Map<string, RuntimeEventEnvelope[]>());
+	const sseReadyRef = useRef(createDeferred());
+
+	function registerTurnHandler(turnId: string, handler: TurnHandler) {
+		turnHandlersRef.current.set(turnId, handler);
+
+		const buffered = eventBufferRef.current.get(turnId);
+		if (buffered) {
+			eventBufferRef.current.delete(turnId);
+			for (const event of buffered) {
+				dispatchEvent(turnHandlersRef.current, handler, event);
+			}
+		}
+	}
 
 	useEffect(() => {
-		setSessionId(getOrCreateSessionId());
-		setDebugStreamDelayMs(getStoredDebugStreamDelayMs());
+		const activeSessionId = getOrCreateSessionId();
+		setSessionId(activeSessionId);
+
+		const abortController = new AbortController();
+
+		function handleSSEEvent(event: RuntimeEventEnvelope) {
+			const handler = turnHandlersRef.current.get(event.turnId);
+			if (handler) {
+				dispatchEvent(turnHandlersRef.current, handler, event);
+				return;
+			}
+
+			let buffer = eventBufferRef.current.get(event.turnId);
+			if (!buffer) {
+				buffer = [];
+				eventBufferRef.current.set(event.turnId, buffer);
+			}
+			buffer.push(event);
+		}
+
+		void (async () => {
+			while (!abortController.signal.aborted) {
+				try {
+					const res = await fetch(
+						`${API_URL}/api/sessions/${activeSessionId}/events`,
+						{ signal: abortController.signal },
+					);
+
+					if (!res.ok) {
+						console.error("SSE connection failed:", res.status);
+					} else {
+						sseReadyRef.current.resolve();
+						await readSSEStream(res, handleSSEEvent);
+					}
+				} catch (error) {
+					if (abortController.signal.aborted) {
+						return;
+					}
+					console.error("SSE stream error:", error);
+				}
+
+				// Connection lost — prepare a new readiness gate and reconnect
+				sseReadyRef.current = createDeferred();
+				await sleep(SSE_RECONNECT_DELAY_MS);
+			}
+		})();
+
+		return () => {
+			abortController.abort();
+		};
 	}, []);
 
 	const {
@@ -34,6 +145,8 @@ export function useChat() {
 	} = useMutation({
 		retry: false,
 		mutationFn: async (content: string) => {
+			await sseReadyRef.current.promise;
+
 			const activeSessionId = sessionId ?? getOrCreateSessionId();
 			if (activeSessionId !== sessionId) {
 				setSessionId(activeSessionId);
@@ -47,35 +160,37 @@ export function useChat() {
 
 			setMessages((prev) => [...prev, userMessage, assistantMessage]);
 
-			let streamedContent = "";
-			let streamedToolCalls: ToolCallViewModel[] = [];
-			let streamFinished = false;
 			let frameId: number | null = null;
+			const turnState = {
+				assistantMessageId: assistantMessage.id,
+				streamedContent: "",
+				streamedToolCalls: [] as ToolCallViewModel[],
+				flushAssistantState(status: ChatMessageStatus = "streaming") {
+					if (frameId !== null) {
+						window.cancelAnimationFrame(frameId);
+					}
+					frameId = null;
+					const contentSnapshot = turnState.streamedContent;
+					const toolCallsSnapshot = turnState.streamedToolCalls;
 
-			const flushAssistantState = (status: ChatMessageStatus = "streaming") => {
-				frameId = null;
-				const contentSnapshot = streamedContent;
-				const toolCallsSnapshot = streamedToolCalls;
-
-				startTransition(() => {
-					setMessages((prev) =>
-						updateAssistantMessage(prev, assistantMessage.id, {
-							content: contentSnapshot,
-							toolCalls: toolCallsSnapshot,
-							status,
-						}),
-					);
-				});
-			};
-
-			const scheduleFlush = () => {
-				if (frameId !== null) {
-					return;
-				}
-
-				frameId = window.requestAnimationFrame(() => {
-					flushAssistantState();
-				});
+					startTransition(() => {
+						setMessages((prev) =>
+							updateAssistantMessage(prev, assistantMessage.id, {
+								content: contentSnapshot,
+								toolCalls: toolCallsSnapshot,
+								status,
+							}),
+						);
+					});
+				},
+				scheduleFlush() {
+					if (frameId !== null) {
+						return;
+					}
+					frameId = window.requestAnimationFrame(() => {
+						turnState.flushAssistantState();
+					});
+				},
 			};
 
 			try {
@@ -84,7 +199,6 @@ export function useChat() {
 					headers: {
 						"Content-Type": "application/json",
 						"session-id": activeSessionId,
-						"meridian-debug-stream-delay-ms": String(debugStreamDelayMs),
 					},
 					body: JSON.stringify({ message: content }),
 				});
@@ -93,47 +207,27 @@ export function useChat() {
 					throw new Error(`Request failed: ${res.status}`);
 				}
 
-				await readChatStream(res, (event) => {
-					if (event.type === "assistant.delta") {
-						streamedContent += event.payload.delta;
-						scheduleFlush();
-						return;
-					}
+				const { turnId } = (await res.json()) as { turnId: string };
 
-					if (
-						event.type === "tool.started" ||
-						event.type === "tool.completed" ||
-						event.type === "tool.failed"
-					) {
-						streamedToolCalls = upsertToolCall(
-							streamedToolCalls,
-							mapRuntimeToolEventToViewModel(event),
-						);
-						scheduleFlush();
-						return;
-					}
-
-					if (event.type === "turn.completed") {
-						streamFinished = true;
-						streamedContent = event.payload.content;
-						streamedToolCalls = mapRuntimeTurnToolCallsToViewModels(
-							event.payload.toolCalls,
-						);
-
-						if (frameId !== null) {
-							window.cancelAnimationFrame(frameId);
+				await new Promise<void>((resolve, reject) => {
+					const originalFlush = turnState.flushAssistantState.bind(turnState);
+					turnState.flushAssistantState = (
+						status: ChatMessageStatus = "streaming",
+					) => {
+						originalFlush(status);
+						if (status === "complete" || status === "error") {
+							window.clearTimeout(timeout);
+							resolve();
 						}
+					};
 
-						flushAssistantState("complete");
-						return;
-					}
+					const timeout = window.setTimeout(() => {
+						turnHandlersRef.current.delete(turnId);
+						reject(new Error("Turn timed out"));
+					}, TURN_TIMEOUT_MS);
 
-					throw new Error(event.payload.error);
+					registerTurnHandler(turnId, turnState);
 				});
-
-				if (!streamFinished) {
-					throw new Error("Stream ended before completion.");
-				}
 			} catch (error) {
 				if (frameId !== null) {
 					window.cancelAnimationFrame(frameId);
@@ -143,9 +237,9 @@ export function useChat() {
 					setMessages((prev) =>
 						updateAssistantMessage(prev, assistantMessage.id, {
 							content:
-								streamedContent ||
+								turnState.streamedContent ||
 								"Something went wrong reaching the agent. Check the console for details.",
-							toolCalls: streamedToolCalls,
+							toolCalls: turnState.streamedToolCalls,
 							status: "error",
 						}),
 					);
@@ -159,23 +253,12 @@ export function useChat() {
 		},
 	});
 
-	function toggleDebugStreamDelay() {
-		const nextDelay = debugStreamDelayMs > 0 ? 0 : DEBUG_STREAM_DELAY_MS;
-		setDebugStreamDelayMs(nextDelay);
-		window.sessionStorage.setItem(
-			DEBUG_STREAM_DELAY_STORAGE_KEY,
-			String(nextDelay),
-		);
-	}
-
 	return {
 		messages,
 		sessionId,
 		isPending,
 		isError,
-		debugStreamDelayMs,
 		sendMessage,
-		toggleDebugStreamDelay,
 	};
 }
 
@@ -208,16 +291,6 @@ function getOrCreateSessionId() {
 	return sessionId;
 }
 
-function getStoredDebugStreamDelayMs() {
-	const raw = window.sessionStorage.getItem(DEBUG_STREAM_DELAY_STORAGE_KEY);
-	if (!raw) {
-		return 0;
-	}
-
-	const parsed = Number.parseInt(raw, 10);
-	return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
-}
-
 function updateAssistantMessage(
 	messages: ChatMessageViewModel[],
 	messageId: string,
@@ -226,6 +299,18 @@ function updateAssistantMessage(
 	return messages.map((message) =>
 		message.id === messageId ? { ...message, ...patch } : message,
 	);
+}
+
+function createDeferred() {
+	let resolve!: () => void;
+	const promise = new Promise<void>((r) => {
+		resolve = r;
+	});
+	return { promise, resolve };
+}
+
+function sleep(ms: number) {
+	return new Promise<void>((resolve) => setTimeout(resolve, ms));
 }
 
 function upsertToolCall(

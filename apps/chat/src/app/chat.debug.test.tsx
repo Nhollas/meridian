@@ -1,45 +1,16 @@
 import { http } from "msw";
 import { describe, expect, vi } from "vitest";
 import {
+	createChatAcceptedResponse,
 	createChatEventFactory,
-	createChatStreamResponse,
 } from "../../tests/support/chat-contract";
 import { test } from "../../tests/support/chat-page-fixture";
-import {
-	browserWorker,
-	withHeaders,
-	withJsonBody,
-} from "../../tests/support/msw";
+import { browserWorker, withJsonBody } from "../../tests/support/msw";
 
 describe("Chat UI - debug controls", () => {
-	test("sends the debug delay header when slow stream mode is enabled", async ({
-		chatPage,
-	}) => {
-		const eventFactory = createChatEventFactory();
-
-		browserWorker.use(
-			http.post(
-				"http://localhost:3201/api/chat",
-				withHeaders(
-					(headers) => headers.get("meridian-debug-stream-delay-ms") === "120",
-					() =>
-						createChatStreamResponse([
-							eventFactory.create("turn.completed", {
-								content: "Done.",
-								toolCalls: [],
-							}),
-						]),
-				),
-			),
-		);
-
-		await chatPage.toggleSlowStream();
-		await chatPage.sendMessage("Enable slow mode");
-		await chatPage.expectAssistantResponse("Done.");
-	});
-
 	test("copies a compact debug trace with conversation messages and tool calls", async ({
 		chatPage,
+		sseStream,
 	}) => {
 		const writeText = vi.fn().mockResolvedValue(undefined);
 		const eventFactory = createChatEventFactory();
@@ -54,33 +25,40 @@ describe("Chat UI - debug controls", () => {
 		browserWorker.use(
 			http.post(
 				"http://localhost:3201/api/chat",
-				withJsonBody({ message: "Find me a deal" }, () =>
-					createChatStreamResponse([
-						eventFactory.create("assistant.delta", {
-							delta: "Working through the options...",
-						}),
-						eventFactory.create("tool.completed", {
-							toolCall: {
-								id: "tool-1",
-								input: '{"path":"offers.json"}',
-								name: "read_file",
-								output: '{"offers":2}',
-							},
-						}),
-						eventFactory.create("turn.completed", {
-							content: "I found 2 offers worth comparing.",
-							toolCalls: [
-								{
+				withJsonBody({ message: "Find me a deal" }, () => {
+					setTimeout(() => {
+						sseStream.emit(
+							eventFactory.create("assistant.delta", {
+								delta: "Working through the options...",
+							}),
+						);
+						sseStream.emit(
+							eventFactory.create("tool.completed", {
+								toolCall: {
 									id: "tool-1",
 									input: '{"path":"offers.json"}',
 									name: "read_file",
 									output: '{"offers":2}',
-									state: "completed",
 								},
-							],
-						}),
-					]),
-				),
+							}),
+						);
+						sseStream.emit(
+							eventFactory.create("turn.completed", {
+								content: "I found 2 offers worth comparing.",
+								toolCalls: [
+									{
+										id: "tool-1",
+										input: '{"path":"offers.json"}',
+										name: "read_file",
+										output: '{"offers":2}',
+										state: "completed",
+									},
+								],
+							}),
+						);
+					});
+					return createChatAcceptedResponse("turn-123");
+				}),
 			),
 		);
 
@@ -119,6 +97,7 @@ describe("Chat UI - debug controls", () => {
 
 	test("downloads a compact debug trace with conversation messages and tool calls", async ({
 		chatPage,
+		sseStream,
 	}) => {
 		const createObjectUrl = vi
 			.spyOn(URL, "createObjectURL")
@@ -134,33 +113,40 @@ describe("Chat UI - debug controls", () => {
 		browserWorker.use(
 			http.post(
 				"http://localhost:3201/api/chat",
-				withJsonBody({ message: "Find me a deal" }, () =>
-					createChatStreamResponse([
-						eventFactory.create("assistant.delta", {
-							delta: "Working through the options...",
-						}),
-						eventFactory.create("tool.completed", {
-							toolCall: {
-								id: "tool-1",
-								input: '{"path":"offers.json"}',
-								name: "read_file",
-								output: '{"offers":2}',
-							},
-						}),
-						eventFactory.create("turn.completed", {
-							content: "I found 2 offers worth comparing.",
-							toolCalls: [
-								{
+				withJsonBody({ message: "Find me a deal" }, () => {
+					setTimeout(() => {
+						sseStream.emit(
+							eventFactory.create("assistant.delta", {
+								delta: "Working through the options...",
+							}),
+						);
+						sseStream.emit(
+							eventFactory.create("tool.completed", {
+								toolCall: {
 									id: "tool-1",
 									input: '{"path":"offers.json"}',
 									name: "read_file",
 									output: '{"offers":2}',
-									state: "completed",
 								},
-							],
-						}),
-					]),
-				),
+							}),
+						);
+						sseStream.emit(
+							eventFactory.create("turn.completed", {
+								content: "I found 2 offers worth comparing.",
+								toolCalls: [
+									{
+										id: "tool-1",
+										input: '{"path":"offers.json"}',
+										name: "read_file",
+										output: '{"offers":2}',
+										state: "completed",
+									},
+								],
+							}),
+						);
+					});
+					return createChatAcceptedResponse("turn-123");
+				}),
 			),
 		);
 

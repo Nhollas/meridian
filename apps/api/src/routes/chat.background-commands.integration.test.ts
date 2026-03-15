@@ -3,7 +3,6 @@ import {
 	createChatRequest,
 	getCompletedToolOutput,
 	getParsedToolOutput,
-	readRuntimeEvents,
 } from "../../tests/support/chat-route";
 import { createInMemorySandboxRuntime } from "../../tests/support/in-memory-runtime";
 import {
@@ -14,7 +13,7 @@ import {
 	toolFailed,
 	toolStarted,
 } from "../../tests/support/scripted-agent-runner";
-import { createTestPost } from "./chat.integration-support";
+import { createTestChat } from "./chat.integration-support";
 
 describe("POST /api/chat integration - background commands", () => {
 	it("can start background work, do other useful work, then resume it in the same turn", async () => {
@@ -119,16 +118,19 @@ describe("POST /api/chat integration - background commands", () => {
 				"Login completed, and I confirmed the schema fields are destination.",
 			);
 		});
-		const POST = createTestPost({ createRunner, runtime });
+		const { POST, collectTurnEvents } = createTestChat({
+			createRunner,
+			runtime,
+		});
 
-		const events = await readRuntimeEvents(
-			await POST(
-				createChatRequest({
-					message: "Log me in and check the schema",
-					sessionId: "session-background",
-				}),
-			),
+		const eventsPromise = collectTurnEvents("session-background");
+		await POST(
+			createChatRequest({
+				message: "Log me in and check the schema",
+				sessionId: "session-background",
+			}),
 		);
+		const events = await eventsPromise;
 
 		expect(getParsedToolOutput(events, "run_command")).toEqual({
 			backgroundCommandId: "bg-1",
@@ -302,24 +304,28 @@ describe("POST /api/chat integration - background commands", () => {
 
 			yield assistantText("Login completed.");
 		});
-		const POST = createTestPost({ createRunner, runtime });
+		const { POST, collectTurnEvents } = createTestChat({
+			createRunner,
+			runtime,
+		});
 
-		const startTurn = await readRuntimeEvents(
-			await POST(
-				createChatRequest({
-					message: "Start login",
-					sessionId: "session-background",
-				}),
-			),
+		const startEventsPromise = collectTurnEvents("session-background");
+		await POST(
+			createChatRequest({
+				message: "Start login",
+				sessionId: "session-background",
+			}),
 		);
-		const followUpTurn = await readRuntimeEvents(
-			await POST(
-				createChatRequest({
-					message: "Check login",
-					sessionId: "session-background",
-				}),
-			),
+		const startTurn = await startEventsPromise;
+
+		const followUpEventsPromise = collectTurnEvents("session-background");
+		await POST(
+			createChatRequest({
+				message: "Check login",
+				sessionId: "session-background",
+			}),
 		);
+		const followUpTurn = await followUpEventsPromise;
 
 		expect(getParsedToolOutput(startTurn, "run_command")).toEqual({
 			backgroundCommandId: "bg-1",
@@ -452,16 +458,19 @@ describe("POST /api/chat integration - background commands", () => {
 
 			yield assistantText("No live background command matched that ID.");
 		});
-		const POST = createTestPost({ createRunner, runtime });
+		const { POST, collectTurnEvents } = createTestChat({
+			createRunner,
+			runtime,
+		});
 
-		const events = await readRuntimeEvents(
-			await POST(
-				createChatRequest({
-					message: "Inspect missing background work",
-					sessionId: "session-background",
-				}),
-			),
+		const eventsPromise = collectTurnEvents("session-background");
+		await POST(
+			createChatRequest({
+				message: "Inspect missing background work",
+				sessionId: "session-background",
+			}),
 		);
+		const events = await eventsPromise;
 
 		expect(events).toEqual([
 			expect.objectContaining({
@@ -657,22 +666,28 @@ describe("POST /api/chat integration - background commands", () => {
 			});
 			yield assistantText("Server terminated.");
 		});
-		const POST = createTestPost({ createRunner, runtime });
+		const { POST, collectTurnEvents } = createTestChat({
+			createRunner,
+			runtime,
+		});
 
+		const startEventsPromise = collectTurnEvents("session-background");
 		await POST(
 			createChatRequest({
 				message: "Start server",
 				sessionId: "session-background",
 			}),
 		);
-		const terminateTurn = await readRuntimeEvents(
-			await POST(
-				createChatRequest({
-					message: "Stop server",
-					sessionId: "session-background",
-				}),
-			),
+		await startEventsPromise;
+
+		const terminateEventsPromise = collectTurnEvents("session-background");
+		await POST(
+			createChatRequest({
+				message: "Stop server",
+				sessionId: "session-background",
+			}),
 		);
+		const terminateTurn = await terminateEventsPromise;
 
 		expect(
 			getParsedToolOutput(terminateTurn, "terminate_background_command"),

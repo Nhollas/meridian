@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-	createChatRequest,
-	readRuntimeEvents,
-} from "../../tests/support/chat-route";
+import { createChatRequest } from "../../tests/support/chat-route";
 import { createInMemorySandboxRuntime } from "../../tests/support/in-memory-runtime";
 import {
 	assistantText,
@@ -11,7 +8,7 @@ import {
 	toolCompleted,
 	toolStarted,
 } from "../../tests/support/scripted-agent-runner";
-import { createTestPost } from "./chat.integration-support";
+import { createTestChat } from "./chat.integration-support";
 
 describe("POST /api/chat integration - turn lifecycle", () => {
 	it("streams real agent-service progress and calls runtime tools through the sandbox contract", async () => {
@@ -61,20 +58,25 @@ describe("POST /api/chat integration - turn lifecycle", () => {
 
 			yield assistantText("I found 2 offers worth comparing.");
 		});
-		const POST = createTestPost({ createRunner, runtime });
+		const { POST, collectTurnEvents } = createTestChat({
+			createRunner,
+			runtime,
+		});
 
+		const eventsPromise = collectTurnEvents("session-123");
 		const response = await POST(
 			createChatRequest({
 				message: "Find me an offer",
 				sessionId: "session-123",
 			}),
 		);
+		const events = await eventsPromise;
 
-		expect(response.status).toBe(200);
-		expect(response.headers.get("Content-Type")).toContain(
-			"application/x-ndjson",
-		);
-		await expect(readRuntimeEvents(response)).resolves.toEqual([
+		expect(response.status).toBe(202);
+		const body = await response.json();
+		expect(body).toEqual({ turnId: "turn-1" });
+
+		expect(events).toEqual([
 			expect.objectContaining({
 				sequence: 1,
 				sessionId: "session-123",

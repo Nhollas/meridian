@@ -2,23 +2,25 @@ import type { CreateAgentRunner } from "@/lib/agent/runner";
 import { createAgentService } from "@/lib/agent/service";
 import type { SandboxRuntime } from "@/lib/sandbox/runtime";
 import { createChatRoute } from "@/routes/chat";
+import { createCollectingRegistry } from "../../tests/support/collecting-registry";
 
-export function createTestPost({
+export function createTestChat({
 	createRunner,
 	runtime,
-	sleep,
 }: {
 	createRunner: CreateAgentRunner;
 	runtime: SandboxRuntime;
-	sleep?: (milliseconds: number) => Promise<void>;
 }) {
 	let turnCount = 0;
+	const { registry, collectTurnEvents } = createCollectingRegistry();
 
-	return createChatRoute({
+	const POST = createChatRoute({
 		createAgentService: ({ runtime }) =>
 			createAgentService({ createRunner, runtime }),
 		createTurnId: () => `turn-${++turnCount}`,
 		getRuntime: () => runtime,
-		sleep: sleep ?? (async () => {}),
+		registry,
 	});
+
+	return { POST, collectTurnEvents };
 }
