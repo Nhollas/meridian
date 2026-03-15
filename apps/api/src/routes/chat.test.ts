@@ -1,8 +1,7 @@
-import type { RuntimeEventEnvelope } from "@meridian/contracts/runtime-events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentToolCall, AgentTurnResult } from "@/lib/agent/contracts";
-import type { SessionStreamRegistry } from "@/lib/session-stream-registry";
 import { createChatRequest } from "../../tests/support/chat-route";
+import { createCollectingRegistry } from "../../tests/support/collecting-registry";
 
 const mocks = vi.hoisted(() => ({
 	createAgentService: vi.fn(),
@@ -19,30 +18,6 @@ vi.mock("@/lib/sandbox/singleton", () => ({
 }));
 
 import { createChatRoute, handleChat } from "@/routes/chat";
-
-function createCollectingRegistry() {
-	const events: RuntimeEventEnvelope[] = [];
-	let resolve: (() => void) | null = null;
-
-	const registry: SessionStreamRegistry = {
-		register() {},
-		unregister() {},
-		async writeEvent(_sessionId, event) {
-			events.push(event);
-			if (event.type === "turn.completed" || event.type === "turn.failed") {
-				resolve?.();
-			}
-		},
-	};
-
-	function waitForTurn() {
-		return new Promise<RuntimeEventEnvelope[]>((r) => {
-			resolve = () => r([...events]);
-		});
-	}
-
-	return { registry, events, waitForTurn };
-}
 
 const completedToolCall: AgentToolCall = {
 	id: "tool-1",
@@ -93,7 +68,7 @@ describe("POST /api/chat", () => {
 	});
 
 	it("returns 202 with turnId and pushes events through the registry", async () => {
-		const { registry, waitForTurn } = createCollectingRegistry();
+		const { registry, collectTurnEvents } = createCollectingRegistry();
 
 		mocks.streamConversation.mockImplementation(
 			async ({
@@ -129,7 +104,7 @@ describe("POST /api/chat", () => {
 		);
 
 		const route = createChatRoute({ registry });
-		const eventsPromise = waitForTurn();
+		const eventsPromise = collectTurnEvents("session-123");
 		const response = await route(
 			createChatRequest({
 				message: "Find me an offer",
@@ -175,11 +150,11 @@ describe("POST /api/chat", () => {
 	});
 
 	it("emits an error event when the agent service throws before streaming progress", async () => {
-		const { registry, waitForTurn } = createCollectingRegistry();
+		const { registry, collectTurnEvents } = createCollectingRegistry();
 		mocks.streamConversation.mockRejectedValue(new Error("agent exploded"));
 
 		const route = createChatRoute({ registry });
-		const eventsPromise = waitForTurn();
+		const eventsPromise = collectTurnEvents("session-123");
 		await route(
 			createChatRequest({
 				message: "Find me an offer",
@@ -200,11 +175,11 @@ describe("POST /api/chat", () => {
 	});
 
 	it("falls back to a non-empty error message when the thrown error message is empty", async () => {
-		const { registry, waitForTurn } = createCollectingRegistry();
+		const { registry, collectTurnEvents } = createCollectingRegistry();
 		mocks.streamConversation.mockRejectedValue(new Error(""));
 
 		const route = createChatRoute({ registry });
-		const eventsPromise = waitForTurn();
+		const eventsPromise = collectTurnEvents("session-123");
 		await route(
 			createChatRequest({
 				message: "Find me an offer",
@@ -225,7 +200,7 @@ describe("POST /api/chat", () => {
 	});
 
 	it("streams tool state transitions with unique IDs in turn.completed", async () => {
-		const { registry, waitForTurn } = createCollectingRegistry();
+		const { registry, collectTurnEvents } = createCollectingRegistry();
 		const runningToolCall: AgentToolCall = {
 			id: "tool-1",
 			input: '{"path":"offers.json"}',
@@ -255,7 +230,7 @@ describe("POST /api/chat", () => {
 		);
 
 		const route = createChatRoute({ registry });
-		const eventsPromise = waitForTurn();
+		const eventsPromise = collectTurnEvents("session-123");
 		await route(
 			createChatRequest({
 				message: "Read offers",
@@ -289,7 +264,7 @@ describe("POST /api/chat", () => {
 	});
 
 	it("emits partial progress as a completed turn when the agent fails mid-stream", async () => {
-		const { registry, waitForTurn } = createCollectingRegistry();
+		const { registry, collectTurnEvents } = createCollectingRegistry();
 
 		mocks.streamConversation.mockImplementation(
 			async ({
@@ -311,7 +286,7 @@ describe("POST /api/chat", () => {
 		);
 
 		const route = createChatRoute({ registry });
-		const eventsPromise = waitForTurn();
+		const eventsPromise = collectTurnEvents("session-123");
 		await route(
 			createChatRequest({
 				message: "Start login",

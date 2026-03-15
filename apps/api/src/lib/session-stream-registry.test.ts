@@ -1,4 +1,7 @@
-import { createRuntimeEventFactory } from "@meridian/contracts/runtime-events";
+import {
+	createRuntimeEventFactory,
+	serializeRuntimeEventEnvelope,
+} from "@meridian/contracts/runtime-events";
 import { describe, expect, it } from "vitest";
 import { createSessionStreamRegistry } from "./session-stream-registry";
 
@@ -28,7 +31,7 @@ describe("SessionStreamRegistry", () => {
 
 		expect(collected).toEqual([
 			{
-				data: JSON.stringify(event),
+				data: serializeRuntimeEventEnvelope(event),
 				id: event.id,
 			},
 		]);

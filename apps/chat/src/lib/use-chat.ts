@@ -15,6 +15,8 @@ const API_URL =
 		: "http://localhost:3201";
 
 const SESSION_STORAGE_KEY = "meridian.chat.session-id";
+const TURN_TIMEOUT_MS = 300_000;
+const SSE_RECONNECT_DELAY_MS = 1000;
 
 type TurnHandler = {
 	assistantMessageId: string;
@@ -69,6 +71,7 @@ export function useChat() {
 	const [sessionId, setSessionId] = useState<string | null>(null);
 	const turnHandlersRef = useRef(new Map<string, TurnHandler>());
 	const eventBufferRef = useRef(new Map<string, RuntimeEventEnvelope[]>());
+	const sseReadyRef = useRef(createDeferred());
 
 	function registerTurnHandler(turnId: string, handler: TurnHandler) {
 		turnHandlersRef.current.set(turnId, handler);
@@ -88,37 +91,45 @@ export function useChat() {
 
 		const abortController = new AbortController();
 
+		function handleSSEEvent(event: RuntimeEventEnvelope) {
+			const handler = turnHandlersRef.current.get(event.turnId);
+			if (handler) {
+				dispatchEvent(turnHandlersRef.current, handler, event);
+				return;
+			}
+
+			let buffer = eventBufferRef.current.get(event.turnId);
+			if (!buffer) {
+				buffer = [];
+				eventBufferRef.current.set(event.turnId, buffer);
+			}
+			buffer.push(event);
+		}
+
 		void (async () => {
-			try {
-				const res = await fetch(
-					`${API_URL}/api/sessions/${activeSessionId}/events`,
-					{ signal: abortController.signal },
-				);
+			while (!abortController.signal.aborted) {
+				try {
+					const res = await fetch(
+						`${API_URL}/api/sessions/${activeSessionId}/events`,
+						{ signal: abortController.signal },
+					);
 
-				if (!res.ok) {
-					console.error("SSE connection failed:", res.status);
-					return;
-				}
-
-				await readSSEStream(res, (event) => {
-					const handler = turnHandlersRef.current.get(event.turnId);
-					if (handler) {
-						dispatchEvent(turnHandlersRef.current, handler, event);
+					if (!res.ok) {
+						console.error("SSE connection failed:", res.status);
+					} else {
+						sseReadyRef.current.resolve();
+						await readSSEStream(res, handleSSEEvent);
+					}
+				} catch (error) {
+					if (abortController.signal.aborted) {
 						return;
 					}
-
-					let buffer = eventBufferRef.current.get(event.turnId);
-					if (!buffer) {
-						buffer = [];
-						eventBufferRef.current.set(event.turnId, buffer);
-					}
-					buffer.push(event);
-				});
-			} catch (error) {
-				if (abortController.signal.aborted) {
-					return;
+					console.error("SSE stream error:", error);
 				}
-				console.error("SSE stream error:", error);
+
+				// Connection lost — prepare a new readiness gate and reconnect
+				sseReadyRef.current = createDeferred();
+				await sleep(SSE_RECONNECT_DELAY_MS);
 			}
 		})();
 
@@ -134,6 +145,8 @@ export function useChat() {
 	} = useMutation({
 		retry: false,
 		mutationFn: async (content: string) => {
+			await sseReadyRef.current.promise;
+
 			const activeSessionId = sessionId ?? getOrCreateSessionId();
 			if (activeSessionId !== sessionId) {
 				setSessionId(activeSessionId);
@@ -211,7 +224,7 @@ export function useChat() {
 					const timeout = window.setTimeout(() => {
 						turnHandlersRef.current.delete(turnId);
 						reject(new Error("Turn timed out"));
-					}, 300_000);
+					}, TURN_TIMEOUT_MS);
 
 					registerTurnHandler(turnId, turnState);
 				});
@@ -286,6 +299,18 @@ function updateAssistantMessage(
 	return messages.map((message) =>
 		message.id === messageId ? { ...message, ...patch } : message,
 	);
+}
+
+function createDeferred() {
+	let resolve!: () => void;
+	const promise = new Promise<void>((r) => {
+		resolve = r;
+	});
+	return { promise, resolve };
+}
+
+function sleep(ms: number) {
+	return new Promise<void>((resolve) => setTimeout(resolve, ms));
 }
 
 function upsertToolCall(

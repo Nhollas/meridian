@@ -46,10 +46,11 @@ export async function readSSEStream(
 }
 
 function parseSSEBlock(block: string): string | null {
+	const dataLines: string[] = [];
 	for (const line of block.split("\n")) {
 		if (line.startsWith("data:")) {
-			return line.slice(5).trim();
+			dataLines.push(line.slice(5).trimStart());
 		}
 	}
-	return null;
+	return dataLines.length > 0 ? dataLines.join("\n") : null;
 }

@@ -14,6 +14,8 @@ export interface SessionStreamRegistry {
 }
 
 export function createSessionStreamRegistry(): SessionStreamRegistry {
+	// One writer per session — a new connection for the same session
+	// overwrites the previous one. Concurrent tabs are not supported.
 	const streams = new Map<string, SSEWriter>();
 
 	return {

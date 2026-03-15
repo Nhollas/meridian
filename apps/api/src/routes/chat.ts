@@ -88,7 +88,7 @@ export function createChatRoute({
 			);
 		};
 
-		void (async () => {
+		(async () => {
 			try {
 				const response = await agentService.streamConversation({
 					message,
@@ -118,7 +118,7 @@ export function createChatRoute({
 					mapErrorToRuntimeEvent(eventFactory, error),
 				);
 			}
-		})();
+		})().catch(console.error);
 
 		return Response.json({ turnId }, { status: 202 });
 	};
