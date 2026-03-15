@@ -27,6 +27,7 @@ const chatRequestSchema = z.object({
 		.string()
 		.nonempty("Missing or invalid message.")
 		.refine((s) => s.trim().length > 0, "Missing or invalid message."),
+	turnId: z.string().min(1).optional(),
 });
 
 type ChatRouteDependencies = {
@@ -36,16 +37,20 @@ type ChatRouteDependencies = {
 	getRuntime?: () => SandboxRuntime;
 };
 
-function runTurn({
+const REENGAGEMENT_RECURSION_LIMIT = 5;
+
+async function executeTurn({
 	agentService,
 	eventBus,
 	message,
+	recursionLimit,
 	sessionId,
 	turnId,
 }: {
 	agentService: AgentService;
 	eventBus: SessionEventBus;
 	message: string;
+	recursionLimit?: number | undefined;
 	sessionId: string;
 	turnId: string;
 }) {
@@ -53,46 +58,45 @@ function runTurn({
 	let partialContent = "";
 	let partialToolCalls: AgentToolCall[] = [];
 
-	void (async () => {
-		try {
-			const response = await agentService.streamConversation({
-				message,
-				sessionId,
-				onEvent: async (event) => {
-					if (event.type === "text-delta") {
-						partialContent += event.text;
-					}
+	try {
+		const response = await agentService.streamConversation({
+			message,
+			recursionLimit,
+			sessionId,
+			onEvent: async (event) => {
+				if (event.type === "text-delta") {
+					partialContent += event.text;
+				}
 
-					if (event.type === "tool-call") {
-						partialToolCalls = upsertToolCall(partialToolCalls, event.toolCall);
-					}
+				if (event.type === "tool-call") {
+					partialToolCalls = upsertToolCall(partialToolCalls, event.toolCall);
+				}
 
-					eventBus.publish(
-						sessionId,
-						mapAgentProgressEventToRuntimeEvent(eventFactory, event),
-					);
-				},
-			});
+				eventBus.publish(
+					sessionId,
+					mapAgentProgressEventToRuntimeEvent(eventFactory, event),
+				);
+			},
+		});
+		eventBus.publish(
+			sessionId,
+			mapAgentResultToRuntimeEvent(eventFactory, response),
+		);
+	} catch (error) {
+		if (partialContent.trim().length > 0) {
+			const response = {
+				content: partialContent,
+				toolCalls: partialToolCalls,
+			};
 			eventBus.publish(
 				sessionId,
 				mapAgentResultToRuntimeEvent(eventFactory, response),
 			);
-		} catch (error) {
-			if (partialContent.trim().length > 0) {
-				const response = {
-					content: partialContent,
-					toolCalls: partialToolCalls,
-				};
-				eventBus.publish(
-					sessionId,
-					mapAgentResultToRuntimeEvent(eventFactory, response),
-				);
-				return;
-			}
-
-			eventBus.publish(sessionId, mapErrorToRuntimeEvent(eventFactory, error));
+			return;
 		}
-	})();
+
+		eventBus.publish(sessionId, mapErrorToRuntimeEvent(eventFactory, error));
+	}
 }
 
 export function createChatRoute({
@@ -101,6 +105,19 @@ export function createChatRoute({
 	eventBus = createSessionEventBus(),
 	getRuntime = getSandboxRuntime,
 }: ChatRouteDependencies = {}) {
+	const sessionTurnQueues = new Map<string, Promise<void>>();
+
+	function enqueueTurn(sessionId: string, run: () => Promise<void>) {
+		const previous = sessionTurnQueues.get(sessionId) ?? Promise.resolve();
+		const next = previous.then(run, run);
+		sessionTurnQueues.set(sessionId, next);
+		void next.then(() => {
+			if (sessionTurnQueues.get(sessionId) === next) {
+				sessionTurnQueues.delete(sessionId);
+			}
+		});
+	}
+
 	function createAgentServiceForSession() {
 		const runtime = getRuntime();
 		return createAgentService({
@@ -111,41 +128,36 @@ export function createChatRoute({
 					turnId: result.backgroundCommandId,
 				});
 
-				const eventType =
+				const bgEvent =
 					result.exitCode === 0
-						? ("background.completed" as const)
-						: ("background.failed" as const);
-
-				const payload =
-					eventType === "background.completed"
-						? {
+						? bgEventFactory.create("background.completed", {
 								backgroundCommandId: result.backgroundCommandId,
 								command: result.command,
 								exitCode: result.exitCode,
 								stdout: result.stdout,
-							}
-						: {
+							})
+						: bgEventFactory.create("background.failed", {
 								backgroundCommandId: result.backgroundCommandId,
 								command: result.command,
 								exitCode: result.exitCode,
 								stderr: result.stderr,
-							};
+							});
 
-				eventBus.publish(
-					completedSessionId,
-					bgEventFactory.create(eventType, payload as never),
-				);
+				eventBus.publish(completedSessionId, bgEvent);
 
-				// Auto-trigger a new agent turn
+				// Auto-trigger a new agent turn (queued behind any active turn)
 				const syntheticMessage = `Background command ${result.backgroundCommandId} (\`${result.command.join(" ")}\`) ${result.status}. Exit code: ${result.exitCode}. Output: ${result.stdout || result.stderr}`;
 				const reengagementService = createAgentServiceForSession();
-				runTurn({
-					agentService: reengagementService,
-					eventBus,
-					message: syntheticMessage,
-					sessionId: completedSessionId,
-					turnId: createTurnId(),
-				});
+				enqueueTurn(completedSessionId, () =>
+					executeTurn({
+						agentService: reengagementService,
+						eventBus,
+						message: syntheticMessage,
+						recursionLimit: REENGAGEMENT_RECURSION_LIMIT,
+						sessionId: completedSessionId,
+						turnId: createTurnId(),
+					}),
+				);
 			},
 		});
 	}
@@ -168,11 +180,19 @@ export function createChatRoute({
 		}
 
 		const sessionId = sessionIdResult.data;
-		const { message } = bodyResult.data;
-		const turnId = createTurnId();
+		const { message, turnId: clientTurnId } = bodyResult.data;
+		const turnId = clientTurnId ?? createTurnId();
 		const agentService = createAgentServiceForSession();
 
-		runTurn({ agentService, eventBus, message, sessionId, turnId });
+		enqueueTurn(sessionId, () =>
+			executeTurn({
+				agentService,
+				eventBus,
+				message,
+				sessionId,
+				turnId,
+			}),
+		);
 
 		return Response.json({ turnId }, { status: 202 });
 	};

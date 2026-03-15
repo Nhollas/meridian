@@ -1,10 +1,6 @@
 import { HttpResponse, http } from "msw";
 import { describe } from "vitest";
-import {
-	createChatAcceptedResponse,
-	createChatEventFactory,
-} from "../../tests/support/chat-contract";
-import { test } from "../../tests/support/chat-page-fixture";
+import { test, withChatTurn } from "../../tests/support/chat-page-fixture";
 import { browserWorker, withJsonBody } from "../../tests/support/msw";
 
 describe("Chat UI - error handling", () => {
@@ -37,29 +33,14 @@ describe("Chat UI - error handling", () => {
 		chatPage,
 		sseStream,
 	}) => {
-		const eventFactory = createChatEventFactory();
-
-		browserWorker.use(
-			http.post(
-				"http://localhost:3201/api/chat",
-				withJsonBody({ message: "Start login" }, () => {
-					queueMicrotask(() => {
-						sseStream.emit(
-							eventFactory.create("assistant.delta", {
-								delta:
-									"Authentication started. Open the login URL in your browser.",
-							}),
-						);
-						sseStream.emit(
-							eventFactory.create("turn.failed", {
-								error: "device flow requires user interaction",
-							}),
-						);
-					});
-					return createChatAcceptedResponse();
-				}),
-			),
-		);
+		withChatTurn("Start login", sseStream, (factory) => [
+			factory.create("assistant.delta", {
+				delta: "Authentication started. Open the login URL in your browser.",
+			}),
+			factory.create("turn.failed", {
+				error: "device flow requires user interaction",
+			}),
+		]);
 
 		await chatPage.sendMessage("Start login");
 

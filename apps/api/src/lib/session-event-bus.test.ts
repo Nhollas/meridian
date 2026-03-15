@@ -51,6 +51,39 @@ describe("SessionEventBus", () => {
 		expect(replayed).toEqual(event2);
 	});
 
+	it("evicts oldest events when buffer exceeds max size", async () => {
+		const bus = createSessionEventBus({ maxHistoryPerSession: 2 });
+		const event1 = createTestEvent("session-1");
+		const event2 = createTestEvent("session-1");
+		const event3 = createTestEvent("session-1");
+
+		bus.publish("session-1", event1);
+		bus.publish("session-1", event2);
+		bus.publish("session-1", event3);
+
+		// event1 was evicted, so replaying from event2 should yield event3
+		const stream = bus.subscribe("session-1", { lastEventId: event2.id });
+		const reader = stream.getReader();
+		const { value } = await reader.read();
+		reader.releaseLock();
+
+		expect(value).toEqual(event3);
+
+		// Replaying from event1 should yield nothing (it was evicted)
+		const stream2 = bus.subscribe("session-1", {
+			lastEventId: event1.id,
+		});
+		bus.publish("session-1", createTestEvent("session-1"));
+		const reader2 = stream2.getReader();
+		const { value: freshEvent } = await reader2.read();
+		reader2.releaseLock();
+
+		// Should get the newly published event, not event2/event3
+		// (because event1 wasn't found in buffer, no replay happened)
+		expect(freshEvent).not.toEqual(event2);
+		expect(freshEvent).not.toEqual(event3);
+	});
+
 	it("does not deliver events from other sessions", async () => {
 		const bus = createSessionEventBus();
 		const ownEvent = createTestEvent("session-1");

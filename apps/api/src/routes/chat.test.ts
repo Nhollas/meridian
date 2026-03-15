@@ -119,11 +119,14 @@ describe("POST /api/chat", () => {
 			createChatRequest({
 				message: "Find me an offer",
 				sessionId: "session-123",
+				turnId: "client-turn-1",
 			}),
 		);
 
 		expect(response.status).toBe(202);
-		await expect(response.json()).resolves.toEqual({ turnId: "turn-1" });
+		await expect(response.json()).resolves.toEqual({
+			turnId: "client-turn-1",
+		});
 
 		const events = await eventsPromise;
 		expect(events).toEqual([

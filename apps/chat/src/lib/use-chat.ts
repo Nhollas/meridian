@@ -35,9 +35,6 @@ export function useChat() {
 	const [isError, setIsError] = useState(false);
 
 	const activeTurnsRef = useRef<Map<string, TurnState>>(new Map());
-	const pendingEventsRef = useRef<Map<string, RuntimeEventEnvelope[]>>(
-		new Map(),
-	);
 
 	useEffect(() => {
 		const id = getOrCreateSessionId();
@@ -133,36 +130,9 @@ export function useChat() {
 	const handleSSEEvent = useCallback(
 		(event: RuntimeEventEnvelope) => {
 			const turn = activeTurnsRef.current.get(event.turnId);
-			if (!turn) {
-				const pending = pendingEventsRef.current.get(event.turnId) ?? [];
-				pending.push(event);
-				pendingEventsRef.current.set(event.turnId, pending);
-				return;
-			}
+			if (!turn) return;
 
 			processEvent(event, turn);
-		},
-		[processEvent],
-	);
-
-	const registerTurn = useCallback(
-		(turnId: string, assistantMessageId: string) => {
-			const turn: TurnState = {
-				assistantMessageId,
-				content: "",
-				toolCalls: [],
-				frameId: null,
-			};
-			activeTurnsRef.current.set(turnId, turn);
-
-			// Replay any events that arrived before registration
-			const pending = pendingEventsRef.current.get(turnId);
-			if (pending) {
-				pendingEventsRef.current.delete(turnId);
-				for (const event of pending) {
-					processEvent(event, turn);
-				}
-			}
 		},
 		[processEvent],
 	);
@@ -203,6 +173,15 @@ export function useChat() {
 				status: "streaming",
 				toolCalls: [],
 			});
+			const turnId = crypto.randomUUID();
+
+			// Register the turn BEFORE posting so SSE events are never dropped
+			activeTurnsRef.current.set(turnId, {
+				assistantMessageId: assistantMessage.id,
+				content: "",
+				toolCalls: [],
+				frameId: null,
+			});
 
 			setMessages((prev) => [...prev, userMessage, assistantMessage]);
 			setIsPending(true);
@@ -215,16 +194,15 @@ export function useChat() {
 						"Content-Type": "application/json",
 						"session-id": activeSessionId,
 					},
-					body: JSON.stringify({ message: content }),
+					body: JSON.stringify({ message: content, turnId }),
 				});
 
 				if (!res.ok) {
 					throw new Error(`Request failed: ${res.status}`);
 				}
-
-				const { turnId } = (await res.json()) as { turnId: string };
-				registerTurn(turnId, assistantMessage.id);
 			} catch (error) {
+				activeTurnsRef.current.delete(turnId);
+
 				startTransition(() => {
 					setMessages((prev) =>
 						updateAssistantMessage(prev, assistantMessage.id, {
@@ -240,7 +218,7 @@ export function useChat() {
 				console.error("Chat API error:", error);
 			}
 		},
-		[sessionId, registerTurn],
+		[sessionId],
 	);
 
 	return {

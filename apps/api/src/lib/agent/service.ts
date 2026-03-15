@@ -21,6 +21,7 @@ export interface AgentService {
 	streamConversation(params: {
 		message: string;
 		onEvent?: (event: AgentProgressEvent) => void | Promise<void>;
+		recursionLimit?: number | undefined;
 		sessionId: string;
 	}): Promise<AgentTurnResult>;
 }
@@ -57,10 +58,12 @@ export const createAgentService: CreateAgentService = ({
 			message,
 			sessionId,
 			onEvent,
+			recursionLimit,
 		}: {
 			message: string;
 			sessionId: string;
 			onEvent?: (event: AgentProgressEvent) => void | Promise<void>;
+			recursionLimit?: number | undefined;
 		}): Promise<AgentTurnResult> {
 			const tools = createRuntimeAgentTools({
 				onBackgroundCommandComplete,
@@ -72,7 +75,11 @@ export const createAgentService: CreateAgentService = ({
 			let currentGeneration = "";
 
 			try {
-				const stream = await runner.streamTurn({ message, sessionId });
+				const stream = await runner.streamTurn({
+					message,
+					sessionId,
+					recursionLimit,
+				});
 
 				for await (const chunk of stream) {
 					if (chunk.mode === "messages") {

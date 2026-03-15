@@ -6,9 +6,15 @@ type SubscribeOptions = {
 	lastEventId?: string | undefined;
 };
 
+const DEFAULT_MAX_HISTORY_PER_SESSION = 1000;
+
 export type SessionEventBus = ReturnType<typeof createSessionEventBus>;
 
-export function createSessionEventBus() {
+export function createSessionEventBus({
+	maxHistoryPerSession = DEFAULT_MAX_HISTORY_PER_SESSION,
+}: {
+	maxHistoryPerSession?: number | undefined;
+} = {}) {
 	const subscribers = new Map<string, Set<Subscriber>>();
 	const eventHistory = new Map<string, RuntimeEventEnvelope[]>();
 
@@ -32,7 +38,11 @@ export function createSessionEventBus() {
 
 	return {
 		publish(sessionId: string, event: RuntimeEventEnvelope): void {
-			getOrCreateArray(eventHistory, sessionId).push(event);
+			const history = getOrCreateArray(eventHistory, sessionId);
+			history.push(event);
+			if (history.length > maxHistoryPerSession) {
+				history.splice(0, history.length - maxHistoryPerSession);
+			}
 
 			const sessionSubscribers = subscribers.get(sessionId);
 			if (!sessionSubscribers) return;

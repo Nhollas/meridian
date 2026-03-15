@@ -4,13 +4,17 @@ export function createChatRequest(
 	body: {
 		message: string;
 		sessionId: string;
+		turnId?: string;
 	},
 	options?: {
 		headers?: Record<string, string>;
 	},
 ) {
 	return new Request("http://localhost/api/chat", {
-		body: JSON.stringify({ message: body.message }),
+		body: JSON.stringify({
+			message: body.message,
+			...(body.turnId ? { turnId: body.turnId } : {}),
+		}),
 		headers: {
 			"Content-Type": "application/json",
 			"session-id": body.sessionId,

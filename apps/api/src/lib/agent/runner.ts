@@ -41,6 +41,7 @@ export type AgentRunnerChunk =
 export interface AgentRunner {
 	streamTurn(params: {
 		message: string;
+		recursionLimit?: number | undefined;
 		sessionId: string;
 	}): Promise<AsyncIterable<AgentRunnerChunk>>;
 }
@@ -61,12 +62,12 @@ export const createLangChainAgentRunner: CreateAgentRunner = ({ tools }) => {
 	});
 
 	return {
-		async streamTurn({ message, sessionId }) {
+		async streamTurn({ message, sessionId, recursionLimit }) {
 			const stream = await agent.stream(
 				{ messages: [new HumanMessage(message)] },
 				{
 					configurable: { thread_id: sessionId },
-					recursionLimit: MAX_ITERATIONS,
+					recursionLimit: recursionLimit ?? MAX_ITERATIONS,
 					streamMode: ["messages", "tools"],
 				},
 			);

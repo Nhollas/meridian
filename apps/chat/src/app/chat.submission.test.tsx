@@ -1,9 +1,5 @@
-import { http } from "msw";
+import { HttpResponse, http } from "msw";
 import { describe } from "vitest";
-import {
-	createChatAcceptedResponse,
-	createChatEventFactory,
-} from "../../tests/support/chat-contract";
 import { test } from "../../tests/support/chat-page-fixture";
 import {
 	browserWorker,
@@ -16,8 +12,6 @@ describe("Chat UI - submission and streaming", () => {
 		chatPage,
 		sseStream,
 	}) => {
-		const eventFactory = createChatEventFactory();
-
 		browserWorker.use(
 			http.post(
 				"http://localhost:3201/api/chat",
@@ -27,15 +21,25 @@ describe("Chat UI - submission and streaming", () => {
 						(headers) =>
 							headers.get("content-type") === "application/json" &&
 							headers.has("session-id"),
-						() => {
+						async ({ request }) => {
+							const body = (await request.clone().json()) as {
+								turnId?: string;
+							};
+							const turnId = body.turnId ?? "turn-fallback";
+
+							const { createChatEventFactory } = await import(
+								"../../tests/support/chat-contract"
+							);
+							const factory = createChatEventFactory({ turnId });
+
 							queueMicrotask(() => {
 								sseStream.emit(
-									eventFactory.create("assistant.delta", {
+									factory.create("assistant.delta", {
 										delta: "Working through the options...",
 									}),
 								);
 								sseStream.emit(
-									eventFactory.create("tool.completed", {
+									factory.create("tool.completed", {
 										toolCall: {
 											id: "tool-1",
 											input: '{"path":"offers.json"}',
@@ -45,7 +49,7 @@ describe("Chat UI - submission and streaming", () => {
 									}),
 								);
 								sseStream.emit(
-									eventFactory.create("turn.completed", {
+									factory.create("turn.completed", {
 										content: "I found 2 offers worth comparing.",
 										toolCalls: [
 											{
@@ -59,7 +63,7 @@ describe("Chat UI - submission and streaming", () => {
 									}),
 								);
 							});
-							return createChatAcceptedResponse();
+							return HttpResponse.json({ turnId }, { status: 202 });
 						},
 					),
 				),
