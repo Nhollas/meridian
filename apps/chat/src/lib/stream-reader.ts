@@ -3,13 +3,13 @@ import {
 	type RuntimeEventEnvelope,
 } from "@meridian/contracts/runtime-events";
 
-export async function readChatStream(
+export async function readSSEStream(
 	response: Response,
 	onEvent: (event: RuntimeEventEnvelope) => void,
 ) {
 	const reader = response.body?.getReader();
 	if (!reader) {
-		throw new Error("Streaming response body missing.");
+		throw new Error("SSE response body missing.");
 	}
 
 	const decoder = new TextDecoder();
@@ -20,25 +20,25 @@ export async function readChatStream(
 		buffer += decoder.decode(value, { stream: !done });
 
 		let offset = 0;
-		let newlineIndex = buffer.indexOf("\n", offset);
-		while (newlineIndex >= 0) {
-			const line = buffer.slice(offset, newlineIndex).trim();
-			offset = newlineIndex + 1;
+		let blockEnd = buffer.indexOf("\n\n", offset);
 
-			if (line) {
-				onEvent(parseRuntimeEventEnvelope(JSON.parse(line)));
+		while (blockEnd >= 0) {
+			const block = buffer.slice(offset, blockEnd);
+			offset = blockEnd + 2;
+
+			for (const line of block.split("\n")) {
+				if (line.startsWith("data: ")) {
+					const json = line.slice(6);
+					onEvent(parseRuntimeEventEnvelope(JSON.parse(json)));
+				}
 			}
 
-			newlineIndex = buffer.indexOf("\n", offset);
+			blockEnd = buffer.indexOf("\n\n", offset);
 		}
 
 		buffer = buffer.slice(offset);
 
 		if (done) {
-			const remaining = buffer.trim();
-			if (remaining) {
-				onEvent(parseRuntimeEventEnvelope(JSON.parse(remaining)));
-			}
 			return;
 		}
 	}

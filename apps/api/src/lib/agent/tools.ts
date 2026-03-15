@@ -2,14 +2,31 @@ import { tool } from "langchain";
 import { z } from "zod";
 import type { SandboxRuntime } from "@/lib/sandbox/runtime";
 
+type OnBackgroundCommandComplete = (
+	sessionId: string,
+	result: {
+		backgroundCommandId: string;
+		command: string[];
+		exitCode: number;
+		stderr: string;
+		stdout: string;
+		status: string;
+	},
+) => void;
+
 type ToolContext = {
+	onBackgroundCommandComplete?: OnBackgroundCommandComplete | undefined;
 	runtime: SandboxRuntime;
 	sessionId: string;
 };
 
 const emptySchema = z.object({});
 
-export function createRuntimeAgentTools({ runtime, sessionId }: ToolContext) {
+export function createRuntimeAgentTools({
+	onBackgroundCommandComplete,
+	runtime,
+	sessionId,
+}: ToolContext) {
 	return [
 		tool(async () => runtime.getInstructions(sessionId), {
 			name: "get_runtime_instructions",
@@ -23,11 +40,37 @@ export function createRuntimeAgentTools({ runtime, sessionId }: ToolContext) {
 				timeoutMs?: number;
 				waitFor?: "exit" | "first-stdout-line";
 				keepAlive?: boolean;
+				notifyOnCompletion?: boolean;
 				stdin?: string;
 			}) => {
-				const { command, ...options } = input;
+				const { command, notifyOnCompletion, ...options } = input;
+				const onComplete =
+					notifyOnCompletion && onBackgroundCommandComplete
+						? (result: {
+								command: string[];
+								exitCode: number | null;
+								id: string;
+								status: string;
+								stderr: string;
+								stdout: string;
+							}) => {
+								if (result.exitCode === null) return;
+								onBackgroundCommandComplete(sessionId, {
+									backgroundCommandId: result.id,
+									command: result.command,
+									exitCode: result.exitCode,
+									stderr: result.stderr,
+									stdout: result.stdout,
+									status: result.status,
+								});
+							}
+						: undefined;
 				return JSON.stringify(
-					await runtime.runCommand(sessionId, command, options),
+					await runtime.runCommand(sessionId, command, {
+						...options,
+						notifyOnCompletion,
+						onComplete,
+					}),
 				);
 			},
 			{
@@ -59,6 +102,12 @@ export function createRuntimeAgentTools({ runtime, sessionId }: ToolContext) {
 						.optional()
 						.describe(
 							"If true with waitFor=first-stdout-line, leave the process running in the background",
+						),
+					notifyOnCompletion: z
+						.boolean()
+						.optional()
+						.describe(
+							"If true with keepAlive, automatically notify when the background command completes",
 						),
 					stdin: z.string().optional().describe("Optional stdin input"),
 				}),

@@ -24,27 +24,35 @@ export function createChatEventFactory({
 	});
 }
 
-export function createChatStreamResponse(events: RuntimeEventEnvelope[]) {
+function formatSSEEvent(event: RuntimeEventEnvelope): string {
+	return `id: ${event.id}\ndata: ${serializeRuntimeEventEnvelope(event)}\n\n`;
+}
+
+export function createChatAcceptedResponse(turnId = "turn-123") {
+	return HttpResponse.json({ turnId }, { status: 202 });
+}
+
+export function createSSEStreamResponse(events: RuntimeEventEnvelope[]) {
 	return new HttpResponse(
 		new ReadableStream({
 			start(controller) {
 				for (const event of events) {
-					controller.enqueue(
-						encoder.encode(`${serializeRuntimeEventEnvelope(event)}\n`),
-					);
+					controller.enqueue(encoder.encode(formatSSEEvent(event)));
 				}
-				controller.close();
+				// Don't close — SSE streams stay open
 			},
 		}),
 		{
 			headers: {
-				"Content-Type": "application/x-ndjson; charset=utf-8",
+				"Content-Type": "text/event-stream",
+				"Cache-Control": "no-cache, no-transform",
+				Connection: "keep-alive",
 			},
 		},
 	);
 }
 
-export function createControllableChatStream() {
+export function createControllableSSEStream() {
 	let controller: ReadableStreamDefaultController<Uint8Array> | null = null;
 
 	return {
@@ -56,7 +64,9 @@ export function createControllableChatStream() {
 			}),
 			{
 				headers: {
-					"Content-Type": "application/x-ndjson; charset=utf-8",
+					"Content-Type": "text/event-stream",
+					"Cache-Control": "no-cache, no-transform",
+					Connection: "keep-alive",
 				},
 			},
 		),
@@ -65,12 +75,10 @@ export function createControllableChatStream() {
 		},
 		emit(event: RuntimeEventEnvelope) {
 			if (!controller) {
-				throw new Error("Chat stream controller was not initialized");
+				throw new Error("SSE stream controller was not initialized");
 			}
 
-			controller.enqueue(
-				encoder.encode(`${serializeRuntimeEventEnvelope(event)}\n`),
-			);
+			controller.enqueue(encoder.encode(formatSSEEvent(event)));
 		},
 	};
 }

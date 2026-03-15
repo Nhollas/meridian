@@ -21,12 +21,26 @@ export interface AgentService {
 	streamConversation(params: {
 		message: string;
 		onEvent?: (event: AgentProgressEvent) => void | Promise<void>;
+		recursionLimit?: number | undefined;
 		sessionId: string;
 	}): Promise<AgentTurnResult>;
 }
 
+export type OnBackgroundCommandComplete = (
+	sessionId: string,
+	result: {
+		backgroundCommandId: string;
+		command: string[];
+		exitCode: number;
+		stderr: string;
+		stdout: string;
+		status: string;
+	},
+) => void;
+
 export type AgentServiceDependencies = {
 	createRunner?: CreateAgentRunner;
+	onBackgroundCommandComplete?: OnBackgroundCommandComplete | undefined;
 	runtime: SandboxRuntime;
 };
 
@@ -36,6 +50,7 @@ export type CreateAgentService = (
 
 export const createAgentService: CreateAgentService = ({
 	createRunner = createLangChainAgentRunner,
+	onBackgroundCommandComplete,
 	runtime,
 }) => {
 	return {
@@ -43,20 +58,30 @@ export const createAgentService: CreateAgentService = ({
 			message,
 			sessionId,
 			onEvent,
+			recursionLimit,
 		}: {
 			message: string;
 			sessionId: string;
 			onEvent?: (event: AgentProgressEvent) => void | Promise<void>;
+			recursionLimit?: number | undefined;
 		}): Promise<AgentTurnResult> {
-			const tools = createRuntimeAgentTools({ runtime, sessionId });
+			const tools = createRuntimeAgentTools({
+				onBackgroundCommandComplete,
+				runtime,
+				sessionId,
+			});
 			const runner = createRunner({ tools });
 			const observedToolCalls = new Map<string, AgentToolCall>();
 			let currentGeneration = "";
 
 			try {
-				const stream = await runner.streamTurn({ message, sessionId });
+				const { chunks, getCompleteResponse } = await runner.streamTurn({
+					message,
+					sessionId,
+					recursionLimit,
+				});
 
-				for await (const chunk of stream) {
+				for await (const chunk of chunks) {
 					if (chunk.mode === "messages") {
 						if (chunk.messageType !== "ai") {
 							continue;
@@ -113,6 +138,22 @@ export const createAgentService: CreateAgentService = ({
 					};
 					observedToolCalls.set(toolCall.id, toolCall);
 					await onEvent?.({ toolCall, type: "tool-call" });
+				}
+
+				if (!currentGeneration.trim()) {
+					console.log(
+						"[streaming-recovery] No streamed tokens, calling getCompleteResponse for session",
+						sessionId,
+					);
+					const recovered = await getCompleteResponse();
+					console.log(
+						"[streaming-recovery] getCompleteResponse returned:",
+						recovered ? `"${recovered.slice(0, 80)}..."` : "undefined",
+					);
+					if (recovered) {
+						currentGeneration = recovered;
+						await onEvent?.({ text: recovered, type: "text-delta" });
+					}
 				}
 
 				return {

@@ -1,88 +1,43 @@
-import { http } from "msw";
 import { describe, expect, vi } from "vitest";
-import {
-	createChatEventFactory,
-	createChatStreamResponse,
-} from "../../tests/support/chat-contract";
-import { test } from "../../tests/support/chat-page-fixture";
-import {
-	browserWorker,
-	withHeaders,
-	withJsonBody,
-} from "../../tests/support/msw";
+import { test, withChatTurn } from "../../tests/support/chat-page-fixture";
 
 describe("Chat UI - debug controls", () => {
-	test("sends the debug delay header when slow stream mode is enabled", async ({
-		chatPage,
-	}) => {
-		const eventFactory = createChatEventFactory();
-
-		browserWorker.use(
-			http.post(
-				"http://localhost:3201/api/chat",
-				withHeaders(
-					(headers) => headers.get("meridian-debug-stream-delay-ms") === "120",
-					() =>
-						createChatStreamResponse([
-							eventFactory.create("turn.completed", {
-								content: "Done.",
-								toolCalls: [],
-							}),
-						]),
-				),
-			),
-		);
-
-		await chatPage.toggleSlowStream();
-		await chatPage.sendMessage("Enable slow mode");
-		await chatPage.expectAssistantResponse("Done.");
-	});
-
 	test("copies a compact debug trace with conversation messages and tool calls", async ({
 		chatPage,
+		sseStream,
 	}) => {
 		const writeText = vi.fn().mockResolvedValue(undefined);
-		const eventFactory = createChatEventFactory();
 
 		Object.defineProperty(window.navigator, "clipboard", {
 			configurable: true,
-			value: {
-				writeText,
-			},
+			value: { writeText },
 		});
 
-		browserWorker.use(
-			http.post(
-				"http://localhost:3201/api/chat",
-				withJsonBody({ message: "Find me a deal" }, () =>
-					createChatStreamResponse([
-						eventFactory.create("assistant.delta", {
-							delta: "Working through the options...",
-						}),
-						eventFactory.create("tool.completed", {
-							toolCall: {
-								id: "tool-1",
-								input: '{"path":"offers.json"}',
-								name: "read_file",
-								output: '{"offers":2}',
-							},
-						}),
-						eventFactory.create("turn.completed", {
-							content: "I found 2 offers worth comparing.",
-							toolCalls: [
-								{
-									id: "tool-1",
-									input: '{"path":"offers.json"}',
-									name: "read_file",
-									output: '{"offers":2}',
-									state: "completed",
-								},
-							],
-						}),
-					]),
-				),
-			),
-		);
+		withChatTurn("Find me a deal", sseStream, (factory) => [
+			factory.create("assistant.delta", {
+				delta: "Working through the options...",
+			}),
+			factory.create("tool.completed", {
+				toolCall: {
+					id: "tool-1",
+					input: '{"path":"offers.json"}',
+					name: "read_file",
+					output: '{"offers":2}',
+				},
+			}),
+			factory.create("turn.completed", {
+				content: "I found 2 offers worth comparing.",
+				toolCalls: [
+					{
+						id: "tool-1",
+						input: '{"path":"offers.json"}',
+						name: "read_file",
+						output: '{"offers":2}',
+						state: "completed",
+					},
+				],
+			}),
+		]);
 
 		await chatPage.sendMessage("Find me a deal");
 		await chatPage.expectAssistantResponse("I found 2 offers worth comparing.");
@@ -95,10 +50,7 @@ describe("Chat UI - debug controls", () => {
 		expect(copiedTrace).toMatchObject({
 			sessionId: expect.any(String),
 			messages: [
-				{
-					content: "Find me a deal",
-					role: "user",
-				},
+				{ content: "Find me a deal", role: "user" },
 				{
 					content: "I found 2 offers worth comparing.",
 					role: "assistant",
@@ -119,6 +71,7 @@ describe("Chat UI - debug controls", () => {
 
 	test("downloads a compact debug trace with conversation messages and tool calls", async ({
 		chatPage,
+		sseStream,
 	}) => {
 		const createObjectUrl = vi
 			.spyOn(URL, "createObjectURL")
@@ -129,40 +82,32 @@ describe("Chat UI - debug controls", () => {
 		const anchorClick = vi
 			.spyOn(HTMLAnchorElement.prototype, "click")
 			.mockImplementation(() => {});
-		const eventFactory = createChatEventFactory();
 
-		browserWorker.use(
-			http.post(
-				"http://localhost:3201/api/chat",
-				withJsonBody({ message: "Find me a deal" }, () =>
-					createChatStreamResponse([
-						eventFactory.create("assistant.delta", {
-							delta: "Working through the options...",
-						}),
-						eventFactory.create("tool.completed", {
-							toolCall: {
-								id: "tool-1",
-								input: '{"path":"offers.json"}',
-								name: "read_file",
-								output: '{"offers":2}',
-							},
-						}),
-						eventFactory.create("turn.completed", {
-							content: "I found 2 offers worth comparing.",
-							toolCalls: [
-								{
-									id: "tool-1",
-									input: '{"path":"offers.json"}',
-									name: "read_file",
-									output: '{"offers":2}',
-									state: "completed",
-								},
-							],
-						}),
-					]),
-				),
-			),
-		);
+		withChatTurn("Find me a deal", sseStream, (factory) => [
+			factory.create("assistant.delta", {
+				delta: "Working through the options...",
+			}),
+			factory.create("tool.completed", {
+				toolCall: {
+					id: "tool-1",
+					input: '{"path":"offers.json"}',
+					name: "read_file",
+					output: '{"offers":2}',
+				},
+			}),
+			factory.create("turn.completed", {
+				content: "I found 2 offers worth comparing.",
+				toolCalls: [
+					{
+						id: "tool-1",
+						input: '{"path":"offers.json"}',
+						name: "read_file",
+						output: '{"offers":2}',
+						state: "completed",
+					},
+				],
+			}),
+		]);
 
 		await chatPage.sendMessage("Find me a deal");
 		await chatPage.expectAssistantResponse("I found 2 offers worth comparing.");
@@ -183,10 +128,7 @@ describe("Chat UI - debug controls", () => {
 		expect(downloadedTrace).toMatchObject({
 			sessionId: expect.any(String),
 			messages: [
-				{
-					content: "Find me a deal",
-					role: "user",
-				},
+				{ content: "Find me a deal", role: "user" },
 				{
 					content: "I found 2 offers worth comparing.",
 					role: "assistant",

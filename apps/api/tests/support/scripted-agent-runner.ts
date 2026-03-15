@@ -2,6 +2,7 @@ import type {
 	AgentRunnerChunk,
 	AgentRunnerTools,
 	CreateAgentRunner,
+	StreamTurnResult,
 } from "@/lib/agent/runner";
 
 type ScriptedTurn = (params: {
@@ -21,11 +22,20 @@ type InvokableTool = {
 
 export function createScriptedAgentRunner(
 	script: ScriptedTurn,
+	options?: {
+		getCompleteResponse?: (sessionId: string) => Promise<string | undefined>;
+	},
 ): CreateAgentRunner {
 	return ({ tools }) => ({
-		async streamTurn({ message, sessionId }) {
+		async streamTurn({ message, sessionId }): Promise<StreamTurnResult> {
 			const chunks = await script({ message, sessionId, tools });
-			return toAsyncIterable(chunks);
+			return {
+				chunks: toAsyncIterable(chunks),
+				getCompleteResponse: options?.getCompleteResponse
+					? async () =>
+							(await options.getCompleteResponse?.(sessionId)) ?? undefined
+					: async () => undefined,
+			};
 		},
 	});
 }

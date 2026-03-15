@@ -30,6 +30,7 @@ type BackgroundCommandFixture = {
 
 type BackgroundCommandState = {
 	current: SandboxBackgroundCommandSnapshot;
+	onComplete?: (result: SandboxBackgroundCommandSnapshot) => void;
 	terminateResult?: SandboxBackgroundCommandSnapshot;
 	waitResult?: SandboxWaitForBackgroundCommandResult;
 };
@@ -41,6 +42,7 @@ type SessionState = {
 
 export type InMemorySandboxRuntime = SandboxRuntime & {
 	calls: RuntimeCall[];
+	completeBackgroundCommand: (sessionId: string, commandId: string) => void;
 };
 
 const DEFAULT_STARTED_AT = "2026-03-11T12:00:00.000Z";
@@ -97,7 +99,8 @@ export function createInMemorySandboxRuntime({
 		command: string[],
 		options?: SandboxCommandOptions,
 	): Promise<SandboxCommandResult> {
-		record(sessionId, "runCommand", command, options);
+		const { onComplete, ...loggableOptions } = options ?? {};
+		record(sessionId, "runCommand", command, loggableOptions);
 		const session = getSession(sessionId);
 		const fixture = commandFixtures.find((candidate) =>
 			matchesCommandFixture(candidate, command, options),
@@ -111,18 +114,40 @@ export function createInMemorySandboxRuntime({
 				};
 
 		if (result.backgroundCommandId) {
-			session.backgroundCommands.set(
-				result.backgroundCommandId,
-				createBackgroundCommandState({
-					command,
-					commandId: result.backgroundCommandId,
-					fixture: backgroundCommands[result.backgroundCommandId],
-					result,
-				}),
-			);
+			const state = createBackgroundCommandState({
+				command,
+				commandId: result.backgroundCommandId,
+				fixture: backgroundCommands[result.backgroundCommandId],
+				result,
+			});
+			if (onComplete) {
+				state.onComplete = onComplete;
+			}
+			session.backgroundCommands.set(result.backgroundCommandId, state);
 		}
 
 		return result;
+	}
+
+	function completeBackgroundCommand(sessionId: string, commandId: string) {
+		const session = getSession(sessionId);
+		const state = session.backgroundCommands.get(commandId);
+		if (!state) {
+			throw new Error(`Unknown background command: ${commandId}`);
+		}
+
+		// Use the waitResult if available, otherwise mark as completed
+		const completed = state.waitResult ?? {
+			...state.current,
+			endedAt: DEFAULT_ENDED_AT,
+			exitCode: 0,
+			status: "completed" as const,
+		};
+		state.current = cloneBackgroundCommandSnapshot(completed);
+
+		if (state.onComplete) {
+			state.onComplete(cloneBackgroundCommandSnapshot(completed));
+		}
 	}
 
 	async function getBackgroundCommand(
@@ -237,6 +262,7 @@ export function createInMemorySandboxRuntime({
 
 	return {
 		calls,
+		completeBackgroundCommand,
 		createSession,
 		deleteSessionFile,
 		destroySession,
@@ -336,7 +362,9 @@ function matchesCommandFixture(
 function normalizeOptions(options?: SandboxCommandOptions) {
 	return Object.fromEntries(
 		Object.entries(options ?? {})
-			.filter(([, value]) => typeof value !== "undefined")
+			.filter(
+				([key, value]) => typeof value !== "undefined" && key !== "onComplete",
+			)
 			.sort(([left], [right]) => left.localeCompare(right)),
 	);
 }
