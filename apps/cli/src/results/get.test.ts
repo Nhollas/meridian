@@ -1,7 +1,8 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { runCli } from "@/cli";
+import type { ResultRecord } from "@/store/data";
 import { createWritable } from "../../tests/support/streams";
 import { createTempHome } from "../../tests/support/temp-home";
 
@@ -64,7 +65,7 @@ function createBroadbandResult() {
 				},
 			},
 		],
-	};
+	} satisfies ResultRecord;
 }
 
 function createTravelResult() {
@@ -114,7 +115,7 @@ function createTravelResult() {
 				},
 			},
 		],
-	};
+	} satisfies ResultRecord;
 }
 
 async function seedHomeWithResult(
@@ -160,89 +161,77 @@ async function seedHomeWithResult(
 	return home;
 }
 
+function parseNdjson(output: string) {
+	return output
+		.trim()
+		.split("\n")
+		.filter(Boolean)
+		.map((line) => JSON.parse(line));
+}
+
 describe("results get", () => {
-	it("returns a single result entity in json mode", async () => {
-		await using home = await seedHomeWithResult(
-			"broadband",
-			createBroadbandResult(),
-		);
+	it("streams offerings as ndjson events in json mode", async () => {
+		const broadband = createBroadbandResult();
+		const [skyOffering, talktalkOffering] = broadband.offerings;
+		await using home = await seedHomeWithResult("broadband", broadband);
 		const stdout = createWritable(false);
 		const stderr = createWritable();
 
 		const exitCode = await runCli(
-			["results", "get", "--proposal=prop-x7y8z9"],
+			["results", "get", "--proposal=prop-x7y8z9", "--json"],
 			{
 				homeDirectory: home.homeDirectory,
 				now: () => new Date("2026-03-07T16:00:00Z"),
+				sleep: async () => {},
 				stdout: stdout.stream,
 				stderr: stderr.stream,
 			},
 		);
 
 		expect(exitCode).toBe(0);
-		expect(JSON.parse(stdout.output())).toEqual({
-			id: "result-broadband",
-			product: "broadband",
-			version: "1.0",
-			proposalId: "prop-x7y8z9",
-			sessionId: "session-pr-a1b2c3d4",
-			customerId: "john.doe@example.com",
-			metadata: {},
-			offerings: [
-				{
-					brandName: "Fibre 65",
-					brandCode: "talktalk-fibre-65",
-					providerName: "TalkTalk",
-					pricing: {
-						paymentOptions: [
-							{
-								type: "Installment",
-								totalCost: 468,
-								installmentDetails: {
-									deposit: 0,
-									numberOfPayments: 18,
-									installmentAmount: 26,
-									apr: null,
-								},
-							},
-						],
-					},
-					metadata: {
-						speed: "67Mbps",
-						contractMonths: 18,
-						setupFee: 0,
-					},
-				},
-				{
-					brandName: "Superfast 80",
-					brandCode: "sky-superfast-80",
-					providerName: "Sky",
-					pricing: {
-						paymentOptions: [
-							{
-								type: "Installment",
-								totalCost: 594,
-								installmentDetails: {
-									deposit: 0,
-									numberOfPayments: 18,
-									installmentAmount: 33,
-									apr: null,
-								},
-							},
-						],
-					},
-					metadata: {
-						speed: "80Mbps",
-						contractMonths: 18,
-						setupFee: 0,
-					},
-				},
-			],
-		});
+		expect(parseNdjson(stdout.output())).toEqual([
+			{ status: "pending", proposalId: "prop-x7y8z9" },
+			{ status: "offering", offering: talktalkOffering },
+			{ status: "offering", offering: skyOffering },
+			{
+				status: "complete",
+				offerings: [talktalkOffering, skyOffering],
+			},
+		]);
 		expect(stderr.output()).toBe("");
 	});
 
-	it("prints a human-friendly broadband table from offerings", async () => {
+	it("streams travel offerings as ndjson events in json mode", async () => {
+		const travel = createTravelResult();
+		const [admiralOffering, avivaOffering] = travel.offerings;
+		await using home = await seedHomeWithResult("travel", travel);
+		const stdout = createWritable(false);
+		const stderr = createWritable();
+
+		const exitCode = await runCli(
+			["results", "get", "--proposal=prop-t1", "--json"],
+			{
+				homeDirectory: home.homeDirectory,
+				now: () => new Date("2026-03-07T16:00:00Z"),
+				sleep: async () => {},
+				stdout: stdout.stream,
+				stderr: stderr.stream,
+			},
+		);
+
+		expect(exitCode).toBe(0);
+		expect(parseNdjson(stdout.output())).toEqual([
+			{ status: "pending", proposalId: "prop-t1" },
+			{ status: "offering", offering: avivaOffering },
+			{ status: "offering", offering: admiralOffering },
+			{
+				status: "complete",
+				offerings: [avivaOffering, admiralOffering],
+			},
+		]);
+	});
+
+	it("progressively renders broadband rows in human mode", async () => {
 		await using home = await seedHomeWithResult(
 			"broadband",
 			createBroadbandResult(),
@@ -255,21 +244,29 @@ describe("results get", () => {
 			{
 				homeDirectory: home.homeDirectory,
 				now: () => new Date("2026-03-07T16:00:00Z"),
+				sleep: async () => {},
 				stdout: stdout.stream,
 				stderr: stderr.stream,
 			},
 		);
 
 		expect(exitCode).toBe(0);
-		expect(stdout.output()).toContain("Results for proposal prop-x7y8z9");
-		expect(stdout.output()).toContain("TalkTalk");
-		expect(stdout.output()).toContain("Sky");
-		expect(stdout.output()).toContain("£26.00/mo");
-		expect(stdout.output()).toContain("2 offerings sorted by price");
+		expect(stdout.output()).toBe(
+			[
+				"Results for proposal prop-x7y8z9 (broadband)",
+				"",
+				"  Provider    Plan             Speed     Price       Contract   Setup",
+				"  TalkTalk    Fibre 65         67Mbps    £26.00/mo   18 months  Free",
+				"  Sky         Superfast 80     80Mbps    £33.00/mo   18 months  Free",
+				"",
+				"2 offerings sorted by price (lowest first)",
+				"",
+			].join("\n"),
+		);
 		expect(stderr.output()).toBe("");
 	});
 
-	it("prints a travel-specific human-friendly table from offerings", async () => {
+	it("progressively renders travel rows in human mode", async () => {
 		await using home = await seedHomeWithResult("travel", createTravelResult());
 		const stdout = createWritable(true);
 		const stderr = createWritable();
@@ -277,18 +274,161 @@ describe("results get", () => {
 		const exitCode = await runCli(["results", "get", "--proposal=prop-t1"], {
 			homeDirectory: home.homeDirectory,
 			now: () => new Date("2026-03-07T16:00:00Z"),
+			sleep: async () => {},
 			stdout: stdout.stream,
 			stderr: stderr.stream,
 		});
 
 		expect(exitCode).toBe(0);
-		expect(stdout.output()).toContain("Results for proposal prop-t1 (travel)");
-		expect(stdout.output()).toContain("Single Trip Standard");
-		expect(stdout.output()).toContain("single");
-		expect(stdout.output()).toContain("£12.50");
-		expect(stdout.output()).toContain("2 offerings sorted by price");
-		expect(stdout.output()).not.toContain("Speed");
+		expect(stdout.output()).toBe(
+			[
+				"Results for proposal prop-t1 (travel)",
+				"",
+				"  Provider    Plan                   Cover       Price       Excess",
+				"  Aviva       Single Trip Standard   single      £12.50      £100.00",
+				"  Admiral     Annual Gold            annual      £18.75      £75.00",
+				"",
+				"2 offerings sorted by price (lowest first)",
+				"",
+			].join("\n"),
+		);
 		expect(stderr.output()).toBe("");
+	});
+
+	it("sorts offerings by price descending when --sort=price-desc", async () => {
+		await using home = await seedHomeWithResult(
+			"broadband",
+			createBroadbandResult(),
+		);
+		const stdout = createWritable(true);
+		const stderr = createWritable();
+
+		const exitCode = await runCli(
+			["results", "get", "--proposal=prop-x7y8z9", "--sort=price-desc"],
+			{
+				homeDirectory: home.homeDirectory,
+				now: () => new Date("2026-03-07T16:00:00Z"),
+				sleep: async () => {},
+				stdout: stdout.stream,
+				stderr: stderr.stream,
+			},
+		);
+
+		expect(exitCode).toBe(0);
+		expect(stdout.output()).toBe(
+			[
+				"Results for proposal prop-x7y8z9 (broadband)",
+				"",
+				"  Provider    Plan             Speed     Price       Contract   Setup",
+				"  Sky         Superfast 80     80Mbps    £33.00/mo   18 months  Free",
+				"  TalkTalk    Fibre 65         67Mbps    £26.00/mo   18 months  Free",
+				"",
+				"2 offerings sorted by price (highest first)",
+				"",
+			].join("\n"),
+		);
+		expect(stderr.output()).toBe("");
+	});
+
+	it("sorts offerings by provider name when --sort=provider", async () => {
+		await using home = await seedHomeWithResult(
+			"broadband",
+			createBroadbandResult(),
+		);
+		const stdout = createWritable(true);
+		const stderr = createWritable();
+
+		const exitCode = await runCli(
+			["results", "get", "--proposal=prop-x7y8z9", "--sort=provider"],
+			{
+				homeDirectory: home.homeDirectory,
+				now: () => new Date("2026-03-07T16:00:00Z"),
+				sleep: async () => {},
+				stdout: stdout.stream,
+				stderr: stderr.stream,
+			},
+		);
+
+		expect(exitCode).toBe(0);
+		expect(stdout.output()).toBe(
+			[
+				"Results for proposal prop-x7y8z9 (broadband)",
+				"",
+				"  Provider    Plan             Speed     Price       Contract   Setup",
+				"  Sky         Superfast 80     80Mbps    £33.00/mo   18 months  Free",
+				"  TalkTalk    Fibre 65         67Mbps    £26.00/mo   18 months  Free",
+				"",
+				"2 offerings sorted by provider (A\u2013Z)",
+				"",
+			].join("\n"),
+		);
+		expect(stderr.output()).toBe("");
+	});
+
+	it("applies --sort to ndjson offering and complete events", async () => {
+		const broadband = createBroadbandResult();
+		const [skyOffering, talktalkOffering] = broadband.offerings;
+		await using home = await seedHomeWithResult("broadband", broadband);
+		const stdout = createWritable(false);
+		const stderr = createWritable();
+
+		const exitCode = await runCli(
+			[
+				"results",
+				"get",
+				"--proposal=prop-x7y8z9",
+				"--json",
+				"--sort=price-desc",
+			],
+			{
+				homeDirectory: home.homeDirectory,
+				now: () => new Date("2026-03-07T16:00:00Z"),
+				sleep: async () => {},
+				stdout: stdout.stream,
+				stderr: stderr.stream,
+			},
+		);
+
+		expect(exitCode).toBe(0);
+		expect(parseNdjson(stdout.output())).toEqual([
+			{ status: "pending", proposalId: "prop-x7y8z9" },
+			{ status: "offering", offering: skyOffering },
+			{ status: "offering", offering: talktalkOffering },
+			{
+				status: "complete",
+				offerings: [skyOffering, talktalkOffering],
+			},
+		]);
+		expect(stderr.output()).toBe("");
+	});
+
+	it("calls sleep with delay values between offerings", async () => {
+		await using home = await seedHomeWithResult(
+			"broadband",
+			createBroadbandResult(),
+		);
+		const stdout = createWritable(false);
+		const stderr = createWritable();
+		const sleepCalls: number[] = [];
+
+		const exitCode = await runCli(
+			["results", "get", "--proposal=prop-x7y8z9", "--json"],
+			{
+				homeDirectory: home.homeDirectory,
+				now: () => new Date("2026-03-07T16:00:00Z"),
+				sleep: async (ms) => {
+					sleepCalls.push(ms);
+				},
+				stdout: stdout.stream,
+				stderr: stderr.stream,
+			},
+		);
+
+		expect(exitCode).toBe(0);
+		for (const ms of sleepCalls) {
+			expect(ms).toBeGreaterThanOrEqual(0);
+			expect(ms).toBeLessThanOrEqual(20_000);
+		}
 	});
 
 	it("returns a structured error when the local data store is corrupted", async () => {
@@ -325,6 +465,7 @@ describe("results get", () => {
 	});
 
 	it("returns a structured error when the data store path is a directory", async () => {
+		const { mkdir } = await import("node:fs/promises");
 		await using home = await createTempHome();
 		await home.writeMeridianFile("credentials.json", {
 			accessToken: "access-token",

@@ -393,33 +393,47 @@ If the Proposal Request does not exist, the CLI returns exit code `1` and report
 
 ### `meridian results get`
 
-Returns the stored Result for a Proposal.
+Returns the stored Result for a Proposal. Offerings are streamed back progressively, simulating providers responding at different speeds.
 
 ```bash
 meridian results get --proposal=prop-x7y8z9ab
+meridian results get --proposal=prop-x7y8z9ab --sort=price-desc
 meridian results get --proposal=prop-x7y8z9ab --json
 ```
 
 Options:
 
 - `--proposal <id>`: Proposal identifier
-- `--json`: emit the full Result as JSON
+- `--sort <order>`: Sort order for offerings — `price-asc` (default), `price-desc`, or `provider`
+- `--json`: emit newline-delimited JSON events instead of human-readable progress output
 
 Behaviour:
 
 - requires a valid authenticated session
 - loads the Proposal and Result from `~/.meridian/data.json`
-- sorts offerings so the cheapest available option is shown first
+- streams offerings back one at a time with randomised artificial delays (0–20 seconds per offering), simulating real provider response times
+- offerings are sorted according to `--sort` (defaults to cheapest first)
 
 JSON output:
 
-- returns the full stored Result entity
-- includes `offerings[]` with provider, pricing, and product-specific metadata
+Emits newline-delimited JSON events, similar to `meridian auth login --json`:
+
+- first line: a `pending` event signalling the lookup has started
+- subsequent lines: `offering` events, each containing a single offering as it arrives
+- final line: a `complete` event containing the full sorted offerings array
+
+```json
+{"status":"pending","proposalId":"prop-x7y8z9ab"}
+{"status":"offering","offering":{"providerName":"TalkTalk","brandName":"Fibre 65","brandCode":"talktalk-fibre-65","pricing":{...},"metadata":{...}}}
+{"status":"offering","offering":{"providerName":"Sky","brandName":"Superfast 80","brandCode":"sky-superfast-80","pricing":{...},"metadata":{...}}}
+{"status":"complete","offerings":[...all offerings in chosen sort order...]}
+```
 
 Human-readable output:
 
-- presents the same Result as a table
-- formats columns according to the Product being viewed
+- prints the table header immediately
+- appends each offering row as it arrives
+- prints a summary count once all offerings have been received
 
 If the Proposal or Result cannot be found, the CLI returns exit code `1` and reports the missing identifier on stderr.
 
