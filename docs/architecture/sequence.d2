@@ -1,0 +1,92 @@
+shape: sequence_diagram
+
+user: User {
+  icon: https://icons.terrastruct.com/essentials%2F359-users.svg
+}
+chat: Chat UI {
+  icon: https://cdn.simpleicons.org/googlechrome
+}
+api: API Server {
+  icon: https://cdn.simpleicons.org/hono
+}
+agent: LangGraph Agent {
+  icon: https://cdn.simpleicons.org/langchain
+}
+openai: OpenAI {
+  icon: https://cdn.simpleicons.org/openai
+}
+sandbox: Docker Sandbox {
+  icon: https://cdn.simpleicons.org/docker
+}
+keycloak: Keycloak {
+  icon: https://cdn.simpleicons.org/letsencrypt
+}
+
+# User sends a chat message
+user -> chat: sends message
+chat -> api: POST /chat (NDJSON stream)
+
+# API hands off to the agent
+api -> agent: invoke agent
+
+Agent reasoning: {
+  agent -> openai: inference request {
+    style.stroke-dash: 3
+  }
+  openai -> agent: tool calls + reasoning {
+    style.stroke-dash: 3
+  }
+}
+
+# Agent executes tool calls in sandbox
+Tool execution: {
+  agent -> sandbox: exec command
+  sandbox -> agent: stdout / stderr
+}
+
+# Agent may loop back for more reasoning
+agent -> openai: follow-up inference {
+  style.stroke-dash: 3
+}
+openai -> agent: final response {
+  style.stroke-dash: 3
+}
+
+# Results stream back to user
+agent -> api: agent output
+api -> chat: NDJSON event stream {
+  style.animated: true
+}
+chat -> user: renders response
+
+# OAuth device flow (first-time CLI auth)
+OAuth device flow: {
+  style.fill: "#f9f4ee"
+
+  sandbox -> agent: login required + device URL {
+    style.stroke-dash: 3
+  }
+  agent -> api: response includes login URL
+  api -> chat: NDJSON event stream {
+    style.animated: true
+  }
+  chat -> user: presents login URL
+
+  user -> keycloak: authenticates {
+    style.stroke-dash: 3
+  }
+  keycloak -> user: grants access {
+    style.stroke-dash: 3
+  }
+}
+
+# Next turn — agent checks auth status
+user -> chat: sends next message
+chat -> api: POST /chat (NDJSON stream)
+api -> agent: invoke agent
+agent -> sandbox: check auth status {
+  style.stroke-dash: 3
+}
+sandbox -> agent: authenticated {
+  style.stroke-dash: 3
+}
