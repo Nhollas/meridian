@@ -75,13 +75,13 @@ export const createAgentService: CreateAgentService = ({
 			let currentGeneration = "";
 
 			try {
-				const stream = await runner.streamTurn({
+				const { chunks, getCompleteResponse } = await runner.streamTurn({
 					message,
 					sessionId,
 					recursionLimit,
 				});
 
-				for await (const chunk of stream) {
+				for await (const chunk of chunks) {
 					if (chunk.mode === "messages") {
 						if (chunk.messageType !== "ai") {
 							continue;
@@ -138,6 +138,22 @@ export const createAgentService: CreateAgentService = ({
 					};
 					observedToolCalls.set(toolCall.id, toolCall);
 					await onEvent?.({ toolCall, type: "tool-call" });
+				}
+
+				if (!currentGeneration.trim()) {
+					console.log(
+						"[streaming-recovery] No streamed tokens, calling getCompleteResponse for session",
+						sessionId,
+					);
+					const recovered = await getCompleteResponse();
+					console.log(
+						"[streaming-recovery] getCompleteResponse returned:",
+						recovered ? `"${recovered.slice(0, 80)}..."` : "undefined",
+					);
+					if (recovered) {
+						currentGeneration = recovered;
+						await onEvent?.({ text: recovered, type: "text-delta" });
+					}
 				}
 
 				return {

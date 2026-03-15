@@ -145,12 +145,22 @@ export function createChatRoute({
 
 				eventBus.publish(completedSessionId, bgEvent);
 
+				console.log(
+					"[re-engagement] Background command completed for session",
+					completedSessionId,
+					"- scheduling re-engagement turn",
+				);
+
 				// Defer re-engagement into a clean event loop iteration.
 				// The onComplete callback fires inside a .then() on the child
 				// process completion promise. Running the LLM stream in the same
 				// microtask chain causes "Controller is already closed" errors
 				// inside LangGraph's streaming internals.
 				setTimeout(() => {
+					console.log(
+						"[re-engagement] Executing re-engagement for session",
+						completedSessionId,
+					);
 					const syntheticMessage = `Background command ${result.backgroundCommandId} (\`${result.command.join(" ")}\`) ${result.status}. Exit code: ${result.exitCode}. Output: ${result.stdout || result.stderr}`;
 					const reengagementService = createAgentServiceForSession();
 					enqueueTurn(completedSessionId, () =>

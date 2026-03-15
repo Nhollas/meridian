@@ -3,6 +3,7 @@ import { MemorySaver } from "@langchain/langgraph";
 import { ChatOpenAI } from "@langchain/openai";
 import { createAgent } from "langchain";
 import { systemPrompt } from "../system-prompt";
+import { extractTextContent } from "./tools";
 
 const MAX_ITERATIONS = 20;
 
@@ -38,12 +39,17 @@ export type AgentRunnerChunk =
 			toolCallId?: string;
 	  };
 
+export type StreamTurnResult = {
+	chunks: AsyncIterable<AgentRunnerChunk>;
+	getCompleteResponse: () => Promise<string | undefined>;
+};
+
 export interface AgentRunner {
 	streamTurn(params: {
 		message: string;
 		recursionLimit?: number | undefined;
 		sessionId: string;
-	}): Promise<AsyncIterable<AgentRunnerChunk>>;
+	}): Promise<StreamTurnResult>;
 }
 
 export type CreateAgentRunner = (params: {
@@ -63,60 +69,98 @@ export const createLangChainAgentRunner: CreateAgentRunner = ({ tools }) => {
 
 	return {
 		async streamTurn({ message, sessionId, recursionLimit }) {
+			// Use streamMode "updates" to avoid LangGraph's internal
+			// StreamMessagesHandler and StreamToolsHandler, which both suffer
+			// from a TransformStream controller race condition
+			// (ERR_INVALID_STATE: Controller is already closed) when
+			// resuming from a completed checkpoint. The "updates" mode
+			// yields state diffs directly from the graph execution loop
+			// without callback-based TransformStream controllers.
 			const stream = await agent.stream(
 				{ messages: [new HumanMessage(message)] },
 				{
 					configurable: { thread_id: sessionId },
 					recursionLimit: recursionLimit ?? MAX_ITERATIONS,
-					streamMode: ["messages", "tools"],
+					streamMode: ["updates"],
 				},
 			);
 
-			return (async function* () {
-				for await (const [mode, chunk] of stream) {
-					if (mode === "messages") {
-						const [messageChunk] = chunk;
-						yield {
-							content: messageChunk.content,
-							messageType: messageChunk.type,
-							mode: "messages",
-						} satisfies AgentRunnerChunk;
-						continue;
-					}
+			return {
+				chunks: (async function* () {
+					for await (const [, update] of stream) {
+						// Each update is { [nodeName]: nodeOutput }.
+						// Agent node output contains the AI message (text + tool calls).
+						// Tools node output contains tool result messages.
+						for (const nodeOutput of Object.values(update)) {
+							// biome-ignore lint: LangGraph state updates are untyped
+							const msgs = (nodeOutput as any)?.messages;
+							if (!Array.isArray(msgs)) continue;
 
-					if (chunk.event === "on_tool_start") {
-						yield {
-							event: "start",
-							input: chunk.input,
-							mode: "tools",
-							name: chunk.name,
-							...(chunk.toolCallId ? { toolCallId: chunk.toolCallId } : {}),
-						} satisfies AgentRunnerChunk;
-						continue;
-					}
+							for (const msg of msgs) {
+								// biome-ignore lint: LangChain message types are untyped
+								const m = msg as any;
+								const type =
+									typeof m?._getType === "function" ? m._getType() : m?.type;
 
-					if (chunk.event === "on_tool_end") {
-						yield {
-							event: "end",
-							mode: "tools",
-							name: chunk.name,
-							output: chunk.output,
-							...(chunk.toolCallId ? { toolCallId: chunk.toolCallId } : {}),
-						} satisfies AgentRunnerChunk;
-						continue;
-					}
+								if (type === "ai") {
+									// Yield tool-started events for each tool call
+									const toolCalls = m.tool_calls ?? [];
+									for (const tc of toolCalls) {
+										yield {
+											event: "start",
+											input: tc.args,
+											mode: "tools",
+											name: tc.name,
+											...(tc.id ? { toolCallId: tc.id } : {}),
+										} satisfies AgentRunnerChunk;
+									}
 
-					if (chunk.event === "on_tool_error") {
-						yield {
-							error: chunk.error,
-							event: "error",
-							mode: "tools",
-							name: chunk.name,
-							...(chunk.toolCallId ? { toolCallId: chunk.toolCallId } : {}),
-						} satisfies AgentRunnerChunk;
+									// Yield text content (if any)
+									const text = extractTextContent(m.content);
+									if (text) {
+										yield {
+											content: m.content,
+											messageType: "ai",
+											mode: "messages",
+										} satisfies AgentRunnerChunk;
+									}
+								}
+
+								if (type === "tool") {
+									yield {
+										event: "end",
+										mode: "tools",
+										name: m.name,
+										output: m.content,
+										...(m.tool_call_id ? { toolCallId: m.tool_call_id } : {}),
+									} satisfies AgentRunnerChunk;
+								}
+							}
+						}
 					}
-				}
-			})();
+				})(),
+				async getCompleteResponse() {
+					try {
+						const state = (await agent.getState({
+							configurable: { thread_id: sessionId },
+						})) as { values?: { messages?: unknown[] } };
+						const messages = state?.values?.messages;
+						if (!Array.isArray(messages)) return undefined;
+						for (let i = messages.length - 1; i >= 0; i--) {
+							// biome-ignore lint: LangChain message types are untyped here
+							const m = messages[i] as any;
+							const type =
+								typeof m?._getType === "function" ? m._getType() : m?.type;
+							if (type === "ai") {
+								return extractTextContent(m.content) || undefined;
+							}
+						}
+						return undefined;
+					} catch {
+						return undefined;
+					}
+				},
+			};
 		},
 	};
 };
