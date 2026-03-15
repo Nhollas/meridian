@@ -10,6 +10,12 @@ Messages go from the chat UI to the API, which runs a LangGraph agent. The agent
   <img src="docs/architecture/current.svg" alt="Current architecture" />
 </p>
 
+### Request lifecycle
+
+<p align="center">
+  <img src="docs/architecture/sequence.svg" alt="Request lifecycle sequence diagram" />
+</p>
+
 ## Getting started
 
 ### Prerequisites
