@@ -9,14 +9,7 @@ import { DebugToolbar } from "./debug-toolbar";
 import { ThemeToggle } from "./theme-toggle";
 
 export function Chat() {
-	const {
-		messages,
-		sendMessage,
-		isPending,
-		sessionId,
-		debugStreamDelayMs,
-		toggleDebugStreamDelay,
-	} = useChat();
+	const { messages, sendMessage, isPending, sessionId } = useChat();
 	const { scrollRef, handleScroll, enableAutoScroll } = useAutoScroll(messages);
 	const [showDebug, setShowDebug] = useState(false);
 
@@ -67,14 +60,7 @@ export function Chat() {
 				</div>
 			</header>
 
-			{showDebug && (
-				<DebugToolbar
-					messages={messages}
-					sessionId={sessionId}
-					debugStreamDelayMs={debugStreamDelayMs}
-					onToggleDebugStreamDelay={toggleDebugStreamDelay}
-				/>
-			)}
+			{showDebug && <DebugToolbar messages={messages} sessionId={sessionId} />}
 
 			<div
 				ref={scrollRef}

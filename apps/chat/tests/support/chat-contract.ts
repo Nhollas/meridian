@@ -5,8 +5,6 @@ import {
 } from "@meridian/contracts/runtime-events";
 import { HttpResponse } from "msw";
 
-const encoder = new TextEncoder();
-
 export function createChatEventFactory({
 	sessionId = "session-123",
 	turnId = "turn-123",
@@ -24,13 +22,21 @@ export function createChatEventFactory({
 	});
 }
 
-export function createChatStreamResponse(events: RuntimeEventEnvelope[]) {
+export function createChatAcceptedResponse(turnId: string) {
+	return HttpResponse.json({ turnId }, { status: 202 });
+}
+
+export function createSSEStreamResponse(events: RuntimeEventEnvelope[]) {
+	const encoder = new TextEncoder();
+
 	return new HttpResponse(
 		new ReadableStream({
 			start(controller) {
 				for (const event of events) {
 					controller.enqueue(
-						encoder.encode(`${serializeRuntimeEventEnvelope(event)}\n`),
+						encoder.encode(
+							`id:${event.id}\ndata:${serializeRuntimeEventEnvelope(event)}\n\n`,
+						),
 					);
 				}
 				controller.close();
@@ -38,14 +44,17 @@ export function createChatStreamResponse(events: RuntimeEventEnvelope[]) {
 		}),
 		{
 			headers: {
-				"Content-Type": "application/x-ndjson; charset=utf-8",
+				"Content-Type": "text/event-stream",
+				"Cache-Control": "no-cache",
+				Connection: "keep-alive",
 			},
 		},
 	);
 }
 
-export function createControllableChatStream() {
+export function createControllableSSEStream() {
 	let controller: ReadableStreamDefaultController<Uint8Array> | null = null;
+	const encoder = new TextEncoder();
 
 	return {
 		response: new HttpResponse(
@@ -56,7 +65,9 @@ export function createControllableChatStream() {
 			}),
 			{
 				headers: {
-					"Content-Type": "application/x-ndjson; charset=utf-8",
+					"Content-Type": "text/event-stream",
+					"Cache-Control": "no-cache",
+					Connection: "keep-alive",
 				},
 			},
 		),
@@ -65,11 +76,13 @@ export function createControllableChatStream() {
 		},
 		emit(event: RuntimeEventEnvelope) {
 			if (!controller) {
-				throw new Error("Chat stream controller was not initialized");
+				throw new Error("SSE stream controller was not initialized");
 			}
 
 			controller.enqueue(
-				encoder.encode(`${serializeRuntimeEventEnvelope(event)}\n`),
+				encoder.encode(
+					`id:${event.id}\ndata:${serializeRuntimeEventEnvelope(event)}\n\n`,
+				),
 			);
 		},
 	};

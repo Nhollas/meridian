@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
 	createChatRequest,
 	getParsedToolOutput,
-	readRuntimeEvents,
 } from "../../tests/support/chat-route";
 import { createInMemorySandboxRuntime } from "../../tests/support/in-memory-runtime";
 import {
@@ -13,7 +12,7 @@ import {
 	toolFailed,
 	toolStarted,
 } from "../../tests/support/scripted-agent-runner";
-import { createTestPost } from "./chat.integration-support";
+import { createTestChat } from "./chat.integration-support";
 
 describe("POST /api/chat integration - runtime files", () => {
 	it("lists directory contents through tool events and the final turn timeline", async () => {
@@ -37,16 +36,20 @@ describe("POST /api/chat integration - runtime files", () => {
 			});
 			yield assistantText("I listed the workspace files.");
 		});
-		const POST = createTestPost({ createRunner, runtime });
+		const { POST, collectTurnEvents } = createTestChat({
+			createRunner,
+			runtime,
+		});
 
-		const events = await readRuntimeEvents(
-			await POST(
-				createChatRequest({
-					message: "List the workspace",
-					sessionId: "session-files",
-				}),
-			),
+		const eventsPromise = collectTurnEvents("session-files");
+		await POST(
+			createChatRequest({
+				message: "List the workspace",
+				sessionId: "session-files",
+			}),
 		);
+		const events = await eventsPromise;
+
 		expect(getParsedToolOutput(events, "list_directory")).toEqual([
 			{
 				name: "offers.json",
@@ -130,24 +133,28 @@ describe("POST /api/chat integration - runtime files", () => {
 			});
 			yield assistantText(`Read back: ${output}`);
 		});
-		const POST = createTestPost({ createRunner, runtime });
+		const { POST, collectTurnEvents } = createTestChat({
+			createRunner,
+			runtime,
+		});
 
-		const writeTurn = await readRuntimeEvents(
-			await POST(
-				createChatRequest({
-					message: "Save note",
-					sessionId: "session-files",
-				}),
-			),
+		const writeEventsPromise = collectTurnEvents("session-files");
+		await POST(
+			createChatRequest({
+				message: "Save note",
+				sessionId: "session-files",
+			}),
 		);
-		const readTurn = await readRuntimeEvents(
-			await POST(
-				createChatRequest({
-					message: "Read note",
-					sessionId: "session-files",
-				}),
-			),
+		const writeTurn = await writeEventsPromise;
+
+		const readEventsPromise = collectTurnEvents("session-files");
+		await POST(
+			createChatRequest({
+				message: "Read note",
+				sessionId: "session-files",
+			}),
 		);
+		const readTurn = await readEventsPromise;
 
 		expect(writeTurn.at(-1)).toMatchObject({
 			sessionId: "session-files",
@@ -262,16 +269,19 @@ describe("POST /api/chat integration - runtime files", () => {
 				yield assistantText("That path is outside the session workspace.");
 			}
 		});
-		const POST = createTestPost({ createRunner, runtime });
+		const { POST, collectTurnEvents } = createTestChat({
+			createRunner,
+			runtime,
+		});
 
-		const events = await readRuntimeEvents(
-			await POST(
-				createChatRequest({
-					message: "Read ../secrets.txt",
-					sessionId: "session-files",
-				}),
-			),
+		const eventsPromise = collectTurnEvents("session-files");
+		await POST(
+			createChatRequest({
+				message: "Read ../secrets.txt",
+				sessionId: "session-files",
+			}),
 		);
+		const events = await eventsPromise;
 
 		expect(events).toEqual([
 			expect.objectContaining({

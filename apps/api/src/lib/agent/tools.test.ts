@@ -90,6 +90,7 @@ describe("createRuntimeAgentTools", () => {
 			"inspect_background_command",
 			"wait_for_background_command",
 			"terminate_background_command",
+			"await_background_completion",
 			"list_directory",
 			"read_file",
 			"write_file",

@@ -81,6 +81,12 @@ describe("runtime event contracts", () => {
 				error: "agent exploded",
 			},
 		},
+		{
+			type: "turn.interrupted",
+			payload: {
+				commandId: "bg-1",
+			},
+		},
 	] satisfies RuntimeEventFixture[])("serializes and parses %s events", (event) => {
 		const serialized = serializeRuntimeEventEnvelope({
 			...baseEvent,

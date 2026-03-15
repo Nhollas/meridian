@@ -1,8 +1,8 @@
 import { HttpResponse, http } from "msw";
 import { describe } from "vitest";
 import {
+	createChatAcceptedResponse,
 	createChatEventFactory,
-	createControllableChatStream,
 } from "../../tests/support/chat-contract";
 import { test } from "../../tests/support/chat-page-fixture";
 import { browserWorker, withJsonBody } from "../../tests/support/msw";
@@ -33,26 +33,35 @@ describe("Chat UI - error handling", () => {
 		await chatPage.expectInterruptedState();
 	});
 
-	test("keeps partial streamed content visible when the stream ends before completion", async ({
+	test("keeps partial streamed content visible when the turn fails via SSE", async ({
 		chatPage,
+		sseStream,
 	}) => {
-		const stream = createControllableChatStream();
 		const eventFactory = createChatEventFactory();
 
 		browserWorker.use(
 			http.post(
 				"http://localhost:3201/api/chat",
-				withJsonBody({ message: "Start login" }, () => stream.response),
+				withJsonBody({ message: "Start login" }, () => {
+					setTimeout(() => {
+						sseStream.emit(
+							eventFactory.create("assistant.delta", {
+								delta:
+									"Authentication started. Open the login URL in your browser.",
+							}),
+						);
+						sseStream.emit(
+							eventFactory.create("turn.failed", {
+								error: "device flow requires user interaction",
+							}),
+						);
+					});
+					return createChatAcceptedResponse("turn-123");
+				}),
 			),
 		);
 
 		await chatPage.sendMessage("Start login");
-		stream.emit(
-			eventFactory.create("assistant.delta", {
-				delta: "Authentication started. Open the login URL in your browser.",
-			}),
-		);
-		stream.close();
 
 		await chatPage.expectAssistantResponse(
 			"Authentication started. Open the login URL in your browser.",

@@ -84,6 +84,17 @@ const runtimeEventEnvelopeSchema = z.discriminatedUnion("type", [
 		turnId: z.string().min(1),
 		type: z.literal("turn.failed"),
 	}),
+	z.object({
+		id: z.string().min(1),
+		payload: z.object({
+			commandId: z.string().min(1),
+		}),
+		sequence: z.number().int().positive(),
+		sessionId: z.string().min(1),
+		timestamp: timestampSchema,
+		turnId: z.string().min(1),
+		type: z.literal("turn.interrupted"),
+	}),
 ]);
 
 export type RuntimeEventEnvelope = z.infer<typeof runtimeEventEnvelopeSchema>;

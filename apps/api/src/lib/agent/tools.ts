@@ -1,3 +1,4 @@
+import { interrupt } from "@langchain/langgraph";
 import { tool } from "langchain";
 import { z } from "zod";
 import type { SandboxRuntime } from "@/lib/sandbox/runtime";
@@ -124,6 +125,26 @@ export function createRuntimeAgentTools({ runtime, sessionId }: ToolContext) {
 					"Terminate a running background command and return its final buffered output.",
 				schema: z.object({
 					commandId: z.string().min(1).describe("Background command ID"),
+				}),
+			},
+		),
+		tool(
+			async (input: { commandId: string }) => {
+				const result = interrupt({
+					type: "await_background",
+					commandId: input.commandId,
+				});
+				return JSON.stringify(result);
+			},
+			{
+				name: "await_background_completion",
+				description:
+					"Pause the agent and wait for a background command to complete. Use this for long-running external actions like auth flows or CI watches where the user is waiting on an external action. The agent will be resumed automatically with the command result.",
+				schema: z.object({
+					commandId: z
+						.string()
+						.min(1)
+						.describe("Background command ID to wait for"),
 				}),
 			},
 		),
