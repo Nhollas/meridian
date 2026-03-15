@@ -4,6 +4,7 @@ import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 import type { SandboxConfig } from "./config";
 import type {
+	BackgroundCommandCompleteCallback,
 	SandboxBackgroundCommand,
 	SandboxBackgroundCommandSnapshot,
 	SandboxBackgroundCommandStatus,
@@ -119,6 +120,7 @@ export function createDockerRuntime(config: SandboxConfig): SandboxRuntime {
 		sessionId: string,
 		command: string[],
 		handle: BackgroundCommandHandle,
+		onComplete?: BackgroundCommandCompleteCallback,
 	) {
 		const record: BackgroundCommandRecord = {
 			...handle,
@@ -139,6 +141,10 @@ export function createDockerRuntime(config: SandboxConfig): SandboxRuntime {
 				: result.exitCode === 0
 					? "completed"
 					: "failed";
+
+			if (onComplete && !record.terminationRequested) {
+				onComplete(toBackgroundCommandSnapshot(record));
+			}
 		});
 
 		return record;
@@ -384,6 +390,7 @@ export function createDockerRuntime(config: SandboxConfig): SandboxRuntime {
 					sessionId,
 					command,
 					backgroundHandle,
+					options.onComplete,
 				);
 				backgroundHandle.child.unref();
 
