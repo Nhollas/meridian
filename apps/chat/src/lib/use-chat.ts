@@ -129,8 +129,36 @@ export function useChat() {
 
 	const handleSSEEvent = useCallback(
 		(event: RuntimeEventEnvelope) => {
-			const turn = activeTurnsRef.current.get(event.turnId);
-			if (!turn) return;
+			let turn = activeTurnsRef.current.get(event.turnId);
+
+			if (!turn) {
+				// Only auto-create for events that represent an assistant turn.
+				// Background events (background.completed/failed) are informational
+				// and don't produce assistant messages.
+				if (
+					event.type === "background.completed" ||
+					event.type === "background.failed"
+				) {
+					return;
+				}
+
+				// Server-initiated turn (e.g. re-engagement after background command).
+				// Auto-create an assistant message so the content is displayed.
+				const assistantMessage = createMessage("assistant", "", {
+					status: "streaming",
+					toolCalls: [],
+				});
+
+				turn = {
+					assistantMessageId: assistantMessage.id,
+					content: "",
+					toolCalls: [],
+					frameId: null,
+				};
+
+				activeTurnsRef.current.set(event.turnId, turn);
+				setMessages((prev) => [...prev, assistantMessage]);
+			}
 
 			processEvent(event, turn);
 		},
