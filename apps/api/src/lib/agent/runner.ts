@@ -51,9 +51,9 @@ export type CreateAgentRunner = (params: {
 }) => AgentRunner;
 
 const checkpointer = new MemorySaver();
-const model = new ChatOpenAI({ model: "gpt-5.4" });
 
 export const createLangChainAgentRunner: CreateAgentRunner = ({ tools }) => {
+	const model = new ChatOpenAI({ model: "gpt-5.4" });
 	const agent = createAgent({
 		checkpointer,
 		model,
