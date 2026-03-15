@@ -10,7 +10,6 @@ import {
 	mapAgentProgressEventToRuntimeEvent,
 	mapAgentResultToRuntimeEvent,
 	mapErrorToRuntimeEvent,
-	mapInterruptToRuntimeEvent,
 } from "@/lib/runtime-events/agent-mappers";
 import type { SandboxRuntime } from "@/lib/sandbox/runtime";
 import { getSandboxRuntime } from "@/lib/sandbox/singleton";
@@ -96,35 +95,6 @@ export function createChatRoute({
 					sessionId,
 					onEvent,
 				});
-
-				if (response.interrupted) {
-					const { commandId } = response.interrupted;
-
-					await registry.writeEvent(
-						sessionId,
-						mapInterruptToRuntimeEvent(eventFactory, commandId),
-					);
-
-					const waitResult = await runtime.waitForBackgroundCommand(
-						sessionId,
-						commandId,
-					);
-
-					partialContent = "";
-					partialToolCalls = [];
-
-					const resumeResult = await agentService.resumeConversation({
-						sessionId,
-						resumeValue: waitResult,
-						onEvent,
-					});
-
-					await registry.writeEvent(
-						sessionId,
-						mapAgentResultToRuntimeEvent(eventFactory, resumeResult),
-					);
-					return;
-				}
 
 				await registry.writeEvent(
 					sessionId,

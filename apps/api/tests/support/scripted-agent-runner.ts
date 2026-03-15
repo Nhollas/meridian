@@ -1,4 +1,3 @@
-import { GraphInterrupt } from "@langchain/langgraph";
 import type {
 	AgentRunnerChunk,
 	AgentRunnerTools,
@@ -14,44 +13,18 @@ type ScriptedTurn = (params: {
 	| Iterable<AgentRunnerChunk>
 	| Promise<AsyncIterable<AgentRunnerChunk> | Iterable<AgentRunnerChunk>>;
 
-type ResumeScript = (params: {
-	resumeValue: unknown;
-	sessionId: string;
-	tools: AgentRunnerTools;
-}) =>
-	| AsyncIterable<AgentRunnerChunk>
-	| Iterable<AgentRunnerChunk>
-	| Promise<AsyncIterable<AgentRunnerChunk> | Iterable<AgentRunnerChunk>>;
-
 type InvokableTool = {
 	call?: (input: unknown) => Promise<unknown>;
 	func?: (input: unknown) => Promise<unknown>;
 	name: string;
 };
 
-type ScriptedRunnerOptions = {
-	onResume?: ResumeScript;
-};
-
 export function createScriptedAgentRunner(
 	script: ScriptedTurn,
-	options?: ScriptedRunnerOptions,
 ): CreateAgentRunner {
 	return ({ tools }) => ({
 		async streamTurn({ message, sessionId }) {
 			const chunks = await script({ message, sessionId, tools });
-			return toAsyncIterable(chunks);
-		},
-
-		async resumeTurn({ sessionId, resumeValue }) {
-			if (!options?.onResume) {
-				throw new Error("No resume script provided to scripted runner");
-			}
-			const chunks = await options.onResume({
-				resumeValue,
-				sessionId,
-				tools,
-			});
 			return toAsyncIterable(chunks);
 		},
 	});
@@ -83,14 +56,6 @@ export async function invokeTool(
 	}
 
 	throw new Error(`Tool ${name} is not invokable`);
-}
-
-/**
- * Simulate a LangGraph interrupt. Throws GraphInterrupt with the given value,
- * which is what `interrupt()` does inside a real graph context.
- */
-export function simulateInterrupt(value: unknown): never {
-	throw new GraphInterrupt([{ value }]);
 }
 
 export function assistantText(text: string): AgentRunnerChunk {

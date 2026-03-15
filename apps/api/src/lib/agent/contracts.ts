@@ -10,7 +10,6 @@ export interface AgentToolCall {
 
 export interface AgentTurnResult {
 	content: string;
-	interrupted?: { commandId: string };
 	toolCalls: AgentToolCall[];
 }
 

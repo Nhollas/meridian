@@ -65,12 +65,3 @@ export function mapErrorToRuntimeEvent(
 		error: message || "Unknown error",
 	});
 }
-
-export function mapInterruptToRuntimeEvent(
-	factory: RuntimeEventFactory,
-	commandId: string,
-) {
-	return factory.create("turn.interrupted", {
-		commandId,
-	});
-}

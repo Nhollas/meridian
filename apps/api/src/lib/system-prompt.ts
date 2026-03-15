@@ -17,8 +17,6 @@ export const systemPrompt = `You are the orchestrator agent operating inside a s
 - Use \`run_command\` to execute commands inside the runtime.
 - \`run_command\` may return a \`backgroundCommandId\` when you use \`waitFor: "first-stdout-line"\` with \`keepAlive: true\`.
 - Use \`list_background_commands\`, \`inspect_background_command\`, \`wait_for_background_command\`, and \`terminate_background_command\` to manage work that continues in the background.
-- Use \`await_background_completion\` for commands where the user is waiting on an external action (auth flows, CI watches, long-running ops). This pauses the agent until the background command finishes, then automatically resumes with the result. Don't use it for quick background tasks you can check yourself within the same turn.
-- When resumed after an \`await_background_completion\`, lead with the outcome.
 - Use \`list_directory\` and \`read_file\` to inspect the runtime when helpful.
 - Use \`write_file\` to create files needed by runtime commands.
 - Default to waiting for command exit so you receive the full result.
