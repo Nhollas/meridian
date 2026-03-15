@@ -35,7 +35,7 @@ export async function collectTurnEvents(
 	eventBus: SessionEventBus,
 	sessionId: string,
 ): Promise<RuntimeEventEnvelope[]> {
-	const stream = eventBus.subscribe(sessionId);
+	const { stream } = eventBus.subscribe(sessionId);
 	const reader = stream.getReader();
 	const events: RuntimeEventEnvelope[] = [];
 

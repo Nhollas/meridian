@@ -34,7 +34,7 @@ async function collectEvents(
 	eventBus: ReturnType<typeof createSessionEventBus>,
 	sessionId: string,
 ) {
-	const stream = eventBus.subscribe(sessionId);
+	const { stream } = eventBus.subscribe(sessionId);
 	const reader = stream.getReader();
 	const events = [];
 	while (true) {

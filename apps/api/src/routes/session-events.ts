@@ -24,16 +24,23 @@ export function createSessionEventsRoute({
 	return (c: Context) => {
 		const sessionId = c.req.param("id") as string;
 
+		const lastEventId = c.req.header("Last-Event-ID");
+		const { stream: subscription, unsubscribe } = eventBus.subscribe(
+			sessionId,
+			{
+				...(lastEventId ? { lastEventId } : {}),
+			},
+		);
+		const reader = subscription.getReader();
+
 		const stream = new ReadableStream<Uint8Array>({
 			start(controller) {
-				const lastEventId = c.req.header("Last-Event-ID");
-				const subscription = eventBus.subscribe(sessionId, {
-					...(lastEventId ? { lastEventId } : {}),
-				});
-				const reader = subscription.getReader();
-
 				const heartbeat = setInterval(() => {
-					controller.enqueue(encoder.encode(": heartbeat\n\n"));
+					try {
+						controller.enqueue(encoder.encode(": heartbeat\n\n"));
+					} catch {
+						clearInterval(heartbeat);
+					}
 				}, heartbeatIntervalMs);
 
 				void (async () => {
@@ -43,11 +50,22 @@ export function createSessionEventsRoute({
 							if (done) break;
 							controller.enqueue(encoder.encode(formatSSE(value)));
 						}
+					} catch {
+						// Stream cancelled
 					} finally {
 						clearInterval(heartbeat);
-						controller.close();
+						unsubscribe();
+						try {
+							controller.close();
+						} catch {
+							// Already closed
+						}
 					}
 				})();
+			},
+			cancel() {
+				unsubscribe();
+				reader.cancel();
 			},
 		});
 

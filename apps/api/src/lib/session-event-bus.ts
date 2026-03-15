@@ -6,6 +6,11 @@ type SubscribeOptions = {
 	lastEventId?: string | undefined;
 };
 
+type Subscription = {
+	stream: ReadableStream<RuntimeEventEnvelope>;
+	unsubscribe: () => void;
+};
+
 const DEFAULT_MAX_HISTORY_PER_SESSION = 1000;
 
 export type SessionEventBus = ReturnType<typeof createSessionEventBus>;
@@ -51,11 +56,11 @@ export function createSessionEventBus({
 			}
 		},
 
-		subscribe(
-			sessionId: string,
-			options?: SubscribeOptions,
-		): ReadableStream<RuntimeEventEnvelope> {
-			return new ReadableStream<RuntimeEventEnvelope>({
+		subscribe(sessionId: string, options?: SubscribeOptions): Subscription {
+			let subscriber: Subscriber;
+			const subscriberSet = getOrCreateSet(subscribers, sessionId);
+
+			const stream = new ReadableStream<RuntimeEventEnvelope>({
 				start(controller) {
 					if (options?.lastEventId) {
 						const history = eventHistory.get(sessionId) ?? [];
@@ -69,13 +74,26 @@ export function createSessionEventBus({
 						}
 					}
 
-					const subscriber: Subscriber = (event) => {
-						controller.enqueue(event);
+					subscriber = (event) => {
+						try {
+							controller.enqueue(event);
+						} catch {
+							// Controller closed — remove this subscriber
+							subscriberSet.delete(subscriber);
+						}
 					};
 
-					getOrCreateSet(subscribers, sessionId).add(subscriber);
+					subscriberSet.add(subscriber);
+				},
+				cancel() {
+					subscriberSet.delete(subscriber);
 				},
 			});
+
+			return {
+				stream,
+				unsubscribe: () => subscriberSet.delete(subscriber),
+			};
 		},
 	};
 }

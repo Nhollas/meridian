@@ -15,7 +15,7 @@ describe("SessionEventBus", () => {
 		const bus = createSessionEventBus();
 		const event = createTestEvent("session-1");
 
-		const stream = bus.subscribe("session-1");
+		const stream = bus.subscribe("session-1").stream;
 		bus.publish("session-1", event);
 
 		const reader = stream.getReader();
@@ -31,7 +31,7 @@ describe("SessionEventBus", () => {
 		const event2 = createTestEvent("session-1");
 
 		// First subscriber sees both events
-		const stream1 = bus.subscribe("session-1");
+		const stream1 = bus.subscribe("session-1").stream;
 		bus.publish("session-1", event1);
 		bus.publish("session-1", event2);
 
@@ -41,7 +41,7 @@ describe("SessionEventBus", () => {
 		reader1.releaseLock();
 
 		// Reconnect after first event — should replay only event2
-		const stream2 = bus.subscribe("session-1", {
+		const { stream: stream2 } = bus.subscribe("session-1", {
 			lastEventId: first!.id,
 		});
 		const reader2 = stream2.getReader();
@@ -62,7 +62,7 @@ describe("SessionEventBus", () => {
 		bus.publish("session-1", event3);
 
 		// event1 was evicted, so replaying from event2 should yield event3
-		const stream = bus.subscribe("session-1", { lastEventId: event2.id });
+		const { stream } = bus.subscribe("session-1", { lastEventId: event2.id });
 		const reader = stream.getReader();
 		const { value } = await reader.read();
 		reader.releaseLock();
@@ -70,7 +70,7 @@ describe("SessionEventBus", () => {
 		expect(value).toEqual(event3);
 
 		// Replaying from event1 should yield nothing (it was evicted)
-		const stream2 = bus.subscribe("session-1", {
+		const { stream: stream2 } = bus.subscribe("session-1", {
 			lastEventId: event1.id,
 		});
 		bus.publish("session-1", createTestEvent("session-1"));
@@ -89,7 +89,7 @@ describe("SessionEventBus", () => {
 		const ownEvent = createTestEvent("session-1");
 		const otherEvent = createTestEvent("session-2");
 
-		const stream = bus.subscribe("session-1");
+		const stream = bus.subscribe("session-1").stream;
 		bus.publish("session-2", otherEvent);
 		bus.publish("session-1", ownEvent);
 

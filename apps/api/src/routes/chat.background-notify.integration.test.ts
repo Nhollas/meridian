@@ -95,7 +95,7 @@ describe("POST /api/chat integration - background command notification", () => {
 		});
 
 		// Subscribe before completing, so we catch the event
-		const stream = eventBus.subscribe("session-notify");
+		const stream = eventBus.subscribe("session-notify").stream;
 		const reader = stream.getReader();
 
 		// Now simulate the background command completing
@@ -207,7 +207,7 @@ describe("POST /api/chat integration - background command notification", () => {
 		await turnEventsPromise;
 
 		// Subscribe to catch background event + re-engagement turn
-		const stream = eventBus.subscribe("session-reengage");
+		const stream = eventBus.subscribe("session-reengage").stream;
 		const reader = stream.getReader();
 
 		// Complete the background command
