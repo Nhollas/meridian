@@ -25,8 +25,21 @@ export interface AgentService {
 	}): Promise<AgentTurnResult>;
 }
 
+export type OnBackgroundCommandComplete = (
+	sessionId: string,
+	result: {
+		backgroundCommandId: string;
+		command: string[];
+		exitCode: number;
+		stderr: string;
+		stdout: string;
+		status: string;
+	},
+) => void;
+
 export type AgentServiceDependencies = {
 	createRunner?: CreateAgentRunner;
+	onBackgroundCommandComplete?: OnBackgroundCommandComplete | undefined;
 	runtime: SandboxRuntime;
 };
 
@@ -36,6 +49,7 @@ export type CreateAgentService = (
 
 export const createAgentService: CreateAgentService = ({
 	createRunner = createLangChainAgentRunner,
+	onBackgroundCommandComplete,
 	runtime,
 }) => {
 	return {
@@ -48,7 +62,11 @@ export const createAgentService: CreateAgentService = ({
 			sessionId: string;
 			onEvent?: (event: AgentProgressEvent) => void | Promise<void>;
 		}): Promise<AgentTurnResult> {
-			const tools = createRuntimeAgentTools({ runtime, sessionId });
+			const tools = createRuntimeAgentTools({
+				onBackgroundCommandComplete,
+				runtime,
+				sessionId,
+			});
 			const runner = createRunner({ tools });
 			const observedToolCalls = new Map<string, AgentToolCall>();
 			let currentGeneration = "";

@@ -3,6 +3,7 @@ import { createRuntimeEventFactory } from "@meridian/contracts/runtime-events";
 import { z } from "zod";
 import type { AgentToolCall } from "@/lib/agent/contracts";
 import {
+	type AgentService,
 	type CreateAgentService,
 	createAgentService as createDefaultAgentService,
 } from "@/lib/agent/service";
@@ -35,12 +36,120 @@ type ChatRouteDependencies = {
 	getRuntime?: () => SandboxRuntime;
 };
 
+function runTurn({
+	agentService,
+	eventBus,
+	message,
+	sessionId,
+	turnId,
+}: {
+	agentService: AgentService;
+	eventBus: SessionEventBus;
+	message: string;
+	sessionId: string;
+	turnId: string;
+}) {
+	const eventFactory = createRuntimeEventFactory({ sessionId, turnId });
+	let partialContent = "";
+	let partialToolCalls: AgentToolCall[] = [];
+
+	void (async () => {
+		try {
+			const response = await agentService.streamConversation({
+				message,
+				sessionId,
+				onEvent: async (event) => {
+					if (event.type === "text-delta") {
+						partialContent += event.text;
+					}
+
+					if (event.type === "tool-call") {
+						partialToolCalls = upsertToolCall(partialToolCalls, event.toolCall);
+					}
+
+					eventBus.publish(
+						sessionId,
+						mapAgentProgressEventToRuntimeEvent(eventFactory, event),
+					);
+				},
+			});
+			eventBus.publish(
+				sessionId,
+				mapAgentResultToRuntimeEvent(eventFactory, response),
+			);
+		} catch (error) {
+			if (partialContent.trim().length > 0) {
+				const response = {
+					content: partialContent,
+					toolCalls: partialToolCalls,
+				};
+				eventBus.publish(
+					sessionId,
+					mapAgentResultToRuntimeEvent(eventFactory, response),
+				);
+				return;
+			}
+
+			eventBus.publish(sessionId, mapErrorToRuntimeEvent(eventFactory, error));
+		}
+	})();
+}
+
 export function createChatRoute({
 	createAgentService = createDefaultAgentService,
 	createTurnId = randomUUID,
 	eventBus = createSessionEventBus(),
 	getRuntime = getSandboxRuntime,
 }: ChatRouteDependencies = {}) {
+	function createAgentServiceForSession() {
+		const runtime = getRuntime();
+		return createAgentService({
+			runtime,
+			onBackgroundCommandComplete: (completedSessionId, result) => {
+				const bgEventFactory = createRuntimeEventFactory({
+					sessionId: completedSessionId,
+					turnId: result.backgroundCommandId,
+				});
+
+				const eventType =
+					result.exitCode === 0
+						? ("background.completed" as const)
+						: ("background.failed" as const);
+
+				const payload =
+					eventType === "background.completed"
+						? {
+								backgroundCommandId: result.backgroundCommandId,
+								command: result.command,
+								exitCode: result.exitCode,
+								stdout: result.stdout,
+							}
+						: {
+								backgroundCommandId: result.backgroundCommandId,
+								command: result.command,
+								exitCode: result.exitCode,
+								stderr: result.stderr,
+							};
+
+				eventBus.publish(
+					completedSessionId,
+					bgEventFactory.create(eventType, payload as never),
+				);
+
+				// Auto-trigger a new agent turn
+				const syntheticMessage = `Background command ${result.backgroundCommandId} (\`${result.command.join(" ")}\`) ${result.status}. Exit code: ${result.exitCode}. Output: ${result.stdout || result.stderr}`;
+				const reengagementService = createAgentServiceForSession();
+				runTurn({
+					agentService: reengagementService,
+					eventBus,
+					message: syntheticMessage,
+					sessionId: completedSessionId,
+					turnId: createTurnId(),
+				});
+			},
+		});
+	}
+
 	return async (request: Request) => {
 		const sessionIdResult = sessionIdSchema.safeParse(
 			request.headers.get("session-id"),
@@ -61,62 +170,9 @@ export function createChatRoute({
 		const sessionId = sessionIdResult.data;
 		const { message } = bodyResult.data;
 		const turnId = createTurnId();
-		const runtime = getRuntime();
-		const agentService = createAgentService({ runtime });
+		const agentService = createAgentServiceForSession();
 
-		const eventFactory = createRuntimeEventFactory({
-			sessionId,
-			turnId,
-		});
-		let partialContent = "";
-		let partialToolCalls: AgentToolCall[] = [];
-
-		void (async () => {
-			try {
-				const response = await agentService.streamConversation({
-					message,
-					sessionId,
-					onEvent: async (event) => {
-						if (event.type === "text-delta") {
-							partialContent += event.text;
-						}
-
-						if (event.type === "tool-call") {
-							partialToolCalls = upsertToolCall(
-								partialToolCalls,
-								event.toolCall,
-							);
-						}
-
-						eventBus.publish(
-							sessionId,
-							mapAgentProgressEventToRuntimeEvent(eventFactory, event),
-						);
-					},
-				});
-				eventBus.publish(
-					sessionId,
-					mapAgentResultToRuntimeEvent(eventFactory, response),
-				);
-			} catch (error) {
-				if (partialContent.trim().length > 0) {
-					const response = {
-						content: partialContent,
-						toolCalls: partialToolCalls,
-					};
-					eventBus.publish(
-						sessionId,
-						mapAgentResultToRuntimeEvent(eventFactory, response),
-					);
-					return;
-				}
-
-				eventBus.publish(
-					sessionId,
-					mapErrorToRuntimeEvent(eventFactory, error),
-				);
-			}
-		})();
+		runTurn({ agentService, eventBus, message, sessionId, turnId });
 
 		return Response.json({ turnId }, { status: 202 });
 	};

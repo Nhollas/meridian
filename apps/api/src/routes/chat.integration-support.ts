@@ -17,8 +17,12 @@ export function createTestChat({
 	const eventBus = createSessionEventBus();
 
 	const POST = createChatRoute({
-		createAgentService: ({ runtime }) =>
-			createAgentService({ createRunner, runtime }),
+		createAgentService: ({ runtime, onBackgroundCommandComplete }) =>
+			createAgentService({
+				createRunner,
+				onBackgroundCommandComplete,
+				runtime,
+			}),
 		createTurnId: () => `turn-${++turnCount}`,
 		getRuntime: () => runtime,
 		eventBus,

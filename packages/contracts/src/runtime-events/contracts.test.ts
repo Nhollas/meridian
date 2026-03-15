@@ -81,6 +81,24 @@ describe("runtime event contracts", () => {
 				error: "agent exploded",
 			},
 		},
+		{
+			type: "background.completed",
+			payload: {
+				backgroundCommandId: "bg-1",
+				command: ["meridian", "auth", "login", "--json"],
+				exitCode: 0,
+				stdout: '{"status":"authenticated"}',
+			},
+		},
+		{
+			type: "background.failed",
+			payload: {
+				backgroundCommandId: "bg-1",
+				command: ["meridian", "auth", "login", "--json"],
+				exitCode: 1,
+				stderr: "auth failed",
+			},
+		},
 	] satisfies RuntimeEventFixture[])("serializes and parses %s events", (event) => {
 		const serialized = serializeRuntimeEventEnvelope({
 			...baseEvent,

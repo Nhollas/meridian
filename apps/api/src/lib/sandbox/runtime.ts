@@ -10,8 +10,14 @@ export type SandboxBackgroundCommandStatus =
 	| "failed"
 	| "terminated";
 
+export type BackgroundCommandCompleteCallback = (
+	result: SandboxBackgroundCommandSnapshot,
+) => void;
+
 export type SandboxCommandOptions = {
 	keepAlive?: boolean;
+	notifyOnCompletion?: boolean | undefined;
+	onComplete?: BackgroundCommandCompleteCallback | undefined;
 	stdin?: string;
 	timeoutMs?: number;
 	waitFor?: SandboxCommandWaitFor;
