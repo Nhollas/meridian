@@ -1,20 +1,53 @@
 import { requireAuthentication } from "@/auth/session";
 import { type JsonOption, writeError } from "@/command-helpers";
-import { writeJson, writeLines } from "@/output";
+import { writeJsonLine, writeLines } from "@/output";
 import type { ResolvedCliDependencies } from "@/runtime";
+import type { ProductOffering } from "@/store/data";
 import { readDataStore } from "@/store/data";
-import { formatResultsTable, sortResultOfferings } from "./presenter";
+import {
+	formatOfferingRow,
+	formatResultsHeader,
+	formatSortLabel,
+	type SortOrder,
+	sortResultOfferings,
+} from "./presenter";
 
 export type ResultsGetOptions = JsonOption & {
 	proposal: string;
+	sort: SortOrder;
 };
+
+type DelayedOffering = {
+	offering: ProductOffering;
+	delayMs: number;
+};
+
+function assignRandomDelays(offerings: ProductOffering[]): DelayedOffering[] {
+	return offerings.map((offering) => ({
+		offering,
+		delayMs: Math.round(Math.random() * 20_000),
+	}));
+}
+
+async function streamDelayedOfferings(
+	delayedOfferings: DelayedOffering[],
+	sleep: (ms: number) => Promise<void>,
+	onOffering: (offering: ProductOffering) => void,
+) {
+	for (const { offering, delayMs } of delayedOfferings) {
+		if (delayMs > 0) {
+			await sleep(delayMs);
+		}
+		onOffering(offering);
+	}
+}
 
 export async function handleResultsGet(
 	dependencies: ResolvedCliDependencies,
 	options: ResultsGetOptions,
 	jsonMode: boolean,
 ) {
-	const { homeDirectory, stderr, stdout } = dependencies;
+	const { homeDirectory, sleep, stderr, stdout } = dependencies;
 	const credentials = await requireAuthentication(dependencies);
 
 	if (credentials === null) {
@@ -45,16 +78,37 @@ export async function handleResultsGet(
 		return 1;
 	}
 
-	const sortedResult = sortResultOfferings(result);
+	const sortedResult = sortResultOfferings(result, options.sort);
+	const delayedOfferings = assignRandomDelays(sortedResult.offerings);
 
 	if (jsonMode) {
-		writeJson(stdout, sortedResult);
+		writeJsonLine(stdout, {
+			status: "pending",
+			proposalId: options.proposal,
+		});
+
+		await streamDelayedOfferings(delayedOfferings, sleep, (offering) => {
+			writeJsonLine(stdout, { status: "offering", offering });
+		});
+
+		writeJsonLine(stdout, {
+			status: "complete",
+			offerings: sortedResult.offerings,
+		});
+
 		return 0;
 	}
 
-	writeLines(
-		stdout,
-		formatResultsTable(proposal.product, options.proposal, sortedResult),
-	);
+	writeLines(stdout, formatResultsHeader(proposal.product, options.proposal));
+
+	await streamDelayedOfferings(delayedOfferings, sleep, (offering) => {
+		writeLines(stdout, [formatOfferingRow(proposal.product, offering)]);
+	});
+
+	writeLines(stdout, [
+		"",
+		`${delayedOfferings.length} offering${delayedOfferings.length === 1 ? "" : "s"} sorted by ${formatSortLabel(options.sort)}`,
+	]);
+
 	return 0;
 }

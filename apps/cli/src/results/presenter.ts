@@ -4,6 +4,10 @@ import type {
 	ResultRecord,
 } from "@/store/data";
 
+export type SortOrder = "price-asc" | "price-desc" | "provider";
+
+export const sortOrders: SortOrder[] = ["price-asc", "price-desc", "provider"];
+
 function formatCurrency(amount: number) {
 	return amount === 0 ? "Free" : `£${amount.toFixed(2)}`;
 }
@@ -51,51 +55,48 @@ function getStringMetadata(
 	return typeof value === "string" ? value : undefined;
 }
 
-function formatOfferingCount(count: number) {
-	return `${count} offering${count === 1 ? "" : "s"} sorted by price (lowest first)`;
-}
+const offeringSortComparators: Record<
+	SortOrder,
+	(a: ProductOffering, b: ProductOffering) => number
+> = {
+	"price-asc": (a, b) => getDisplayPriceValue(a) - getDisplayPriceValue(b),
+	"price-desc": (a, b) => getDisplayPriceValue(b) - getDisplayPriceValue(a),
+	provider: (a, b) => a.providerName.localeCompare(b.providerName),
+};
 
-export function sortResultOfferings(result: ResultRecord): ResultRecord {
+export function sortResultOfferings(
+	result: ResultRecord,
+	sort: SortOrder,
+): ResultRecord {
 	return {
 		...result,
-		offerings: [...result.offerings].sort(
-			(left, right) => getDisplayPriceValue(left) - getDisplayPriceValue(right),
-		),
+		offerings: [...result.offerings].sort(offeringSortComparators[sort]),
 	};
 }
 
-export function formatResultsTable(
-	product: string,
-	proposalId: string,
-	result: ResultRecord,
-) {
-	const offerings = [...result.offerings].sort(
-		(left, right) => getDisplayPriceValue(left) - getDisplayPriceValue(right),
-	);
+const sortLabels: Record<SortOrder, string> = {
+	"price-asc": "price (lowest first)",
+	"price-desc": "price (highest first)",
+	provider: "provider (A–Z)",
+};
 
+export function formatSortLabel(sort: SortOrder) {
+	return sortLabels[sort];
+}
+
+export function formatResultsHeader(product: string, proposalId: string) {
+	const columnHeader =
+		product === "travel"
+			? "  Provider    Plan                   Cover       Price       Excess"
+			: "  Provider    Plan             Speed     Price       Contract   Setup";
+
+	return [`Results for proposal ${proposalId} (${product})`, "", columnHeader];
+}
+
+export function formatOfferingRow(product: string, offering: ProductOffering) {
 	if (product === "travel") {
-		return [
-			`Results for proposal ${proposalId} (${product})`,
-			"",
-			"  Provider    Plan                   Cover       Price       Excess",
-			...offerings.map(
-				(offering) =>
-					`  ${offering.providerName.padEnd(11)} ${offering.brandName.padEnd(22)} ${String(getStringMetadata(offering, "coverLevel") ?? "").padEnd(11)} ${formatOfferingPrice(offering).padEnd(11)} ${formatCurrency(getNumberMetadata(offering, "excess") ?? 0)}`,
-			),
-			"",
-			formatOfferingCount(offerings.length),
-		];
+		return `  ${offering.providerName.padEnd(11)} ${offering.brandName.padEnd(22)} ${String(getStringMetadata(offering, "coverLevel") ?? "").padEnd(11)} ${formatOfferingPrice(offering).padEnd(11)} ${formatCurrency(getNumberMetadata(offering, "excess") ?? 0)}`;
 	}
 
-	return [
-		`Results for proposal ${proposalId} (${product})`,
-		"",
-		"  Provider    Plan             Speed     Price       Contract   Setup",
-		...offerings.map(
-			(offering) =>
-				`  ${offering.providerName.padEnd(11)} ${offering.brandName.padEnd(16)} ${String(getStringMetadata(offering, "speed") ?? "").padEnd(9)} ${formatOfferingPrice(offering).padEnd(11)} ${`${Number(getNumberMetadata(offering, "contractMonths") ?? 0)} months`.padEnd(10)} ${formatCurrency(getNumberMetadata(offering, "setupFee") ?? 0)}`,
-		),
-		"",
-		formatOfferingCount(offerings.length),
-	];
+	return `  ${offering.providerName.padEnd(11)} ${offering.brandName.padEnd(16)} ${String(getStringMetadata(offering, "speed") ?? "").padEnd(9)} ${formatOfferingPrice(offering).padEnd(11)} ${`${Number(getNumberMetadata(offering, "contractMonths") ?? 0)} months`.padEnd(10)} ${formatCurrency(getNumberMetadata(offering, "setupFee") ?? 0)}`;
 }

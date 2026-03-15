@@ -2,7 +2,6 @@ import { requireAuthentication } from "@/auth/session";
 import { type JsonOption, writeError } from "@/command-helpers";
 import { getMockResults } from "@/mock-providers";
 import { writeJson, writeLines } from "@/output";
-import { sortResultOfferings } from "@/results/presenter";
 import type { ResolvedCliDependencies } from "@/runtime";
 import { readDataStore, writeDataStore } from "@/store/data";
 
@@ -41,15 +40,13 @@ export async function handleProposalsCreate(
 
 	const id = randomId("prop");
 	const createdAt = now().toISOString();
-	const result = sortResultOfferings(
-		getMockResults({
-			product: proposalRequest.product,
-			proposalId: id,
-			version: proposalRequest.version,
-			customerId: proposalRequest.emailAddress,
-			sessionId: `session-${options.proposalRequest}`,
-		}),
-	);
+	const result = getMockResults({
+		product: proposalRequest.product,
+		proposalId: id,
+		version: proposalRequest.version,
+		customerId: proposalRequest.emailAddress,
+		sessionId: `session-${options.proposalRequest}`,
+	});
 
 	dataStore.proposals[id] = {
 		proposalRequestId: options.proposalRequest,
