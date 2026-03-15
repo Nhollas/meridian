@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
 	createChatRequest,
 	getParsedToolOutput,
-	readRuntimeEvents,
 } from "../../tests/support/chat-route";
 import { createInMemorySandboxRuntime } from "../../tests/support/in-memory-runtime";
 import {
@@ -12,7 +11,7 @@ import {
 	toolCompleted,
 	toolStarted,
 } from "../../tests/support/scripted-agent-runner";
-import { createTestPost } from "./chat.integration-support";
+import { collectTurnEvents, createTestChat } from "./chat.integration-support";
 
 describe("POST /api/chat integration - runtime commands", () => {
 	it("surfaces run_command stdout, stderr, and exit code through tool output", async () => {
@@ -44,16 +43,17 @@ describe("POST /api/chat integration - runtime commands", () => {
 			});
 			yield assistantText("Working directory checked.");
 		});
-		const POST = createTestPost({ createRunner, runtime });
+		const { POST, eventBus } = createTestChat({ createRunner, runtime });
 
-		const events = await readRuntimeEvents(
-			await POST(
-				createChatRequest({
-					message: "Where am I?",
-					sessionId: "session-command",
-				}),
-			),
+		const eventsPromise = collectTurnEvents(eventBus, "session-command");
+		await POST(
+			createChatRequest({
+				message: "Where am I?",
+				sessionId: "session-command",
+			}),
 		);
+		const events = await eventsPromise;
+
 		expect(getParsedToolOutput(events, "run_command")).toEqual({
 			exitCode: 0,
 			stderr: "",
@@ -124,16 +124,16 @@ describe("POST /api/chat integration - runtime commands", () => {
 				);
 			}
 		});
-		const POST = createTestPost({ createRunner, runtime });
+		const { POST, eventBus } = createTestChat({ createRunner, runtime });
 
-		const events = await readRuntimeEvents(
-			await POST(
-				createChatRequest({
-					message: "Run the broken command",
-					sessionId: "session-command",
-				}),
-			),
+		const eventsPromise = collectTurnEvents(eventBus, "session-command");
+		await POST(
+			createChatRequest({
+				message: "Run the broken command",
+				sessionId: "session-command",
+			}),
 		);
+		const events = await eventsPromise;
 
 		expect(events).toEqual([
 			expect.objectContaining({

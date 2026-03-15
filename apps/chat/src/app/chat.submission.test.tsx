@@ -1,8 +1,8 @@
 import { http } from "msw";
 import { describe } from "vitest";
 import {
+	createChatAcceptedResponse,
 	createChatEventFactory,
-	createChatStreamResponse,
 } from "../../tests/support/chat-contract";
 import { test } from "../../tests/support/chat-page-fixture";
 import {
@@ -14,6 +14,7 @@ import {
 describe("Chat UI - submission and streaming", () => {
 	test("submits a message and renders streamed contract events", async ({
 		chatPage,
+		sseStream,
 	}) => {
 		const eventFactory = createChatEventFactory();
 
@@ -25,34 +26,41 @@ describe("Chat UI - submission and streaming", () => {
 					withHeaders(
 						(headers) =>
 							headers.get("content-type") === "application/json" &&
-							headers.has("session-id") &&
-							headers.get("meridian-debug-stream-delay-ms") === "0",
-						() =>
-							createChatStreamResponse([
-								eventFactory.create("assistant.delta", {
-									delta: "Working through the options...",
-								}),
-								eventFactory.create("tool.completed", {
-									toolCall: {
-										id: "tool-1",
-										input: '{"path":"offers.json"}',
-										name: "read_file",
-										output: '{"offers":2}',
-									},
-								}),
-								eventFactory.create("turn.completed", {
-									content: "I found 2 offers worth comparing.",
-									toolCalls: [
-										{
+							headers.has("session-id"),
+						() => {
+							queueMicrotask(() => {
+								sseStream.emit(
+									eventFactory.create("assistant.delta", {
+										delta: "Working through the options...",
+									}),
+								);
+								sseStream.emit(
+									eventFactory.create("tool.completed", {
+										toolCall: {
 											id: "tool-1",
 											input: '{"path":"offers.json"}',
 											name: "read_file",
 											output: '{"offers":2}',
-											state: "completed",
 										},
-									],
-								}),
-							]),
+									}),
+								);
+								sseStream.emit(
+									eventFactory.create("turn.completed", {
+										content: "I found 2 offers worth comparing.",
+										toolCalls: [
+											{
+												id: "tool-1",
+												input: '{"path":"offers.json"}',
+												name: "read_file",
+												output: '{"offers":2}',
+												state: "completed",
+											},
+										],
+									}),
+								);
+							});
+							return createChatAcceptedResponse();
+						},
 					),
 				),
 			),

@@ -1,10 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { setTimeout as delay } from "node:timers/promises";
-import {
-	createRuntimeEventFactory,
-	type RuntimeEventEnvelope,
-	serializeRuntimeEventEnvelope,
-} from "@meridian/contracts/runtime-events";
+import { createRuntimeEventFactory } from "@meridian/contracts/runtime-events";
 import { z } from "zod";
 import type { AgentToolCall } from "@/lib/agent/contracts";
 import {
@@ -18,9 +13,8 @@ import {
 } from "@/lib/runtime-events/agent-mappers";
 import type { SandboxRuntime } from "@/lib/sandbox/runtime";
 import { getSandboxRuntime } from "@/lib/sandbox/singleton";
-
-const MAX_DEBUG_DELAY_MS = 1000;
-const encoder = new TextEncoder();
+import type { SessionEventBus } from "@/lib/session-event-bus";
+import { createSessionEventBus } from "@/lib/session-event-bus";
 
 const sessionIdSchema = z
 	.string()
@@ -37,15 +31,15 @@ const chatRequestSchema = z.object({
 type ChatRouteDependencies = {
 	createAgentService?: CreateAgentService;
 	createTurnId?: () => string;
+	eventBus?: SessionEventBus;
 	getRuntime?: () => SandboxRuntime;
-	sleep?: (milliseconds: number) => Promise<void>;
 };
 
 export function createChatRoute({
 	createAgentService = createDefaultAgentService,
 	createTurnId = randomUUID,
+	eventBus = createSessionEventBus(),
 	getRuntime = getSandboxRuntime,
-	sleep = delay,
 }: ChatRouteDependencies = {}) {
 	return async (request: Request) => {
 		const sessionIdResult = sessionIdSchema.safeParse(
@@ -66,97 +60,69 @@ export function createChatRoute({
 
 		const sessionId = sessionIdResult.data;
 		const { message } = bodyResult.data;
-		const debugDelayMs = getDebugDelayMs(request.headers);
+		const turnId = createTurnId();
 		const runtime = getRuntime();
 		const agentService = createAgentService({ runtime });
 
-		const stream = new ReadableStream<Uint8Array>({
-			start(controller) {
-				const eventFactory = createRuntimeEventFactory({
+		const eventFactory = createRuntimeEventFactory({
+			sessionId,
+			turnId,
+		});
+		let partialContent = "";
+		let partialToolCalls: AgentToolCall[] = [];
+
+		void (async () => {
+			try {
+				const response = await agentService.streamConversation({
+					message,
 					sessionId,
-					turnId: createTurnId(),
-				});
-				let partialContent = "";
-				let partialToolCalls: AgentToolCall[] = [];
-				const writeEvent = async (event: RuntimeEventEnvelope) => {
-					controller.enqueue(
-						encoder.encode(`${serializeRuntimeEventEnvelope(event)}\n`),
-					);
-					if (debugDelayMs > 0) {
-						await sleep(debugDelayMs);
-					}
-				};
-
-				void (async () => {
-					try {
-						const response = await agentService.streamConversation({
-							message,
-							sessionId,
-							onEvent: async (event) => {
-								if (event.type === "text-delta") {
-									partialContent += event.text;
-								}
-
-								if (event.type === "tool-call") {
-									partialToolCalls = upsertToolCall(
-										partialToolCalls,
-										event.toolCall,
-									);
-								}
-
-								await writeEvent(
-									mapAgentProgressEventToRuntimeEvent(eventFactory, event),
-								);
-							},
-						});
-						await writeEvent(
-							mapAgentResultToRuntimeEvent(eventFactory, response),
-						);
-					} catch (error) {
-						if (partialContent.trim().length > 0) {
-							const response = {
-								content: partialContent,
-								toolCalls: partialToolCalls,
-							};
-							await writeEvent(
-								mapAgentResultToRuntimeEvent(eventFactory, response),
-							);
-							return;
+					onEvent: async (event) => {
+						if (event.type === "text-delta") {
+							partialContent += event.text;
 						}
 
-						await writeEvent(mapErrorToRuntimeEvent(eventFactory, error));
-					} finally {
-						controller.close();
-					}
-				})();
-			},
-		});
+						if (event.type === "tool-call") {
+							partialToolCalls = upsertToolCall(
+								partialToolCalls,
+								event.toolCall,
+							);
+						}
 
-		return new Response(stream, {
-			headers: {
-				"Cache-Control": "no-cache, no-transform",
-				Connection: "keep-alive",
-				"Content-Type": "application/x-ndjson; charset=utf-8",
-			},
-		});
+						eventBus.publish(
+							sessionId,
+							mapAgentProgressEventToRuntimeEvent(eventFactory, event),
+						);
+					},
+				});
+				eventBus.publish(
+					sessionId,
+					mapAgentResultToRuntimeEvent(eventFactory, response),
+				);
+			} catch (error) {
+				if (partialContent.trim().length > 0) {
+					const response = {
+						content: partialContent,
+						toolCalls: partialToolCalls,
+					};
+					eventBus.publish(
+						sessionId,
+						mapAgentResultToRuntimeEvent(eventFactory, response),
+					);
+					return;
+				}
+
+				eventBus.publish(
+					sessionId,
+					mapErrorToRuntimeEvent(eventFactory, error),
+				);
+			}
+		})();
+
+		return Response.json({ turnId }, { status: 202 });
 	};
 }
 
 export const handleChat = createChatRoute();
-
-function getDebugDelayMs(headers: Headers) {
-	const raw = headers.get("meridian-debug-stream-delay-ms");
-	if (!raw) {
-		return 0;
-	}
-
-	const parsed = Number.parseInt(raw, 10);
-	if (!Number.isFinite(parsed) || parsed <= 0) {
-		return 0;
-	}
-
-	return Math.min(parsed, MAX_DEBUG_DELAY_MS);
-}
 
 function upsertToolCall(
 	toolCalls: AgentToolCall[],

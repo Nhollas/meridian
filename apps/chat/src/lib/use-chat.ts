@@ -1,11 +1,17 @@
-import { useMutation } from "@tanstack/react-query";
-import { startTransition, useEffect, useState } from "react";
+import type { RuntimeEventEnvelope } from "@meridian/contracts/runtime-events";
+import {
+	startTransition,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import type { ToolCallViewModel } from "./contracts";
 import {
 	mapRuntimeToolEventToViewModel,
 	mapRuntimeTurnToolCallsToViewModels,
 } from "./runtime-event-mappers";
-import { readChatStream } from "./stream-reader";
+import { readSSEStream } from "./stream-reader";
 import type { ChatMessageStatus, ChatMessageViewModel } from "./view-models";
 
 const API_URL =
@@ -14,26 +20,179 @@ const API_URL =
 		: "http://localhost:3201";
 
 const SESSION_STORAGE_KEY = "meridian.chat.session-id";
-const DEBUG_STREAM_DELAY_STORAGE_KEY = "meridian.chat.debug-stream-delay-ms";
-const DEBUG_STREAM_DELAY_MS = 120;
+
+type TurnState = {
+	assistantMessageId: string;
+	content: string;
+	toolCalls: ToolCallViewModel[];
+	frameId: number | null;
+};
 
 export function useChat() {
 	const [messages, setMessages] = useState<ChatMessageViewModel[]>([]);
 	const [sessionId, setSessionId] = useState<string | null>(null);
-	const [debugStreamDelayMs, setDebugStreamDelayMs] = useState(0);
+	const [isPending, setIsPending] = useState(false);
+	const [isError, setIsError] = useState(false);
+
+	const activeTurnsRef = useRef<Map<string, TurnState>>(new Map());
+	const pendingEventsRef = useRef<Map<string, RuntimeEventEnvelope[]>>(
+		new Map(),
+	);
 
 	useEffect(() => {
-		setSessionId(getOrCreateSessionId());
-		setDebugStreamDelayMs(getStoredDebugStreamDelayMs());
+		const id = getOrCreateSessionId();
+		setSessionId(id);
 	}, []);
 
-	const {
-		mutate: sendMessage,
-		isPending,
-		isError,
-	} = useMutation({
-		retry: false,
-		mutationFn: async (content: string) => {
+	const processEvent = useCallback(
+		(event: RuntimeEventEnvelope, turn: TurnState) => {
+			const flushState = (status: ChatMessageStatus = "streaming") => {
+				turn.frameId = null;
+				const contentSnapshot = turn.content;
+				const toolCallsSnapshot = turn.toolCalls;
+
+				startTransition(() => {
+					setMessages((prev) =>
+						updateAssistantMessage(prev, turn.assistantMessageId, {
+							content: contentSnapshot,
+							toolCalls: toolCallsSnapshot,
+							status,
+						}),
+					);
+				});
+			};
+
+			const scheduleFlush = () => {
+				if (turn.frameId !== null) return;
+				turn.frameId = window.requestAnimationFrame(() => flushState());
+			};
+
+			if (event.type === "assistant.delta") {
+				turn.content += event.payload.delta;
+				scheduleFlush();
+				return;
+			}
+
+			if (
+				event.type === "tool.started" ||
+				event.type === "tool.completed" ||
+				event.type === "tool.failed"
+			) {
+				turn.toolCalls = upsertToolCall(
+					turn.toolCalls,
+					mapRuntimeToolEventToViewModel(event),
+				);
+				scheduleFlush();
+				return;
+			}
+
+			if (event.type === "turn.completed") {
+				turn.content = event.payload.content;
+				turn.toolCalls = mapRuntimeTurnToolCallsToViewModels(
+					event.payload.toolCalls,
+				);
+
+				if (turn.frameId !== null) {
+					window.cancelAnimationFrame(turn.frameId);
+				}
+
+				flushState("complete");
+				activeTurnsRef.current.delete(event.turnId);
+				setIsPending(false);
+				return;
+			}
+
+			if (event.type === "turn.failed") {
+				if (turn.frameId !== null) {
+					window.cancelAnimationFrame(turn.frameId);
+				}
+
+				turn.content =
+					turn.content ||
+					"Something went wrong reaching the agent. Check the console for details.";
+
+				startTransition(() => {
+					setMessages((prev) =>
+						updateAssistantMessage(prev, turn.assistantMessageId, {
+							content: turn.content,
+							toolCalls: turn.toolCalls,
+							status: "error",
+						}),
+					);
+				});
+
+				activeTurnsRef.current.delete(event.turnId);
+				setIsPending(false);
+				setIsError(true);
+				console.error("Chat API error:", event.payload.error);
+			}
+		},
+		[],
+	);
+
+	const handleSSEEvent = useCallback(
+		(event: RuntimeEventEnvelope) => {
+			const turn = activeTurnsRef.current.get(event.turnId);
+			if (!turn) {
+				const pending = pendingEventsRef.current.get(event.turnId) ?? [];
+				pending.push(event);
+				pendingEventsRef.current.set(event.turnId, pending);
+				return;
+			}
+
+			processEvent(event, turn);
+		},
+		[processEvent],
+	);
+
+	const registerTurn = useCallback(
+		(turnId: string, assistantMessageId: string) => {
+			const turn: TurnState = {
+				assistantMessageId,
+				content: "",
+				toolCalls: [],
+				frameId: null,
+			};
+			activeTurnsRef.current.set(turnId, turn);
+
+			// Replay any events that arrived before registration
+			const pending = pendingEventsRef.current.get(turnId);
+			if (pending) {
+				pendingEventsRef.current.delete(turnId);
+				for (const event of pending) {
+					processEvent(event, turn);
+				}
+			}
+		},
+		[processEvent],
+	);
+
+	// Open persistent SSE connection
+	useEffect(() => {
+		if (!sessionId) return;
+
+		const abortController = new AbortController();
+
+		void (async () => {
+			try {
+				const res = await fetch(`${API_URL}/api/sessions/${sessionId}/events`, {
+					signal: abortController.signal,
+				});
+
+				await readSSEStream(res, handleSSEEvent);
+			} catch (error) {
+				if (error instanceof DOMException && error.name === "AbortError") {
+					return;
+				}
+				console.error("SSE connection error:", error);
+			}
+		})();
+
+		return () => abortController.abort();
+	}, [sessionId, handleSSEEvent]);
+
+	const sendMessage = useCallback(
+		async (content: string) => {
 			const activeSessionId = sessionId ?? getOrCreateSessionId();
 			if (activeSessionId !== sessionId) {
 				setSessionId(activeSessionId);
@@ -46,37 +205,8 @@ export function useChat() {
 			});
 
 			setMessages((prev) => [...prev, userMessage, assistantMessage]);
-
-			let streamedContent = "";
-			let streamedToolCalls: ToolCallViewModel[] = [];
-			let streamFinished = false;
-			let frameId: number | null = null;
-
-			const flushAssistantState = (status: ChatMessageStatus = "streaming") => {
-				frameId = null;
-				const contentSnapshot = streamedContent;
-				const toolCallsSnapshot = streamedToolCalls;
-
-				startTransition(() => {
-					setMessages((prev) =>
-						updateAssistantMessage(prev, assistantMessage.id, {
-							content: contentSnapshot,
-							toolCalls: toolCallsSnapshot,
-							status,
-						}),
-					);
-				});
-			};
-
-			const scheduleFlush = () => {
-				if (frameId !== null) {
-					return;
-				}
-
-				frameId = window.requestAnimationFrame(() => {
-					flushAssistantState();
-				});
-			};
+			setIsPending(true);
+			setIsError(false);
 
 			try {
 				const res = await fetch(`${API_URL}/api/chat`, {
@@ -84,7 +214,6 @@ export function useChat() {
 					headers: {
 						"Content-Type": "application/json",
 						"session-id": activeSessionId,
-						"meridian-debug-stream-delay-ms": String(debugStreamDelayMs),
 					},
 					body: JSON.stringify({ message: content }),
 				});
@@ -93,89 +222,33 @@ export function useChat() {
 					throw new Error(`Request failed: ${res.status}`);
 				}
 
-				await readChatStream(res, (event) => {
-					if (event.type === "assistant.delta") {
-						streamedContent += event.payload.delta;
-						scheduleFlush();
-						return;
-					}
-
-					if (
-						event.type === "tool.started" ||
-						event.type === "tool.completed" ||
-						event.type === "tool.failed"
-					) {
-						streamedToolCalls = upsertToolCall(
-							streamedToolCalls,
-							mapRuntimeToolEventToViewModel(event),
-						);
-						scheduleFlush();
-						return;
-					}
-
-					if (event.type === "turn.completed") {
-						streamFinished = true;
-						streamedContent = event.payload.content;
-						streamedToolCalls = mapRuntimeTurnToolCallsToViewModels(
-							event.payload.toolCalls,
-						);
-
-						if (frameId !== null) {
-							window.cancelAnimationFrame(frameId);
-						}
-
-						flushAssistantState("complete");
-						return;
-					}
-
-					throw new Error(event.payload.error);
-				});
-
-				if (!streamFinished) {
-					throw new Error("Stream ended before completion.");
-				}
+				const { turnId } = (await res.json()) as { turnId: string };
+				registerTurn(turnId, assistantMessage.id);
 			} catch (error) {
-				if (frameId !== null) {
-					window.cancelAnimationFrame(frameId);
-				}
-
 				startTransition(() => {
 					setMessages((prev) =>
 						updateAssistantMessage(prev, assistantMessage.id, {
 							content:
-								streamedContent ||
 								"Something went wrong reaching the agent. Check the console for details.",
-							toolCalls: streamedToolCalls,
 							status: "error",
 						}),
 					);
 				});
 
-				throw error;
+				setIsPending(false);
+				setIsError(true);
+				console.error("Chat API error:", error);
 			}
 		},
-		onError: (error) => {
-			console.error("Chat API error:", error);
-		},
-	});
-
-	function toggleDebugStreamDelay() {
-		const nextDelay = debugStreamDelayMs > 0 ? 0 : DEBUG_STREAM_DELAY_MS;
-		setDebugStreamDelayMs(nextDelay);
-		window.sessionStorage.setItem(
-			DEBUG_STREAM_DELAY_STORAGE_KEY,
-			String(nextDelay),
-		);
-	}
+		[sessionId, registerTurn],
+	);
 
 	return {
 		messages,
 		sessionId,
 		isPending,
 		isError,
-		debugStreamDelayMs,
 		sendMessage,
-		toggleDebugStreamDelay,
 	};
 }
 
@@ -206,16 +279,6 @@ function getOrCreateSessionId() {
 	const sessionId = crypto.randomUUID();
 	window.sessionStorage.setItem(SESSION_STORAGE_KEY, sessionId);
 	return sessionId;
-}
-
-function getStoredDebugStreamDelayMs() {
-	const raw = window.sessionStorage.getItem(DEBUG_STREAM_DELAY_STORAGE_KEY);
-	if (!raw) {
-		return 0;
-	}
-
-	const parsed = Number.parseInt(raw, 10);
-	return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 }
 
 function updateAssistantMessage(

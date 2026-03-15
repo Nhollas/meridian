@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-	createChatRequest,
-	readRuntimeEvents,
-} from "../../tests/support/chat-route";
+import { createChatRequest } from "../../tests/support/chat-route";
 import { createInMemorySandboxRuntime } from "../../tests/support/in-memory-runtime";
 import {
 	assistantText,
@@ -12,7 +9,7 @@ import {
 	toolFailed,
 	toolStarted,
 } from "../../tests/support/scripted-agent-runner";
-import { createTestPost } from "./chat.integration-support";
+import { collectTurnEvents, createTestChat } from "./chat.integration-support";
 
 describe("POST /api/chat integration - session behavior", () => {
 	it("keeps conversation continuity when the same session sends later turns", async () => {
@@ -27,24 +24,25 @@ describe("POST /api/chat integration - session behavior", () => {
 
 			yield assistantText(`Messages so far: ${history.join(" -> ")}`);
 		});
-		const POST = createTestPost({ createRunner, runtime });
+		const { POST, eventBus } = createTestChat({ createRunner, runtime });
 
-		const firstTurn = await readRuntimeEvents(
-			await POST(
-				createChatRequest({
-					message: "first",
-					sessionId: "session-123",
-				}),
-			),
+		const firstPromise = collectTurnEvents(eventBus, "session-123");
+		await POST(
+			createChatRequest({
+				message: "first",
+				sessionId: "session-123",
+			}),
 		);
-		const secondTurn = await readRuntimeEvents(
-			await POST(
-				createChatRequest({
-					message: "second",
-					sessionId: "session-123",
-				}),
-			),
+		const firstTurn = await firstPromise;
+
+		const secondPromise = collectTurnEvents(eventBus, "session-123");
+		await POST(
+			createChatRequest({
+				message: "second",
+				sessionId: "session-123",
+			}),
 		);
+		const secondTurn = await secondPromise;
 
 		expect(firstTurn).toEqual([
 			expect.objectContaining({
@@ -135,22 +133,25 @@ describe("POST /api/chat integration - session behavior", () => {
 				yield assistantText(`No note found for ${sessionId}.`);
 			}
 		});
-		const POST = createTestPost({ createRunner, runtime });
+		const { POST, eventBus } = createTestChat({ createRunner, runtime });
 
+		const savePromise = collectTurnEvents(eventBus, "session-a");
 		await POST(
 			createChatRequest({
 				message: "Save note",
 				sessionId: "session-a",
 			}),
 		);
-		const isolatedTurn = await readRuntimeEvents(
-			await POST(
-				createChatRequest({
-					message: "Read note",
-					sessionId: "session-b",
-				}),
-			),
+		await savePromise;
+
+		const isolatedPromise = collectTurnEvents(eventBus, "session-b");
+		await POST(
+			createChatRequest({
+				message: "Read note",
+				sessionId: "session-b",
+			}),
 		);
+		const isolatedTurn = await isolatedPromise;
 
 		expect(isolatedTurn).toEqual([
 			expect.objectContaining({
