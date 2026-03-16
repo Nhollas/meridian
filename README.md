@@ -4,7 +4,7 @@ Give AI agents a safe environment to write and run code, manage files, and execu
 
 ## How it works
 
-Messages go from the chat UI to the API, which runs a LangGraph agent. The agent runs commands in a Docker sandbox (file ops, background processes, arbitrary code) and streams results back. The CLI adds external capabilities, authenticated via OAuth device flow.
+The chat UI opens a persistent SSE connection and sends messages to the API, which runs a LangGraph agent. The agent runs commands in a Docker sandbox (file ops, background processes, arbitrary code) and pushes events back through the SSE stream. The CLI adds external capabilities, authenticated via OAuth device flow.
 
 <p align="center">
   <img src="docs/architecture/current.svg" alt="Current architecture" />
