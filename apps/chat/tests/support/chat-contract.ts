@@ -26,32 +26,6 @@ export function createChatAcceptedResponse(turnId: string) {
 	return HttpResponse.json({ turnId }, { status: 202 });
 }
 
-export function createSSEStreamResponse(events: RuntimeEventEnvelope[]) {
-	const encoder = new TextEncoder();
-
-	return new HttpResponse(
-		new ReadableStream({
-			start(controller) {
-				for (const event of events) {
-					controller.enqueue(
-						encoder.encode(
-							`id:${event.id}\ndata:${serializeRuntimeEventEnvelope(event)}\n\n`,
-						),
-					);
-				}
-				controller.close();
-			},
-		}),
-		{
-			headers: {
-				"Content-Type": "text/event-stream",
-				"Cache-Control": "no-cache",
-				Connection: "keep-alive",
-			},
-		},
-	);
-}
-
 export function createControllableSSEStream() {
 	let controller: ReadableStreamDefaultController<Uint8Array> | null = null;
 	const encoder = new TextEncoder();
