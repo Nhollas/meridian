@@ -4,8 +4,13 @@ import type {
 	AgentTurnResult,
 } from "@/lib/agent/contracts";
 import type { AgentService } from "@/lib/agent/service";
+import type { SessionStreamRegistry } from "@/lib/session-stream-registry";
 import { createCollectingRegistry } from "../../tests/support/collecting-registry";
-import { executeTurn, triggerSystemTurn } from "./turn-executor";
+import {
+	executeTurn,
+	type SessionTurnQueue,
+	triggerSystemTurn,
+} from "./turn-executor";
 
 function createStubAgentService(
 	handler: (params: {
@@ -15,6 +20,14 @@ function createStubAgentService(
 	}) => Promise<AgentTurnResult>,
 ): AgentService {
 	return { streamConversation: handler };
+}
+
+function createNoopRegistry(): SessionStreamRegistry {
+	return {
+		register() {},
+		unregister() {},
+		async writeEvent() {},
+	};
 }
 
 describe("executeTurn", () => {
@@ -140,6 +153,197 @@ describe("triggerSystemTurn", () => {
 				turnId: "system-turn-1",
 				sessionId: "session-1",
 			}),
+		]);
+	});
+});
+
+describe("session turn queue", () => {
+	it("serializes turns on the same session", async () => {
+		const executionOrder: string[] = [];
+		const queue: SessionTurnQueue = new Map();
+
+		let resolveTurn1!: () => void;
+		const turn1Block = new Promise<void>((r) => {
+			resolveTurn1 = r;
+		});
+
+		const service = createStubAgentService(async ({ message }) => {
+			executionOrder.push(`${message}:start`);
+			if (message === "turn-1") await turn1Block;
+			executionOrder.push(`${message}:end`);
+			return { content: message, toolCalls: [] };
+		});
+
+		const registry = createNoopRegistry();
+
+		executeTurn({
+			agentService: service,
+			message: "turn-1",
+			registry,
+			sessionId: "session-1",
+			sessionTurnQueue: queue,
+			turnId: "t1",
+		});
+
+		// Give turn 1 a tick to start
+		await new Promise((r) => setTimeout(r, 10));
+
+		executeTurn({
+			agentService: service,
+			message: "turn-2",
+			registry,
+			sessionId: "session-1",
+			sessionTurnQueue: queue,
+			turnId: "t2",
+		});
+
+		// Turn 2 should NOT have started yet
+		await new Promise((r) => setTimeout(r, 10));
+		expect(executionOrder).toEqual(["turn-1:start"]);
+
+		// Unblock turn 1 and wait for both to finish
+		resolveTurn1();
+		await queue.get("session-1");
+
+		expect(executionOrder).toEqual([
+			"turn-1:start",
+			"turn-1:end",
+			"turn-2:start",
+			"turn-2:end",
+		]);
+	});
+
+	it("does not block turns on different sessions", async () => {
+		const executionOrder: string[] = [];
+		const queue: SessionTurnQueue = new Map();
+
+		let resolveA!: () => void;
+		const blockA = new Promise<void>((r) => {
+			resolveA = r;
+		});
+
+		const service = createStubAgentService(async ({ message }) => {
+			executionOrder.push(`${message}:start`);
+			if (message === "session-a") await blockA;
+			executionOrder.push(`${message}:end`);
+			return { content: message, toolCalls: [] };
+		});
+
+		const registry = createNoopRegistry();
+
+		executeTurn({
+			agentService: service,
+			message: "session-a",
+			registry,
+			sessionId: "session-a",
+			sessionTurnQueue: queue,
+			turnId: "t1",
+		});
+
+		// Give A a tick to start
+		await new Promise((r) => setTimeout(r, 10));
+
+		executeTurn({
+			agentService: service,
+			message: "session-b",
+			registry,
+			sessionId: "session-b",
+			sessionTurnQueue: queue,
+			turnId: "t2",
+		});
+
+		// Wait for B to finish
+		await queue.get("session-b");
+
+		expect(executionOrder).toEqual([
+			"session-a:start",
+			"session-b:start",
+			"session-b:end",
+		]);
+
+		resolveA();
+		await queue.get("session-a");
+
+		expect(executionOrder).toEqual([
+			"session-a:start",
+			"session-b:start",
+			"session-b:end",
+			"session-a:end",
+		]);
+	});
+
+	it("cleans up queue entry after last turn completes", async () => {
+		const queue: SessionTurnQueue = new Map();
+		const service = createStubAgentService(async () => {
+			return { content: "done", toolCalls: [] };
+		});
+		const registry = createNoopRegistry();
+
+		executeTurn({
+			agentService: service,
+			message: "hi",
+			registry,
+			sessionId: "session-1",
+			sessionTurnQueue: queue,
+			turnId: "t1",
+		});
+
+		// Wait for the turn and cleanup
+		await new Promise((r) => setTimeout(r, 50));
+		expect(queue.has("session-1")).toBe(false);
+	});
+
+	it("system turn queues behind in-flight user turn", async () => {
+		const executionOrder: string[] = [];
+		const queue: SessionTurnQueue = new Map();
+
+		let resolveUserTurn!: () => void;
+		const userTurnBlock = new Promise<void>((r) => {
+			resolveUserTurn = r;
+		});
+
+		const service = createStubAgentService(async ({ message }) => {
+			executionOrder.push(`${message}:start`);
+			if (message === "user-message") await userTurnBlock;
+			executionOrder.push(`${message}:end`);
+			return { content: message, toolCalls: [] };
+		});
+
+		const registry = createNoopRegistry();
+
+		executeTurn({
+			agentService: service,
+			message: "user-message",
+			registry,
+			sessionId: "session-1",
+			sessionTurnQueue: queue,
+			turnId: "user-t1",
+		});
+
+		// Give user turn a tick to start
+		await new Promise((r) => setTimeout(r, 10));
+
+		// System turn fires while user turn is in-flight
+		triggerSystemTurn({
+			agentService: service,
+			createTurnId: () => "system-t1",
+			message: "background-complete",
+			registry,
+			sessionId: "session-1",
+			sessionTurnQueue: queue,
+		});
+
+		await new Promise((r) => setTimeout(r, 10));
+		expect(executionOrder).toEqual(["user-message:start"]);
+
+		resolveUserTurn();
+		await queue.get("session-1");
+
+		expect(executionOrder).toEqual([
+			"user-message:start",
+			"user-message:end",
+			"background-complete:start",
+			"background-complete:end",
 		]);
 	});
 });

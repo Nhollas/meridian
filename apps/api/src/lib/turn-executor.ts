@@ -9,11 +9,16 @@ import {
 } from "@/lib/runtime-events/agent-mappers";
 import type { SessionStreamRegistry } from "@/lib/session-stream-registry";
 
+export type SessionTurnQueue = Map<string, Promise<void>>;
+
+const defaultSessionTurnQueue: SessionTurnQueue = new Map();
+
 type ExecuteTurnParams = {
 	agentService: AgentService;
 	message: string;
 	registry: SessionStreamRegistry;
 	sessionId: string;
+	sessionTurnQueue?: SessionTurnQueue | undefined;
 	turnId: string;
 };
 
@@ -22,8 +27,68 @@ export function executeTurn({
 	message,
 	registry,
 	sessionId,
+	sessionTurnQueue = defaultSessionTurnQueue,
 	turnId,
 }: ExecuteTurnParams): void {
+	const previous = sessionTurnQueue.get(sessionId) ?? Promise.resolve();
+
+	const current = previous.then(() =>
+		runTurn({ agentService, message, registry, sessionId, turnId }),
+	);
+
+	sessionTurnQueue.set(sessionId, current);
+
+	current.then(() => {
+		if (sessionTurnQueue.get(sessionId) === current) {
+			sessionTurnQueue.delete(sessionId);
+		}
+	});
+}
+
+type TriggerSystemTurnParams = {
+	agentService: AgentService;
+	createTurnId?: () => string;
+	message: string;
+	registry: SessionStreamRegistry;
+	sessionId: string;
+	sessionTurnQueue?: SessionTurnQueue | undefined;
+};
+
+export function triggerSystemTurn({
+	agentService,
+	createTurnId = randomUUID,
+	message,
+	registry,
+	sessionId,
+	sessionTurnQueue,
+}: TriggerSystemTurnParams): string {
+	const turnId = createTurnId();
+
+	executeTurn({
+		agentService,
+		message,
+		registry,
+		sessionId,
+		sessionTurnQueue,
+		turnId,
+	});
+
+	return turnId;
+}
+
+async function runTurn({
+	agentService,
+	message,
+	registry,
+	sessionId,
+	turnId,
+}: {
+	agentService: AgentService;
+	message: string;
+	registry: SessionStreamRegistry;
+	sessionId: string;
+	turnId: string;
+}): Promise<void> {
 	const eventFactory = createRuntimeEventFactory({ sessionId, turnId });
 	let partialContent = "";
 	let partialToolCalls: AgentToolCall[] = [];
@@ -43,59 +108,35 @@ export function executeTurn({
 		);
 	};
 
-	(async () => {
-		try {
-			const response = await agentService.streamConversation({
-				message,
-				sessionId,
-				onEvent,
-			});
+	try {
+		const response = await agentService.streamConversation({
+			message,
+			sessionId,
+			onEvent,
+		});
 
+		await registry.writeEvent(
+			sessionId,
+			mapAgentResultToRuntimeEvent(eventFactory, response),
+		);
+	} catch (error) {
+		if (partialContent.trim().length > 0) {
+			const response = {
+				content: partialContent,
+				toolCalls: partialToolCalls,
+			};
 			await registry.writeEvent(
 				sessionId,
 				mapAgentResultToRuntimeEvent(eventFactory, response),
 			);
-		} catch (error) {
-			if (partialContent.trim().length > 0) {
-				const response = {
-					content: partialContent,
-					toolCalls: partialToolCalls,
-				};
-				await registry.writeEvent(
-					sessionId,
-					mapAgentResultToRuntimeEvent(eventFactory, response),
-				);
-				return;
-			}
-
-			await registry.writeEvent(
-				sessionId,
-				mapErrorToRuntimeEvent(eventFactory, error),
-			);
+			return;
 		}
-	})().catch(console.error);
-}
 
-type TriggerSystemTurnParams = {
-	agentService: AgentService;
-	createTurnId?: () => string;
-	message: string;
-	registry: SessionStreamRegistry;
-	sessionId: string;
-};
-
-export function triggerSystemTurn({
-	agentService,
-	createTurnId = randomUUID,
-	message,
-	registry,
-	sessionId,
-}: TriggerSystemTurnParams): string {
-	const turnId = createTurnId();
-
-	executeTurn({ agentService, message, registry, sessionId, turnId });
-
-	return turnId;
+		await registry.writeEvent(
+			sessionId,
+			mapErrorToRuntimeEvent(eventFactory, error),
+		);
+	}
 }
 
 function upsertToolCall(
