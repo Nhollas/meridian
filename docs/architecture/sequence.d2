@@ -22,9 +22,12 @@ keycloak: Keycloak {
   icon: https://cdn.simpleicons.org/letsencrypt
 }
 
-# User sends a chat message
+# User opens SSE connection, then sends a chat message
 user -> chat: sends message
-chat -> api: POST /chat (NDJSON stream)
+chat -> api: GET /sessions/:id/events (SSE) {
+  style.animated: true
+}
+chat -> api: "POST /chat → 202 { turnId }"
 
 # API hands off to the agent
 api -> agent: invoke agent
@@ -54,7 +57,7 @@ openai -> agent: final response {
 
 # Results stream back to user
 agent -> api: agent output
-api -> chat: NDJSON event stream {
+api -> chat: SSE event pushed {
   style.animated: true
 }
 chat -> user: renders response
@@ -67,7 +70,7 @@ OAuth device flow: {
     style.stroke-dash: 3
   }
   agent -> api: response includes login URL
-  api -> chat: NDJSON event stream {
+  api -> chat: SSE event pushed {
     style.animated: true
   }
   chat -> user: presents login URL
@@ -82,7 +85,7 @@ OAuth device flow: {
 
 # Next turn — agent checks auth status
 user -> chat: sends next message
-chat -> api: POST /chat (NDJSON stream)
+chat -> api: "POST /chat → 202 { turnId }"
 api -> agent: invoke agent
 agent -> sandbox: check auth status {
   style.stroke-dash: 3
