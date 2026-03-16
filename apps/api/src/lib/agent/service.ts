@@ -134,8 +134,22 @@ export const createAgentService: CreateAgentService = ({
 					};
 				}
 
+				if (isClosedControllerError(error) && currentGeneration) {
+					return {
+						content: currentGeneration,
+						toolCalls: [...observedToolCalls.values()],
+					};
+				}
+
 				throw error;
 			}
 		},
 	};
 };
+
+function isClosedControllerError(error: unknown): boolean {
+	return (
+		error instanceof TypeError &&
+		error.message.includes("Controller is already closed")
+	);
+}
