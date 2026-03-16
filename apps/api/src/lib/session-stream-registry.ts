@@ -33,10 +33,14 @@ export function createSessionStreamRegistry(): SessionStreamRegistry {
 				return;
 			}
 
-			await writer.writeSSE({
-				data: serializeRuntimeEventEnvelope(event),
-				id: event.id,
-			});
+			try {
+				await writer.writeSSE({
+					data: serializeRuntimeEventEnvelope(event),
+					id: event.id,
+				});
+			} catch {
+				streams.delete(sessionId);
+			}
 		},
 	};
 }
