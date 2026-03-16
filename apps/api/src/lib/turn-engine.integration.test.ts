@@ -9,9 +9,9 @@ import {
 	toolCompleted,
 	toolStarted,
 } from "../../tests/support/scripted-agent-runner";
-import { triggerSystemTurn } from "./turn-executor";
+import { createTurnEngine } from "./turn-engine";
 
-describe("triggerSystemTurn integration", () => {
+describe("TurnEngine integration", () => {
 	it("runs the agent with tools and streams events via the registry", async () => {
 		const runtime = createInMemorySandboxRuntime({
 			instructions: "You are a helpful assistant.",
@@ -43,16 +43,24 @@ describe("triggerSystemTurn integration", () => {
 			);
 		});
 		const { registry, collectTurnEvents } = createCollectingRegistry();
-		const agentService = createAgentService({ createRunner, runtime });
+
+		const engine = createTurnEngine({
+			createAgentService: (deps) =>
+				createAgentService({
+					createRunner,
+					onBackgroundCommandComplete: deps.onBackgroundCommandComplete,
+					runtime: deps.runtime,
+				}),
+			createTurnId: () => "system-turn-1",
+			getRuntime: () => runtime,
+			registry,
+		});
 
 		const eventsPromise = collectTurnEvents("session-abc");
 
-		const turnId = triggerSystemTurn({
-			agentService,
-			createTurnId: () => "system-turn-1",
-			message: "OAuth callback: user authenticated on sky.com",
-			registry,
+		const turnId = engine.submit({
 			sessionId: "session-abc",
+			message: "OAuth callback: user authenticated on sky.com",
 		});
 
 		expect(turnId).toBe("system-turn-1");

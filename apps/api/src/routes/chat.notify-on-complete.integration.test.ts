@@ -11,8 +11,7 @@ import {
 import { createTestChat } from "./chat.integration-support";
 
 describe("POST /api/chat integration - notify on complete", () => {
-	it("fires onBackgroundCommandComplete when background command finishes and notifyOnComplete is true", async () => {
-		const onBackgroundCommandComplete = vi.fn();
+	it("triggers a system turn when a background command finishes and notifyOnComplete is true", async () => {
 		const runtime = createInMemorySandboxRuntime({
 			backgroundCommands: {
 				"bg-1": {
@@ -54,7 +53,15 @@ describe("POST /api/chat integration - notify on complete", () => {
 			],
 			instructions: "Login first.",
 		});
-		const createRunner = createScriptedAgentRunner(async function* ({ tools }) {
+		const createRunner = createScriptedAgentRunner(async function* ({
+			message,
+			tools,
+		}) {
+			if (message.startsWith("[System]")) {
+				yield assistantText("Background command completed. Continuing.");
+				return;
+			}
+
 			yield toolStarted({
 				id: "tool-1",
 				input: {
@@ -83,38 +90,39 @@ describe("POST /api/chat integration - notify on complete", () => {
 		});
 		const { POST, collectTurnEvents } = createTestChat({
 			createRunner,
-			onBackgroundCommandComplete,
 			runtime,
 		});
 
-		const eventsPromise = collectTurnEvents("session-notify");
+		const userTurnEventsPromise = collectTurnEvents("session-notify");
 		await POST(
 			createChatRequest({
 				message: "Login to sky",
 				sessionId: "session-notify",
 			}),
 		);
-		await eventsPromise;
+		await userTurnEventsPromise;
 
-		// waitForBackgroundCommand resolves async, give it a tick
-		await vi.waitFor(() => {
-			expect(onBackgroundCommandComplete).toHaveBeenCalledOnce();
-		});
+		// The background command completion triggers a system turn via the engine
+		const systemTurnEventsPromise = collectTurnEvents("session-notify");
 
-		expect(onBackgroundCommandComplete).toHaveBeenCalledWith({
-			commandId: "bg-1",
-			command: ["meridian", "auth", "login"],
-			result: expect.objectContaining({
-				status: "completed",
-				exitCode: 0,
-				stdout: '{"status":"authenticated"}\n',
+		const systemTurnEvents = await systemTurnEventsPromise;
+
+		expect(systemTurnEvents).toEqual([
+			expect.objectContaining({
+				type: "assistant.delta",
+				sessionId: "session-notify",
 			}),
-			sessionId: "session-notify",
-		});
+			expect.objectContaining({
+				type: "turn.completed",
+				sessionId: "session-notify",
+				payload: expect.objectContaining({
+					content: "Background command completed. Continuing.",
+				}),
+			}),
+		]);
 	});
 
-	it("does not fire callback when notifyOnComplete is not set", async () => {
-		const onBackgroundCommandComplete = vi.fn();
+	it("does not trigger a system turn when notifyOnComplete is not set", async () => {
 		const runtime = createInMemorySandboxRuntime({
 			backgroundCommands: {
 				"bg-1": {
@@ -179,9 +187,8 @@ describe("POST /api/chat integration - notify on complete", () => {
 
 			yield assistantText("Started login without notification.");
 		});
-		const { POST, collectTurnEvents } = createTestChat({
+		const { POST, collectTurnEvents, registry } = createTestChat({
 			createRunner,
-			onBackgroundCommandComplete,
 			runtime,
 		});
 
@@ -197,6 +204,11 @@ describe("POST /api/chat integration - notify on complete", () => {
 		// Give async operations time to settle
 		await new Promise((resolve) => setTimeout(resolve, 50));
 
-		expect(onBackgroundCommandComplete).not.toHaveBeenCalled();
+		// Verify no additional events were written (no system turn triggered)
+		const spy = vi.fn();
+		registry.register("session-no-notify", { writeSSE: spy });
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		expect(spy).not.toHaveBeenCalled();
+		registry.unregister("session-no-notify");
 	});
 });

@@ -1,3 +1,4 @@
+import { upsertById } from "@meridian/contracts/collections";
 import type { RuntimeEventEnvelope } from "@meridian/contracts/runtime-events";
 import { useMutation } from "@tanstack/react-query";
 import { startTransition, useEffect, useRef, useState } from "react";
@@ -42,7 +43,7 @@ function dispatchEvent(
 		event.type === "tool.completed" ||
 		event.type === "tool.failed"
 	) {
-		handler.streamedToolCalls = upsertToolCall(
+		handler.streamedToolCalls = upsertById(
 			handler.streamedToolCalls,
 			mapRuntimeToolEventToViewModel(event),
 		);
@@ -359,21 +360,4 @@ function createDeferred() {
 
 function sleep(ms: number) {
 	return new Promise<void>((resolve) => setTimeout(resolve, ms));
-}
-
-function upsertToolCall(
-	toolCalls: ToolCallViewModel[],
-	nextToolCall: ToolCallViewModel,
-) {
-	const existingIndex = toolCalls.findIndex(
-		(toolCall) => toolCall.id === nextToolCall.id,
-	);
-
-	if (existingIndex === -1) {
-		return [...toolCalls, nextToolCall];
-	}
-
-	return toolCalls.map((toolCall, index) =>
-		index === existingIndex ? { ...toolCall, ...nextToolCall } : toolCall,
-	);
 }

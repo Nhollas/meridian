@@ -4,13 +4,8 @@ import type {
 	AgentTurnResult,
 } from "@/lib/agent/contracts";
 import type { AgentService } from "@/lib/agent/service";
-import type { SessionStreamRegistry } from "@/lib/session-stream-registry";
 import { createCollectingRegistry } from "../../tests/support/collecting-registry";
-import {
-	executeTurn,
-	type SessionTurnQueue,
-	triggerSystemTurn,
-} from "./turn-executor";
+import { createTurnEngine } from "./turn-engine";
 
 function createStubAgentService(
 	handler: (params: {
@@ -22,15 +17,7 @@ function createStubAgentService(
 	return { streamConversation: handler };
 }
 
-function createNoopRegistry(): SessionStreamRegistry {
-	return {
-		register() {},
-		unregister() {},
-		async writeEvent() {},
-	};
-}
-
-describe("executeTurn", () => {
+describe("TurnEngine", () => {
 	it("streams events to the registry and emits turn.completed", async () => {
 		const agentService = createStubAgentService(async ({ onEvent }) => {
 			await onEvent?.({ type: "text-delta", text: "Hello" });
@@ -40,13 +27,13 @@ describe("executeTurn", () => {
 
 		const eventsPromise = collectTurnEvents("session-1");
 
-		executeTurn({
-			agentService,
-			message: "hi",
+		const engine = createTurnEngine({
+			createAgentService: () => agentService,
+			getRuntime: () => ({}) as never,
 			registry,
-			sessionId: "session-1",
-			turnId: "turn-1",
 		});
+
+		engine.submit({ sessionId: "session-1", message: "hi", turnId: "turn-1" });
 
 		const events = await eventsPromise;
 
@@ -70,13 +57,13 @@ describe("executeTurn", () => {
 
 		const eventsPromise = collectTurnEvents("session-1");
 
-		executeTurn({
-			agentService,
-			message: "hi",
+		const engine = createTurnEngine({
+			createAgentService: () => agentService,
+			getRuntime: () => ({}) as never,
 			registry,
-			sessionId: "session-1",
-			turnId: "turn-1",
 		});
+
+		engine.submit({ sessionId: "session-1", message: "hi", turnId: "turn-1" });
 
 		const events = await eventsPromise;
 
@@ -97,13 +84,13 @@ describe("executeTurn", () => {
 
 		const eventsPromise = collectTurnEvents("session-1");
 
-		executeTurn({
-			agentService,
-			message: "hi",
+		const engine = createTurnEngine({
+			createAgentService: () => agentService,
+			getRuntime: () => ({}) as never,
 			registry,
-			sessionId: "session-1",
-			turnId: "turn-1",
 		});
+
+		engine.submit({ sessionId: "session-1", message: "hi", turnId: "turn-1" });
 
 		const events = await eventsPromise;
 
@@ -118,10 +105,8 @@ describe("executeTurn", () => {
 			}),
 		]);
 	});
-});
 
-describe("triggerSystemTurn", () => {
-	it("returns a turnId and executes the turn", async () => {
+	it("generates a turnId when none is provided", async () => {
 		const agentService = createStubAgentService(async ({ onEvent }) => {
 			await onEvent?.({ type: "text-delta", text: "Notification response" });
 			return { content: "Notification response", toolCalls: [] };
@@ -130,12 +115,16 @@ describe("triggerSystemTurn", () => {
 
 		const eventsPromise = collectTurnEvents("session-1");
 
-		const turnId = triggerSystemTurn({
-			agentService,
+		const engine = createTurnEngine({
+			createAgentService: () => agentService,
 			createTurnId: () => "system-turn-1",
-			message: "OAuth callback: user authenticated",
+			getRuntime: () => ({}) as never,
 			registry,
+		});
+
+		const turnId = engine.submit({
 			sessionId: "session-1",
+			message: "OAuth callback: user authenticated",
 		});
 
 		expect(turnId).toBe("system-turn-1");
@@ -155,47 +144,37 @@ describe("triggerSystemTurn", () => {
 			}),
 		]);
 	});
-});
 
-describe("session turn queue", () => {
 	it("serializes turns on the same session", async () => {
 		const executionOrder: string[] = [];
-		const queue: SessionTurnQueue = new Map();
 
 		let resolveTurn1!: () => void;
 		const turn1Block = new Promise<void>((r) => {
 			resolveTurn1 = r;
 		});
 
-		const service = createStubAgentService(async ({ message }) => {
-			executionOrder.push(`${message}:start`);
-			if (message === "turn-1") await turn1Block;
-			executionOrder.push(`${message}:end`);
-			return { content: message, toolCalls: [] };
+		const engine = createTurnEngine({
+			createAgentService: () =>
+				createStubAgentService(async ({ message }) => {
+					executionOrder.push(`${message}:start`);
+					if (message === "turn-1") await turn1Block;
+					executionOrder.push(`${message}:end`);
+					return { content: message, toolCalls: [] };
+				}),
+			getRuntime: () => ({}) as never,
+			registry: {
+				register() {},
+				unregister() {},
+				async writeEvent() {},
+			},
 		});
 
-		const registry = createNoopRegistry();
-
-		executeTurn({
-			agentService: service,
-			message: "turn-1",
-			registry,
-			sessionId: "session-1",
-			sessionTurnQueue: queue,
-			turnId: "t1",
-		});
+		engine.submit({ sessionId: "session-1", message: "turn-1", turnId: "t1" });
 
 		// Give turn 1 a tick to start
 		await new Promise((r) => setTimeout(r, 10));
 
-		executeTurn({
-			agentService: service,
-			message: "turn-2",
-			registry,
-			sessionId: "session-1",
-			sessionTurnQueue: queue,
-			turnId: "t2",
-		});
+		engine.submit({ sessionId: "session-1", message: "turn-2", turnId: "t2" });
 
 		// Turn 2 should NOT have started yet
 		await new Promise((r) => setTimeout(r, 10));
@@ -203,7 +182,7 @@ describe("session turn queue", () => {
 
 		// Unblock turn 1 and wait for both to finish
 		resolveTurn1();
-		await queue.get("session-1");
+		await new Promise((r) => setTimeout(r, 50));
 
 		expect(executionOrder).toEqual([
 			"turn-1:start",
@@ -215,45 +194,45 @@ describe("session turn queue", () => {
 
 	it("does not block turns on different sessions", async () => {
 		const executionOrder: string[] = [];
-		const queue: SessionTurnQueue = new Map();
 
 		let resolveA!: () => void;
 		const blockA = new Promise<void>((r) => {
 			resolveA = r;
 		});
 
-		const service = createStubAgentService(async ({ message }) => {
-			executionOrder.push(`${message}:start`);
-			if (message === "session-a") await blockA;
-			executionOrder.push(`${message}:end`);
-			return { content: message, toolCalls: [] };
+		const engine = createTurnEngine({
+			createAgentService: () =>
+				createStubAgentService(async ({ message }) => {
+					executionOrder.push(`${message}:start`);
+					if (message === "session-a") await blockA;
+					executionOrder.push(`${message}:end`);
+					return { content: message, toolCalls: [] };
+				}),
+			getRuntime: () => ({}) as never,
+			registry: {
+				register() {},
+				unregister() {},
+				async writeEvent() {},
+			},
 		});
 
-		const registry = createNoopRegistry();
-
-		executeTurn({
-			agentService: service,
-			message: "session-a",
-			registry,
+		engine.submit({
 			sessionId: "session-a",
-			sessionTurnQueue: queue,
+			message: "session-a",
 			turnId: "t1",
 		});
 
 		// Give A a tick to start
 		await new Promise((r) => setTimeout(r, 10));
 
-		executeTurn({
-			agentService: service,
-			message: "session-b",
-			registry,
+		engine.submit({
 			sessionId: "session-b",
-			sessionTurnQueue: queue,
+			message: "session-b",
 			turnId: "t2",
 		});
 
 		// Wait for B to finish
-		await queue.get("session-b");
+		await new Promise((r) => setTimeout(r, 50));
 
 		expect(executionOrder).toEqual([
 			"session-a:start",
@@ -262,7 +241,7 @@ describe("session turn queue", () => {
 		]);
 
 		resolveA();
-		await queue.get("session-a");
+		await new Promise((r) => setTimeout(r, 50));
 
 		expect(executionOrder).toEqual([
 			"session-a:start",
@@ -272,72 +251,51 @@ describe("session turn queue", () => {
 		]);
 	});
 
-	it("cleans up queue entry after last turn completes", async () => {
-		const queue: SessionTurnQueue = new Map();
-		const service = createStubAgentService(async () => {
-			return { content: "done", toolCalls: [] };
-		});
-		const registry = createNoopRegistry();
-
-		executeTurn({
-			agentService: service,
-			message: "hi",
-			registry,
-			sessionId: "session-1",
-			sessionTurnQueue: queue,
-			turnId: "t1",
-		});
-
-		// Wait for the turn and cleanup
-		await new Promise((r) => setTimeout(r, 50));
-		expect(queue.has("session-1")).toBe(false);
-	});
-
 	it("system turn queues behind in-flight user turn", async () => {
 		const executionOrder: string[] = [];
-		const queue: SessionTurnQueue = new Map();
 
 		let resolveUserTurn!: () => void;
 		const userTurnBlock = new Promise<void>((r) => {
 			resolveUserTurn = r;
 		});
 
-		const service = createStubAgentService(async ({ message }) => {
-			executionOrder.push(`${message}:start`);
-			if (message === "user-message") await userTurnBlock;
-			executionOrder.push(`${message}:end`);
-			return { content: message, toolCalls: [] };
+		const engine = createTurnEngine({
+			createAgentService: () =>
+				createStubAgentService(async ({ message }) => {
+					executionOrder.push(`${message}:start`);
+					if (message === "user-message") await userTurnBlock;
+					executionOrder.push(`${message}:end`);
+					return { content: message, toolCalls: [] };
+				}),
+			createTurnId: () => "system-t1",
+			getRuntime: () => ({}) as never,
+			registry: {
+				register() {},
+				unregister() {},
+				async writeEvent() {},
+			},
 		});
 
-		const registry = createNoopRegistry();
-
-		executeTurn({
-			agentService: service,
-			message: "user-message",
-			registry,
+		engine.submit({
 			sessionId: "session-1",
-			sessionTurnQueue: queue,
+			message: "user-message",
 			turnId: "user-t1",
 		});
 
 		// Give user turn a tick to start
 		await new Promise((r) => setTimeout(r, 10));
 
-		// System turn fires while user turn is in-flight
-		triggerSystemTurn({
-			agentService: service,
-			createTurnId: () => "system-t1",
-			message: "background-complete",
-			registry,
+		// System turn fires while user turn is in-flight (no turnId → generated)
+		engine.submit({
 			sessionId: "session-1",
-			sessionTurnQueue: queue,
+			message: "background-complete",
 		});
 
 		await new Promise((r) => setTimeout(r, 10));
 		expect(executionOrder).toEqual(["user-message:start"]);
 
 		resolveUserTurn();
-		await queue.get("session-1");
+		await new Promise((r) => setTimeout(r, 50));
 
 		expect(executionOrder).toEqual([
 			"user-message:start",

@@ -1,17 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import {
-	type CreateAgentService,
-	createAgentService as createDefaultAgentService,
-} from "@/lib/agent/service";
-import type { BackgroundCommandCompleteCallback } from "@/lib/agent/tools";
-import type { SandboxRuntime } from "@/lib/sandbox/runtime";
-import { getSandboxRuntime } from "@/lib/sandbox/singleton";
-import {
-	createSessionStreamRegistry,
-	type SessionStreamRegistry,
-} from "@/lib/session-stream-registry";
-import { executeTurn } from "@/lib/turn-executor";
+import type { TurnEngine } from "@/lib/turn-engine";
 
 const sessionIdSchema = z
 	.string()
@@ -26,20 +15,14 @@ const chatRequestSchema = z.object({
 });
 
 type ChatRouteDependencies = {
-	createAgentService?: CreateAgentService;
 	createTurnId?: () => string;
-	getRuntime?: () => SandboxRuntime;
-	onBackgroundCommandComplete?: BackgroundCommandCompleteCallback | undefined;
-	registry?: SessionStreamRegistry;
+	engine: TurnEngine;
 };
 
 export function createChatRoute({
-	createAgentService = createDefaultAgentService,
 	createTurnId = randomUUID,
-	getRuntime = getSandboxRuntime,
-	onBackgroundCommandComplete,
-	registry = createSessionStreamRegistry(),
-}: ChatRouteDependencies = {}) {
+	engine,
+}: ChatRouteDependencies) {
 	return async (request: Request) => {
 		const sessionIdResult = sessionIdSchema.safeParse(
 			request.headers.get("session-id"),
@@ -60,16 +43,9 @@ export function createChatRoute({
 		const sessionId = sessionIdResult.data;
 		const { message } = bodyResult.data;
 		const turnId = createTurnId();
-		const runtime = getRuntime();
-		const agentService = createAgentService({
-			onBackgroundCommandComplete,
-			runtime,
-		});
 
-		executeTurn({ agentService, message, registry, sessionId, turnId });
+		engine.submit({ sessionId, message, turnId });
 
 		return Response.json({ turnId }, { status: 202 });
 	};
 }
-
-export const handleChat = createChatRoute();
