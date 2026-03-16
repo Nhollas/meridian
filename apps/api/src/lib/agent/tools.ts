@@ -1,15 +1,30 @@
 import { tool } from "langchain";
 import { z } from "zod";
-import type { SandboxRuntime } from "@/lib/sandbox/runtime";
+import type {
+	SandboxRuntime,
+	SandboxWaitForBackgroundCommandResult,
+} from "@/lib/sandbox/runtime";
+
+export type BackgroundCommandCompleteCallback = (params: {
+	commandId: string;
+	command: string[];
+	result: SandboxWaitForBackgroundCommandResult;
+	sessionId: string;
+}) => void;
 
 type ToolContext = {
+	onBackgroundCommandComplete?: BackgroundCommandCompleteCallback | undefined;
 	runtime: SandboxRuntime;
 	sessionId: string;
 };
 
 const emptySchema = z.object({});
 
-export function createRuntimeAgentTools({ runtime, sessionId }: ToolContext) {
+export function createRuntimeAgentTools({
+	onBackgroundCommandComplete,
+	runtime,
+	sessionId,
+}: ToolContext) {
 	return [
 		tool(async () => runtime.getInstructions(sessionId), {
 			name: "get_runtime_instructions",
@@ -23,17 +38,36 @@ export function createRuntimeAgentTools({ runtime, sessionId }: ToolContext) {
 				timeoutMs?: number;
 				waitFor?: "exit" | "first-stdout-line";
 				keepAlive?: boolean;
+				notifyOnComplete?: boolean;
 				stdin?: string;
 			}) => {
-				const { command, ...options } = input;
-				return JSON.stringify(
-					await runtime.runCommand(sessionId, command, options),
-				);
+				const { command, notifyOnComplete, ...options } = input;
+				const result = await runtime.runCommand(sessionId, command, options);
+
+				if (
+					notifyOnComplete &&
+					result.backgroundCommandId &&
+					onBackgroundCommandComplete
+				) {
+					runtime
+						.waitForBackgroundCommand(sessionId, result.backgroundCommandId)
+						.then((waitResult) =>
+							onBackgroundCommandComplete({
+								commandId: result.backgroundCommandId as string,
+								command,
+								result: waitResult,
+								sessionId,
+							}),
+						)
+						.catch(console.error);
+				}
+
+				return JSON.stringify(result);
 			},
 			{
 				name: "run_command",
 				description:
-					"Run a command inside the sandbox runtime. Use this to explore installed capabilities and perform tasks. When called with waitFor=first-stdout-line and keepAlive=true, the result may include a backgroundCommandId that can be inspected later.",
+					"Run a command inside the sandbox runtime. Use this to explore installed capabilities and perform tasks. When called with waitFor=first-stdout-line and keepAlive=true, the result may include a backgroundCommandId that can be inspected later. Set notifyOnComplete=true to be automatically notified when the background command finishes.",
 				schema: z.object({
 					command: z
 						.array(z.string())
@@ -59,6 +93,12 @@ export function createRuntimeAgentTools({ runtime, sessionId }: ToolContext) {
 						.optional()
 						.describe(
 							"If true with waitFor=first-stdout-line, leave the process running in the background",
+						),
+					notifyOnComplete: z
+						.boolean()
+						.optional()
+						.describe(
+							"If true, you will be automatically notified when this background command completes without needing to poll",
 						),
 					stdin: z.string().optional().describe("Optional stdin input"),
 				}),

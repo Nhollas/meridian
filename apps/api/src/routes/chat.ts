@@ -4,6 +4,7 @@ import {
 	type CreateAgentService,
 	createAgentService as createDefaultAgentService,
 } from "@/lib/agent/service";
+import type { BackgroundCommandCompleteCallback } from "@/lib/agent/tools";
 import type { SandboxRuntime } from "@/lib/sandbox/runtime";
 import { getSandboxRuntime } from "@/lib/sandbox/singleton";
 import {
@@ -28,6 +29,7 @@ type ChatRouteDependencies = {
 	createAgentService?: CreateAgentService;
 	createTurnId?: () => string;
 	getRuntime?: () => SandboxRuntime;
+	onBackgroundCommandComplete?: BackgroundCommandCompleteCallback | undefined;
 	registry?: SessionStreamRegistry;
 };
 
@@ -35,6 +37,7 @@ export function createChatRoute({
 	createAgentService = createDefaultAgentService,
 	createTurnId = randomUUID,
 	getRuntime = getSandboxRuntime,
+	onBackgroundCommandComplete,
 	registry = createSessionStreamRegistry(),
 }: ChatRouteDependencies = {}) {
 	return async (request: Request) => {
@@ -58,7 +61,10 @@ export function createChatRoute({
 		const { message } = bodyResult.data;
 		const turnId = createTurnId();
 		const runtime = getRuntime();
-		const agentService = createAgentService({ runtime });
+		const agentService = createAgentService({
+			onBackgroundCommandComplete,
+			runtime,
+		});
 
 		executeTurn({ agentService, message, registry, sessionId, turnId });
 

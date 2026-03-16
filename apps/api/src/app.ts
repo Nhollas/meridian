@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { createAgentService } from "./lib/agent/service";
+import type { BackgroundCommandCompleteCallback } from "./lib/agent/tools";
 import { getSandboxRuntime } from "./lib/sandbox/singleton";
 import { createSessionStreamRegistry } from "./lib/session-stream-registry";
 import { triggerSystemTurn } from "./lib/turn-executor";
@@ -12,7 +13,28 @@ export const app = new Hono();
 app.use("*", cors());
 
 const registry = createSessionStreamRegistry();
-const handleChat = createChatRoute({ registry });
+
+const onBackgroundCommandComplete: BackgroundCommandCompleteCallback = ({
+	commandId,
+	command,
+	result,
+	sessionId,
+}) => {
+	const message = [
+		`Background command ${commandId} (${command.join(" ")}) ${result.status} with exit code ${result.exitCode}.`,
+		result.stdout ? `stdout:\n${result.stdout}` : "",
+		result.stderr ? `stderr:\n${result.stderr}` : "",
+	]
+		.filter(Boolean)
+		.join("\n");
+
+	notifySession({ sessionId, message });
+};
+
+const handleChat = createChatRoute({
+	onBackgroundCommandComplete,
+	registry,
+});
 const handleSessionEvents = createSessionEventsRoute({ registry });
 
 app.post("/api/chat", (c) => handleChat(c.req.raw));
@@ -26,7 +48,10 @@ export function notifySession({
 	message: string;
 }): string {
 	const runtime = getSandboxRuntime();
-	const agentService = createAgentService({ runtime });
+	const agentService = createAgentService({
+		onBackgroundCommandComplete,
+		runtime,
+	});
 
 	return triggerSystemTurn({ agentService, message, registry, sessionId });
 }
