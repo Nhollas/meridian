@@ -21,9 +21,10 @@ const onBackgroundCommandComplete: BackgroundCommandCompleteCallback = ({
 	sessionId,
 }) => {
 	const message = [
-		`Background command ${commandId} (${command.join(" ")}) ${result.status} with exit code ${result.exitCode}.`,
-		result.stdout ? `stdout:\n${result.stdout}` : "",
-		result.stderr ? `stderr:\n${result.stderr}` : "",
+		`[System] Background command ${commandId} (${command.join(" ")}) ${result.status}.`,
+		result.stdout ? `Output:\n${result.stdout}` : "",
+		result.stderr ? `Errors:\n${result.stderr}` : "",
+		"Briefly acknowledge what changed and continue with the next step. Do not repeat information from previous turns.",
 	]
 		.filter(Boolean)
 		.join("\n");
