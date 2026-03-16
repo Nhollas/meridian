@@ -7,6 +7,7 @@ import type {
 } from "./contracts";
 import { type CreateAgentRunner, createLangChainAgentRunner } from "./runner";
 import {
+	type BackgroundCommandCompleteCallback,
 	createRuntimeAgentTools,
 	extractTextContent,
 	stringifyMessageContent,
@@ -27,6 +28,7 @@ export interface AgentService {
 
 export type AgentServiceDependencies = {
 	createRunner?: CreateAgentRunner;
+	onBackgroundCommandComplete?: BackgroundCommandCompleteCallback | undefined;
 	runtime: SandboxRuntime;
 };
 
@@ -36,6 +38,7 @@ export type CreateAgentService = (
 
 export const createAgentService: CreateAgentService = ({
 	createRunner = createLangChainAgentRunner,
+	onBackgroundCommandComplete,
 	runtime,
 }) => {
 	return {
@@ -48,7 +51,11 @@ export const createAgentService: CreateAgentService = ({
 			sessionId: string;
 			onEvent?: (event: AgentProgressEvent) => void | Promise<void>;
 		}): Promise<AgentTurnResult> {
-			const tools = createRuntimeAgentTools({ runtime, sessionId });
+			const tools = createRuntimeAgentTools({
+				onBackgroundCommandComplete,
+				runtime,
+				sessionId,
+			});
 			const runner = createRunner({ tools });
 			const observedToolCalls = new Map<string, AgentToolCall>();
 			let currentGeneration = "";
@@ -127,8 +134,22 @@ export const createAgentService: CreateAgentService = ({
 					};
 				}
 
+				if (isClosedControllerError(error) && currentGeneration) {
+					return {
+						content: currentGeneration,
+						toolCalls: [...observedToolCalls.values()],
+					};
+				}
+
 				throw error;
 			}
 		},
 	};
 };
+
+function isClosedControllerError(error: unknown): boolean {
+	return (
+		error instanceof TypeError &&
+		error.message.includes("Controller is already closed")
+	);
+}

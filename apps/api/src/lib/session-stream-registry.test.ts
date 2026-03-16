@@ -2,7 +2,7 @@ import {
 	createRuntimeEventFactory,
 	serializeRuntimeEventEnvelope,
 } from "@meridian/contracts/runtime-events";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createSessionStreamRegistry } from "./session-stream-registry";
 
 function createTestEventFactory() {
@@ -64,5 +64,41 @@ describe("SessionStreamRegistry", () => {
 		await registry.writeEvent("session-123", event);
 
 		expect(collected).toEqual([]);
+	});
+
+	it("does not propagate writeSSE errors to the caller", async () => {
+		const registry = createSessionStreamRegistry();
+		const factory = createTestEventFactory();
+
+		registry.register("session-123", {
+			writeSSE: async () => {
+				throw new TypeError("Invalid state: Controller is already closed");
+			},
+		});
+
+		const event = factory.create("assistant.delta", { delta: "hello" });
+
+		await expect(
+			registry.writeEvent("session-123", event),
+		).resolves.toBeUndefined();
+	});
+
+	it("cleans up dead writer and silently drops subsequent events", async () => {
+		const registry = createSessionStreamRegistry();
+		const factory = createTestEventFactory();
+		const writeSSE = vi
+			.fn()
+			.mockRejectedValueOnce(
+				new TypeError("Invalid state: Controller is already closed"),
+			);
+
+		registry.register("session-123", { writeSSE });
+
+		const event = factory.create("assistant.delta", { delta: "hello" });
+		await registry.writeEvent("session-123", event);
+
+		writeSSE.mockClear();
+		await registry.writeEvent("session-123", event);
+		expect(writeSSE).not.toHaveBeenCalled();
 	});
 });

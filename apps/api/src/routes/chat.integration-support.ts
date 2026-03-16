@@ -1,6 +1,7 @@
 import type { CreateAgentRunner } from "@/lib/agent/runner";
 import { createAgentService } from "@/lib/agent/service";
 import type { SandboxRuntime } from "@/lib/sandbox/runtime";
+import { createTurnEngine } from "@/lib/turn-engine";
 import { createChatRoute } from "@/routes/chat";
 import { createCollectingRegistry } from "../../tests/support/collecting-registry";
 
@@ -12,15 +13,25 @@ export function createTestChat({
 	runtime: SandboxRuntime;
 }) {
 	let turnCount = 0;
+	const nextTurnId = () => `turn-${++turnCount}`;
 	const { registry, collectTurnEvents } = createCollectingRegistry();
 
-	const POST = createChatRoute({
-		createAgentService: ({ runtime }) =>
-			createAgentService({ createRunner, runtime }),
-		createTurnId: () => `turn-${++turnCount}`,
+	const engine = createTurnEngine({
+		createAgentService: (deps) =>
+			createAgentService({
+				createRunner,
+				onBackgroundCommandComplete: deps.onBackgroundCommandComplete,
+				runtime: deps.runtime,
+			}),
+		createTurnId: nextTurnId,
 		getRuntime: () => runtime,
 		registry,
 	});
 
-	return { POST, collectTurnEvents };
+	const POST = createChatRoute({
+		createTurnId: nextTurnId,
+		engine,
+	});
+
+	return { POST, collectTurnEvents, registry };
 }

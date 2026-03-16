@@ -1,3 +1,4 @@
+import { upsertById } from "@meridian/contracts/collections";
 import type { RuntimeEventEnvelope } from "@meridian/contracts/runtime-events";
 import { useMutation } from "@tanstack/react-query";
 import { startTransition, useEffect, useRef, useState } from "react";
@@ -42,7 +43,7 @@ function dispatchEvent(
 		event.type === "tool.completed" ||
 		event.type === "tool.failed"
 	) {
-		handler.streamedToolCalls = upsertToolCall(
+		handler.streamedToolCalls = upsertById(
 			handler.streamedToolCalls,
 			mapRuntimeToolEventToViewModel(event),
 		);
@@ -71,6 +72,7 @@ export function useChat() {
 	const [sessionId, setSessionId] = useState<string | null>(null);
 	const turnHandlersRef = useRef(new Map<string, TurnHandler>());
 	const eventBufferRef = useRef(new Map<string, RuntimeEventEnvelope[]>());
+	const pendingUserTurnRef = useRef(false);
 	const sseReadyRef = useRef(createDeferred());
 
 	function registerTurnHandler(turnId: string, handler: TurnHandler) {
@@ -98,12 +100,54 @@ export function useChat() {
 				return;
 			}
 
-			let buffer = eventBufferRef.current.get(event.turnId);
-			if (!buffer) {
-				buffer = [];
-				eventBufferRef.current.set(event.turnId, buffer);
+			const buffered = eventBufferRef.current.get(event.turnId);
+			if (buffered) {
+				buffered.push(event);
+				return;
 			}
-			buffer.push(event);
+
+			// If a user turn POST is in-flight, buffer the event — the handler
+			// will be registered once the POST response arrives with the turnId.
+			if (pendingUserTurnRef.current) {
+				eventBufferRef.current.set(event.turnId, [event]);
+				return;
+			}
+
+			// Unknown turnId with no pending user turn — server-initiated turn.
+			const assistantMessage = createMessage("assistant", "", {
+				status: "streaming",
+				toolCalls: [],
+			});
+
+			startTransition(() => {
+				setMessages((prev) => [...prev, assistantMessage]);
+			});
+
+			const turnState: TurnHandler = {
+				assistantMessageId: assistantMessage.id,
+				streamedContent: "",
+				streamedToolCalls: [],
+				flushAssistantState(status: ChatMessageStatus = "streaming") {
+					const contentSnapshot = turnState.streamedContent;
+					const toolCallsSnapshot = turnState.streamedToolCalls;
+
+					startTransition(() => {
+						setMessages((prev) =>
+							updateAssistantMessage(prev, assistantMessage.id, {
+								content: contentSnapshot,
+								toolCalls: toolCallsSnapshot,
+								status,
+							}),
+						);
+					});
+				},
+				scheduleFlush() {
+					turnState.flushAssistantState();
+				},
+			};
+
+			turnHandlersRef.current.set(event.turnId, turnState);
+			dispatchEvent(turnHandlersRef.current, turnState, event);
 		}
 
 		void (async () => {
@@ -193,6 +237,8 @@ export function useChat() {
 				},
 			};
 
+			pendingUserTurnRef.current = true;
+
 			try {
 				const res = await fetch(`${API_URL}/api/chat`, {
 					method: "POST",
@@ -226,9 +272,12 @@ export function useChat() {
 						reject(new Error("Turn timed out"));
 					}, TURN_TIMEOUT_MS);
 
+					pendingUserTurnRef.current = false;
 					registerTurnHandler(turnId, turnState);
 				});
 			} catch (error) {
+				pendingUserTurnRef.current = false;
+
 				if (frameId !== null) {
 					window.cancelAnimationFrame(frameId);
 				}
@@ -311,21 +360,4 @@ function createDeferred() {
 
 function sleep(ms: number) {
 	return new Promise<void>((resolve) => setTimeout(resolve, ms));
-}
-
-function upsertToolCall(
-	toolCalls: ToolCallViewModel[],
-	nextToolCall: ToolCallViewModel,
-) {
-	const existingIndex = toolCalls.findIndex(
-		(toolCall) => toolCall.id === nextToolCall.id,
-	);
-
-	if (existingIndex === -1) {
-		return [...toolCalls, nextToolCall];
-	}
-
-	return toolCalls.map((toolCall, index) =>
-		index === existingIndex ? { ...toolCall, ...nextToolCall } : toolCall,
-	);
 }

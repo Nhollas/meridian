@@ -4,6 +4,7 @@
 	"private": true,
 	"type": "module",
 	"exports": {
+		"./collections": "./src/collections/upsert-by-id.ts",
 		"./runtime-events": "./src/runtime-events/contracts.ts"
 	},
 	"scripts": {

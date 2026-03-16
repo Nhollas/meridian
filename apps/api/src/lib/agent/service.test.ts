@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { AgentProgressEvent } from "@/lib/agent/contracts";
 import { createAgentService } from "@/lib/agent/service";
 import { createInMemorySandboxRuntime } from "../../../tests/support/in-memory-runtime";
 import {
@@ -100,6 +101,32 @@ describe("agent service", () => {
 			content: "Messages so far: third",
 			toolCalls: [],
 		});
+	});
+
+	it("completes gracefully when the stream throws a closed controller error mid-iteration", async () => {
+		const runtime = createInMemorySandboxRuntime();
+		const createRunner = createScriptedAgentRunner(async function* () {
+			yield assistantText("Partial content before crash");
+			throw new TypeError("Invalid state: Controller is already closed");
+		});
+		const service = createAgentService({ createRunner, runtime });
+		const events: AgentProgressEvent[] = [];
+
+		const result = await service.streamConversation({
+			message: "hello",
+			sessionId: "session-a",
+			onEvent: (event) => {
+				events.push(event);
+			},
+		});
+
+		expect(result.content).toBe("Partial content before crash");
+		expect(events).toEqual([
+			expect.objectContaining({
+				type: "text-delta",
+				text: "Partial content before crash",
+			}),
+		]);
 	});
 
 	it("excludes reasoning blocks from streamed assistant text", async () => {
