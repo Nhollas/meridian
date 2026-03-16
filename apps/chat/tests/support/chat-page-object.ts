@@ -25,8 +25,6 @@ export function chatPageObject(page: BrowserPage) {
 		getMessageInput: () =>
 			page.getByRole("textbox", { name: "Message Meridian" }),
 		getSendButton: () => page.getByRole("button", { name: "Send message" }),
-		getSlowStreamButton: () =>
-			page.getByRole("button", { name: "Slow Stream" }),
 		getToolActivity: (summary: string) =>
 			self
 				.getConversation()
@@ -84,11 +82,6 @@ export function chatPageObject(page: BrowserPage) {
 		sendMessage: async (message: string) => {
 			await self.getMessageInput().fill(message);
 			await self.getSendButton().click();
-		},
-
-		toggleSlowStream: async () => {
-			await self.openDebugPanel();
-			await self.getSlowStreamButton().click();
 		},
 	};
 

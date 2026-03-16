@@ -1,4 +1,4 @@
-import { parseRuntimeEventEnvelope } from "@meridian/contracts/runtime-events";
+import type { RuntimeEventEnvelope } from "@meridian/contracts/runtime-events";
 
 export function createChatRequest(
 	body: {
@@ -20,17 +20,8 @@ export function createChatRequest(
 	});
 }
 
-export async function readRuntimeEvents(response: Response) {
-	const body = await response.text();
-	return body
-		.trim()
-		.split("\n")
-		.filter(Boolean)
-		.map((line) => parseRuntimeEventEnvelope(JSON.parse(line)));
-}
-
 export function getCompletedToolOutput(
-	events: Awaited<ReturnType<typeof readRuntimeEvents>>,
+	events: RuntimeEventEnvelope[],
 	name: string,
 ) {
 	const event = events.find(
@@ -47,7 +38,7 @@ export function getCompletedToolOutput(
 }
 
 export function getParsedToolOutput(
-	events: Awaited<ReturnType<typeof readRuntimeEvents>>,
+	events: RuntimeEventEnvelope[],
 	name: string,
 ) {
 	return JSON.parse(getCompletedToolOutput(events, name));
