@@ -101,7 +101,10 @@ external: "" {
   }
 }
 
-clients.chat <-> core.api: NDJSON
+clients.chat -> core.api: POST /chat (202)
+core.api -> clients.chat: SSE events {
+  style.animated: true
+}
 core.api -> external.openai: inference {
   style.stroke-dash: 3
 }
