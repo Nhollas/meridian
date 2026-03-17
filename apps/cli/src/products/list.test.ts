@@ -27,6 +27,12 @@ describe("products list", () => {
 						"Compare travel insurance policies by destination, cover level, and trip type",
 					versions: [{ version: "1.0", status: "current" }],
 				},
+				{
+					name: "car",
+					description:
+						"Compare car insurance policies by cover type, price, and excess",
+					versions: [{ version: "1.0", status: "current" }],
+				},
 			],
 		});
 		expect(stderr.output()).toBe("");
@@ -81,7 +87,7 @@ describe("products list", () => {
 		expect(stdout.output()).toContain("Available products");
 		expect(stdout.output()).toContain("broadband");
 		expect(stdout.output()).toContain("travel");
-		expect(stdout.output()).toContain("2 products available");
+		expect(stdout.output()).toContain("3 products available");
 		expect(stderr.output()).toBe("");
 	});
 

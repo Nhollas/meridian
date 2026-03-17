@@ -91,6 +91,28 @@ const travelSchema: ProductSchema = {
 	}),
 };
 
+const carSchema: ProductSchema = {
+	product: "car",
+	version: "1.0",
+	description: "Car insurance comparison data schema",
+	schema: z.object({
+		registrationNumber: z.string().describe("Vehicle registration number"),
+		postcode: z.string().describe("UK postcode where the vehicle is kept"),
+		coverType: z
+			.enum(["comprehensive", "thirdParty", "thirdPartyFireTheft"])
+			.describe("Type of cover required"),
+		annualMileage: z.number().describe("Estimated annual mileage"),
+		claimsHistory: z
+			.enum(["none", "1", "2+"])
+			.optional()
+			.describe("Number of claims in the last 5 years"),
+		yearsDrivingExperience: z
+			.number()
+			.optional()
+			.describe("Number of years of driving experience"),
+	}),
+};
+
 const catalogue: ProductDefinition[] = [
 	{
 		name: "broadband",
@@ -107,6 +129,15 @@ const catalogue: ProductDefinition[] = [
 		versions: [{ version: "1.0", status: "current" }],
 		schemas: {
 			"1.0": travelSchema,
+		},
+	},
+	{
+		name: "car",
+		description:
+			"Compare car insurance policies by cover type, price, and excess",
+		versions: [{ version: "1.0", status: "current" }],
+		schemas: {
+			"1.0": carSchema,
 		},
 	},
 ];

@@ -133,6 +133,52 @@ describe("product-schemas get", () => {
 		expect(stderr.output()).toContain("Available versions: 1.0");
 	});
 
+	it("returns the car schema with required and optional fields", async () => {
+		const stdout = createWritable();
+		const stderr = createWritable();
+
+		const exitCode = await runCli(
+			["product-schemas", "get", "--product=car", "--version=1.0"],
+			{
+				stdout: stdout.stream,
+				stderr: stderr.stream,
+			},
+		);
+
+		expect(exitCode).toBe(0);
+		expect(JSON.parse(stdout.output())).toMatchObject({
+			$schema: "https://json-schema.org/draft/2020-12/schema",
+			type: "object",
+			required: ["emailAddress", "data"],
+			properties: {
+				data: {
+					type: "object",
+					required: [
+						"registrationNumber",
+						"postcode",
+						"coverType",
+						"annualMileage",
+					],
+					properties: {
+						registrationNumber: { type: "string" },
+						postcode: { type: "string" },
+						coverType: {
+							type: "string",
+							enum: ["comprehensive", "thirdParty", "thirdPartyFireTheft"],
+						},
+						annualMileage: { type: "number" },
+						claimsHistory: {
+							type: "string",
+							enum: ["1", "none", "2+"],
+						},
+						yearsDrivingExperience: { type: "number" },
+					},
+				},
+			},
+		});
+		expect(stderr.output()).toBe("");
+	});
+
 	it("returns a structured error when --json is passed for a missing schema", async () => {
 		const stdout = createWritable();
 		const stderr = createWritable();
