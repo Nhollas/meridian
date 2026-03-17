@@ -31,7 +31,7 @@ function assignRandomArrivals(offerings: ProductOffering[]): TimedOffering[] {
 		.sort((a, b) => a.arrivalMs - b.arrivalMs);
 }
 
-async function streamDelayedOfferings(
+async function streamTimedOfferings(
 	timedOfferings: TimedOffering[],
 	sleep: (ms: number) => Promise<void>,
 	onOffering: (offering: ProductOffering) => void,
@@ -84,7 +84,7 @@ export async function handleResultsGet(
 	}
 
 	const sortedResult = sortResultOfferings(result, options.sort);
-	const delayedOfferings = assignRandomArrivals(sortedResult.offerings);
+	const timedOfferings = assignRandomArrivals(sortedResult.offerings);
 
 	if (jsonMode) {
 		writeJsonLine(stdout, {
@@ -92,7 +92,7 @@ export async function handleResultsGet(
 			proposalId: options.proposal,
 		});
 
-		await streamDelayedOfferings(delayedOfferings, sleep, (offering) => {
+		await streamTimedOfferings(timedOfferings, sleep, (offering) => {
 			writeJsonLine(stdout, { status: "offering", offering });
 		});
 
@@ -106,13 +106,13 @@ export async function handleResultsGet(
 
 	writeLines(stdout, formatResultsHeader(proposal.product, options.proposal));
 
-	await streamDelayedOfferings(delayedOfferings, sleep, (offering) => {
+	await streamTimedOfferings(timedOfferings, sleep, (offering) => {
 		writeLines(stdout, [formatOfferingRow(proposal.product, offering)]);
 	});
 
 	writeLines(stdout, [
 		"",
-		`${delayedOfferings.length} offering${delayedOfferings.length === 1 ? "" : "s"} sorted by ${formatSortLabel(options.sort)}`,
+		`${timedOfferings.length} offering${timedOfferings.length === 1 ? "" : "s"} sorted by ${formatSortLabel(options.sort)}`,
 	]);
 
 	return 0;

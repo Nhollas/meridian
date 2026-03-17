@@ -239,7 +239,6 @@ export const createAgentService: CreateAgentService = ({
 							state: "running",
 						};
 						observedToolCalls.set(toolCall.id, toolCall);
-						console.log(`[tool:start] ${toolCall.name}`, toolCall.input);
 						await onEvent?.({ toolCall, type: "tool-call" });
 						continue;
 					}
@@ -256,7 +255,6 @@ export const createAgentService: CreateAgentService = ({
 							state: "completed",
 						};
 						observedToolCalls.set(toolCall.id, toolCall);
-						console.log(`[tool:end] ${toolCall.name}`, toolCall.output);
 						await onEvent?.({ toolCall, type: "tool-call" });
 						continue;
 					}
@@ -272,7 +270,6 @@ export const createAgentService: CreateAgentService = ({
 						state: "failed",
 					};
 					observedToolCalls.set(toolCall.id, toolCall);
-					console.log(`[tool:error] ${toolCall.name}`, toolCall.output);
 					await onEvent?.({ toolCall, type: "tool-call" });
 				}
 

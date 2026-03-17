@@ -22,6 +22,7 @@ const API_URL =
 const SESSION_STORAGE_KEY = "meridian.chat.session-id";
 const TURN_TIMEOUT_MS = 300_000;
 const SSE_RECONNECT_DELAY_MS = 1000;
+const BACKGROUND_TASK_DISMISS_MS = 4000;
 
 type TurnHandler = {
 	assistantMessageId: string;
@@ -80,6 +81,7 @@ export function useChat() {
 	const turnHandlersRef = useRef(new Map<string, TurnHandler>());
 	const eventBufferRef = useRef(new Map<string, RuntimeEventEnvelope[]>());
 	const pendingUserTurnRef = useRef(false);
+	const dismissTimeouts = useRef(new Set<ReturnType<typeof setTimeout>>());
 	const sseReadyRef = useRef(createDeferred());
 
 	function registerTurnHandler(turnId: string, handler: TurnHandler) {
@@ -125,13 +127,15 @@ export function useChat() {
 						),
 					);
 				});
-				setTimeout(() => {
+				const timeoutId = setTimeout(() => {
+					dismissTimeouts.current.delete(timeoutId);
 					startTransition(() => {
 						setBackgroundTasks((prev) =>
 							prev.filter((task) => task.id !== taskId),
 						);
 					});
-				}, 4000);
+				}, BACKGROUND_TASK_DISMISS_MS);
+				dismissTimeouts.current.add(timeoutId);
 				return;
 			}
 
@@ -220,6 +224,10 @@ export function useChat() {
 
 		return () => {
 			abortController.abort();
+			for (const id of dismissTimeouts.current) {
+				clearTimeout(id);
+			}
+			dismissTimeouts.current.clear();
 		};
 	}, []);
 

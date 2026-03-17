@@ -1,6 +1,7 @@
 import { tool } from "langchain";
 import { z } from "zod";
 import type {
+	SandboxCommandOptions,
 	SandboxRuntime,
 	SandboxWaitForBackgroundCommandResult,
 } from "@/lib/sandbox/runtime";
@@ -41,17 +42,13 @@ export function createRuntimeAgentTools({
 			schema: emptySchema,
 		}),
 		tool(
-			async (input: {
-				command: string[];
-				timeoutMs?: number;
-				waitFor?: "exit" | "first-stdout-line";
-				keepAlive?: boolean;
-				label: string;
-				notifyOnComplete?: boolean;
-				stdin?: string;
-			}) => {
+			async (input) => {
 				const { command, label, notifyOnComplete, ...options } = input;
-				const result = await runtime.runCommand(sessionId, command, options);
+				const result = await runtime.runCommand(
+					sessionId,
+					command,
+					options as SandboxCommandOptions,
+				);
 
 				if (
 					notifyOnComplete &&
@@ -59,7 +56,7 @@ export function createRuntimeAgentTools({
 					onBackgroundCommandComplete
 				) {
 					onBackgroundTaskStarted?.({
-						label,
+						label: label ?? command.join(" "),
 						sessionId,
 						taskId: result.backgroundCommandId,
 					});
@@ -111,8 +108,9 @@ export function createRuntimeAgentTools({
 						),
 					label: z
 						.string()
+						.optional()
 						.describe(
-							"Human-readable label for the background task shown to the user",
+							"Human-readable label for the background task shown to the user. Required when using notifyOnComplete.",
 						),
 					notifyOnComplete: z
 						.boolean()
@@ -135,7 +133,7 @@ export function createRuntimeAgentTools({
 			},
 		),
 		tool(
-			async (input: { commandId: string }) =>
+			async (input) =>
 				JSON.stringify(
 					await runtime.getBackgroundCommand(sessionId, input.commandId),
 				),
@@ -149,7 +147,7 @@ export function createRuntimeAgentTools({
 			},
 		),
 		tool(
-			async (input: { commandId: string; timeoutMs?: number }) =>
+			async (input) =>
 				JSON.stringify(
 					await runtime.waitForBackgroundCommand(
 						sessionId,
@@ -174,7 +172,7 @@ export function createRuntimeAgentTools({
 			},
 		),
 		tool(
-			async (input: { commandId: string }) =>
+			async (input) =>
 				JSON.stringify(
 					await runtime.terminateBackgroundCommand(sessionId, input.commandId),
 				),
@@ -188,7 +186,7 @@ export function createRuntimeAgentTools({
 			},
 		),
 		tool(
-			async (input: { path?: string }) =>
+			async (input) =>
 				JSON.stringify(await runtime.listSessionFiles(sessionId, input.path)),
 			{
 				name: "list_directory",
@@ -201,19 +199,15 @@ export function createRuntimeAgentTools({
 				}),
 			},
 		),
+		tool(async (input) => runtime.readSessionFile(sessionId, input.path), {
+			name: "read_file",
+			description: "Read a file from the session workspace.",
+			schema: z.object({
+				path: z.string().describe("Relative path to the file"),
+			}),
+		}),
 		tool(
-			async (input: { path: string }) =>
-				runtime.readSessionFile(sessionId, input.path),
-			{
-				name: "read_file",
-				description: "Read a file from the session workspace.",
-				schema: z.object({
-					path: z.string().describe("Relative path to the file"),
-				}),
-			},
-		),
-		tool(
-			async (input: { path: string; contents: string }) =>
+			async (input) =>
 				JSON.stringify({
 					path: await runtime.writeSessionFile(
 						sessionId,

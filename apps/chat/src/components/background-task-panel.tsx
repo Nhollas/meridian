@@ -44,7 +44,7 @@ function TaskEntry({ task }: { task: BackgroundTaskViewModel }) {
 			<span className="min-w-0 flex-1 truncate">{task.label}</span>
 			<ElapsedDuration
 				startedAt={task.startedAt}
-				{...(task.endedAt ? { endedAt: task.endedAt } : {})}
+				{...(task.endedAt !== undefined && { endedAt: task.endedAt })}
 			/>
 		</li>
 	);
