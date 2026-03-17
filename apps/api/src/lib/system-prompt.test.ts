@@ -49,7 +49,7 @@ describe("system prompt contract", () => {
 
 	it("prevents false claims about background work", () => {
 		expect(systemPrompt).toContain(
-			"Do not claim a task is still running unless you actually have a live `backgroundCommandId`.",
+			"Do not claim a task is still running unless you actually have a live background command.",
 		);
 	});
 });

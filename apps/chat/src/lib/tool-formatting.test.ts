@@ -48,13 +48,20 @@ describe("formatToolSummary", () => {
 		expect(formatToolSummary("list_directory", input)).toBe("ls .");
 	});
 
+	it("formats start_background_command with a dollar prefix", () => {
+		const input = JSON.stringify({
+			command: ["meridian", "auth", "login"],
+			label: "Logging in",
+		});
+		expect(formatToolSummary("start_background_command", input)).toBe(
+			"$ meridian auth login",
+		);
+	});
+
 	it("uses a human-readable label for background commands", () => {
 		const input = JSON.stringify({ commandId: "abc-123" });
 		expect(formatToolSummary("inspect_background_command", input)).toBe(
 			"inspect background process",
-		);
-		expect(formatToolSummary("wait_for_background_command", input)).toBe(
-			"await background process",
 		);
 		expect(formatToolSummary("terminate_background_command", input)).toBe(
 			"terminate background process",

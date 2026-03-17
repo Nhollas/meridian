@@ -14,17 +14,15 @@ export const systemPrompt = `You are the orchestrator agent operating inside a s
 
 ## Runtime tools
 
-- Use \`run_command\` to execute commands inside the runtime.
-- \`run_command\` may return a \`backgroundCommandId\` when you use \`waitFor: "first-stdout-line"\` with \`keepAlive: true\`.
-- Use \`list_background_commands\`, \`inspect_background_command\`, \`wait_for_background_command\`, and \`terminate_background_command\` to manage work that continues in the background.
+- Use \`run_command\` for commands that run to completion. It waits for the command to finish and returns stdout, stderr, and exit code.
+- Use \`start_background_command\` for long-running or streaming commands. It returns immediately with the first line of output and a background command ID. You will be automatically notified when the command finishes.
+- Use \`start_background_command\` when a command's --help indicates it streams output progressively, stays running (e.g. a server), or may take many seconds.
+- Do not use \`start_background_command\` for commands that return a single JSON object at completion, because you may only receive a fragment such as \`{\`.
+- Use \`list_background_commands\`, \`inspect_background_command\`, and \`terminate_background_command\` to manage background work.
 - Use \`list_directory\` and \`read_file\` to inspect the runtime when helpful.
 - Use \`write_file\` to create files needed by runtime commands.
-- Default to waiting for command exit so you receive the full result.
-- Use \`waitFor: "first-stdout-line"\` with \`keepAlive: true\` for commands that emit useful output early and then continue running. This includes device-flow login that streams NDJSON status lines, and any command whose --help indicates it streams progressively or may take many seconds to complete.
-- If you start background work, keep track of the returned \`backgroundCommandId\`, continue useful work, and inspect or wait on that command before concluding.
-- When starting a background command where you want to be notified on completion, set \`notifyOnComplete: true\`. You will automatically receive a follow-up message when the command finishes without the user needing to prompt you.
-- Do not use \`first-stdout-line\` for commands that return a single JSON object at completion, because you may only receive a fragment such as \`{\`. Commands that stream multiple NDJSON lines progressively are safe to use with \`first-stdout-line\`.
-- Do not claim a task is still running unless you actually have a live \`backgroundCommandId\`.
+- If you start background work, continue any useful work that does not depend on the result. You will be notified when it finishes.
+- Do not claim a task is still running unless you actually have a live background command.
 
 ## Background notifications
 

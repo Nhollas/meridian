@@ -42,19 +42,50 @@ export function createRuntimeAgentTools({
 		}),
 		tool(
 			async (input) => {
-				const { command, label, notifyOnComplete, ...rest } = input;
+				const { command, ...rest } = input;
 				const options = Object.fromEntries(
 					Object.entries(rest).filter(([, v]) => v !== undefined),
 				);
 				const result = await runtime.runCommand(sessionId, command, options);
+				return JSON.stringify(result);
+			},
+			{
+				name: "run_command",
+				description:
+					"Run a command and wait for it to finish. Returns stdout, stderr, and exit code. Use this for commands that complete on their own. For long-running or streaming commands, use start_background_command instead.",
+				schema: z.object({
+					command: z
+						.array(z.string())
+						.min(1)
+						.describe(
+							"Executable followed by its arguments, for example ['meridian', '--help']",
+						),
+					timeoutMs: z
+						.number()
+						.int()
+						.positive()
+						.max(300000)
+						.optional()
+						.describe("Optional timeout in milliseconds"),
+					stdin: z.string().optional().describe("Optional stdin input"),
+				}),
+			},
+		),
+		tool(
+			async (input) => {
+				const { command, label, ...rest } = input;
+				const options = {
+					...Object.fromEntries(
+						Object.entries(rest).filter(([, v]) => v !== undefined),
+					),
+					waitFor: "first-stdout-line" as const,
+					keepAlive: true,
+				};
+				const result = await runtime.runCommand(sessionId, command, options);
 
-				if (
-					notifyOnComplete &&
-					result.backgroundCommandId &&
-					onBackgroundCommandComplete
-				) {
+				if (result.backgroundCommandId && onBackgroundCommandComplete) {
 					onBackgroundTaskStarted?.({
-						label: label ?? command.join(" "),
+						label,
 						sessionId,
 						taskId: result.backgroundCommandId,
 					});
@@ -75,54 +106,30 @@ export function createRuntimeAgentTools({
 				return JSON.stringify(result);
 			},
 			{
-				name: "run_command",
+				name: "start_background_command",
 				description:
-					"Run a command inside the sandbox runtime. Use this to explore installed capabilities and perform tasks. When called with waitFor=first-stdout-line and keepAlive=true, the result may include a backgroundCommandId that can be inspected later. Set notifyOnComplete=true to be automatically notified when the background command finishes. Always provide a label when using notifyOnComplete.",
-				schema: z
-					.object({
-						command: z
-							.array(z.string())
-							.min(1)
-							.describe(
-								"Executable followed by its arguments, for example ['meridian', '--help']",
-							),
-						timeoutMs: z
-							.number()
-							.int()
-							.positive()
-							.max(300000)
-							.optional()
-							.describe("Optional timeout in milliseconds"),
-						waitFor: z
-							.enum(["exit", "first-stdout-line"])
-							.optional()
-							.describe(
-								"Whether to wait for full completion or only the first stdout line",
-							),
-						keepAlive: z
-							.boolean()
-							.optional()
-							.describe(
-								"If true with waitFor=first-stdout-line, leave the process running in the background",
-							),
-						label: z
-							.string()
-							.optional()
-							.describe(
-								"Human-readable label for the background task shown to the user. Required when using notifyOnComplete.",
-							),
-						notifyOnComplete: z
-							.boolean()
-							.optional()
-							.describe(
-								"If true, you will be automatically notified when this background command completes without needing to poll",
-							),
-						stdin: z.string().optional().describe("Optional stdin input"),
-					})
-					.refine((data) => !data.notifyOnComplete || data.label, {
-						message: "label is required when notifyOnComplete is true",
-						path: ["label"],
-					}),
+					"Start a long-running command in the background. Returns immediately with the first line of output and a background command ID. You will be automatically notified when the command finishes. Use this for commands that stream output progressively, stay running (e.g. servers), or take a long time to complete.",
+				schema: z.object({
+					command: z
+						.array(z.string())
+						.min(1)
+						.describe(
+							"Executable followed by its arguments, for example ['meridian', 'auth', 'login', '--json']",
+						),
+					label: z
+						.string()
+						.describe(
+							"Human-readable label for this background task shown to the user, for example 'Logging in' or 'Fetching results'",
+						),
+					timeoutMs: z
+						.number()
+						.int()
+						.positive()
+						.max(300000)
+						.optional()
+						.describe("Optional timeout in milliseconds"),
+					stdin: z.string().optional().describe("Optional stdin input"),
+				}),
 			},
 		),
 		tool(
@@ -146,31 +153,6 @@ export function createRuntimeAgentTools({
 					"Inspect a background command by ID, including buffered stdout, stderr, and current status.",
 				schema: z.object({
 					commandId: z.string().min(1).describe("Background command ID"),
-				}),
-			},
-		),
-		tool(
-			async (input) =>
-				JSON.stringify(
-					await runtime.waitForBackgroundCommand(
-						sessionId,
-						input.commandId,
-						input.timeoutMs,
-					),
-				),
-			{
-				name: "wait_for_background_command",
-				description:
-					"Wait for a background command to finish or until the optional timeout elapses.",
-				schema: z.object({
-					commandId: z.string().min(1).describe("Background command ID"),
-					timeoutMs: z
-						.number()
-						.int()
-						.positive()
-						.max(300000)
-						.optional()
-						.describe("Optional maximum wait in milliseconds"),
 				}),
 			},
 		),

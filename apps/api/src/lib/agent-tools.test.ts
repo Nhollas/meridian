@@ -86,9 +86,9 @@ describe("createRuntimeAgentTools", () => {
 		expect(names).toEqual([
 			"get_runtime_instructions",
 			"run_command",
+			"start_background_command",
 			"list_background_commands",
 			"inspect_background_command",
-			"wait_for_background_command",
 			"terminate_background_command",
 			"list_directory",
 			"read_file",
@@ -116,9 +116,7 @@ describe("createRuntimeAgentTools", () => {
 
 		const result = await invokeTool(findTool(tools, "run_command"), {
 			command: ["ls", "-la"],
-			label: "List files",
 			timeoutMs: 5000,
-			waitFor: "exit",
 		});
 
 		expect(result).toContain('"exitCode":0');
@@ -127,7 +125,7 @@ describe("createRuntimeAgentTools", () => {
 				args: [
 					"meridian-chat-sandbox-sess-1",
 					["ls", "-la"],
-					{ timeoutMs: 5000, waitFor: "exit" },
+					{ stdin: undefined, timeoutMs: 5000, waitFor: "exit" },
 				],
 				method: "exec",
 			},

@@ -141,13 +141,15 @@ describe("ProgressThread - expanded thread", () => {
 		renderThread([
 			tc({
 				id: "1",
-				name: "inspect_background_command",
-				input: '{"commandId":"abc-123-def"}',
-				result: '{"status":"completed"}',
+				name: "start_background_command",
+				input:
+					'{"command":["meridian","auth","login","--json"],"label":"Logging in"}',
+				result:
+					'{"backgroundCommandId":"bg-1","exitCode":null,"status":"running","stdout":"pending"}',
 			}),
 			tc({
 				id: "2",
-				name: "wait_for_background_command",
+				name: "inspect_background_command",
 				input: '{"commandId":"abc-123-def"}',
 				result: '{"status":"completed"}',
 			}),
@@ -161,8 +163,10 @@ describe("ProgressThread - expanded thread", () => {
 
 		await expandThread();
 
+		await expect
+			.element(toolItem("$ meridian auth login --json"))
+			.toBeVisible();
 		await expect.element(toolItem("inspect background process")).toBeVisible();
-		await expect.element(toolItem("await background process")).toBeVisible();
 		await expect
 			.element(toolItem("terminate background process"))
 			.toBeVisible();
