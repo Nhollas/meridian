@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createInMemorySandboxRuntime } from "../../../tests/support/in-memory-runtime";
+import { createInMemorySandboxRuntime } from "../../tests/support/in-memory-runtime";
 
 // biome-ignore lint/complexity/noBannedTypes: test helper for mocked langchain tools
 type AnyFn = Function;
@@ -11,7 +11,7 @@ vi.mock("langchain", () => ({
 	},
 }));
 
-import { createRuntimeAgentTools, extractTextContent } from "@/lib/agent/tools";
+import { createRuntimeAgentTools, extractTextContent } from "@/lib/agent-tools";
 
 function findTool(
 	tools: ReturnType<typeof createRuntimeAgentTools>,
@@ -61,23 +61,6 @@ describe("createRuntimeAgentTools", () => {
 		).rejects.toThrow("File not found: missing.txt");
 	});
 
-	it("passes command options through to the runtime", async () => {
-		const runtime = createInMemorySandboxRuntime();
-		const tools = createRuntimeAgentTools({ runtime, sessionId: "sess-1" });
-
-		await invokeTool(findTool(tools, "run_command"), {
-			command: ["ls", "-la"],
-			timeoutMs: 5000,
-			waitFor: "exit",
-		});
-
-		expect(runtime.calls).toContainEqual({
-			method: "runCommand",
-			sessionId: "sess-1",
-			args: [["ls", "-la"], { timeoutMs: 5000, waitFor: "exit" }],
-		});
-	});
-
 	it("creates all expected tools", () => {
 		const runtime = createInMemorySandboxRuntime();
 		const tools = createRuntimeAgentTools({ runtime, sessionId: "sess-1" });
@@ -94,6 +77,23 @@ describe("createRuntimeAgentTools", () => {
 			"read_file",
 			"write_file",
 		]);
+	});
+
+	it("passes command options through to the runtime", async () => {
+		const runtime = createInMemorySandboxRuntime();
+		const tools = createRuntimeAgentTools({ runtime, sessionId: "sess-1" });
+
+		await invokeTool(findTool(tools, "run_command"), {
+			command: ["ls", "-la"],
+			timeoutMs: 5000,
+			waitFor: "exit",
+		});
+
+		expect(runtime.calls).toContainEqual({
+			method: "runCommand",
+			sessionId: "sess-1",
+			args: [["ls", "-la"], { timeoutMs: 5000, waitFor: "exit" }],
+		});
 	});
 
 	it("extracts visible text content without including reasoning blocks", () => {

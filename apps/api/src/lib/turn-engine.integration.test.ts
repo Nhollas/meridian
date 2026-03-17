@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createAgentService } from "@/lib/agent/service";
+import { createAgentService } from "@/lib/agent";
 import { createCollectingRegistry } from "../../tests/support/collecting-registry";
 import { createInMemorySandboxRuntime } from "../../tests/support/in-memory-runtime";
 import {

@@ -1,5 +1,5 @@
-import type { CreateAgentRunner } from "@/lib/agent/runner";
-import { createAgentService } from "@/lib/agent/service";
+import type { CreateAgentRunner } from "@/lib/agent";
+import { createAgentService } from "@/lib/agent";
 import type { SandboxRuntime } from "@/lib/sandbox/runtime";
 import { createTurnEngine } from "@/lib/turn-engine";
 import { createChatRoute } from "@/routes/chat";

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type {
 	AgentProgressEvent,
+	AgentService,
 	AgentTurnResult,
-} from "@/lib/agent/contracts";
-import type { AgentService } from "@/lib/agent/service";
+} from "@/lib/agent";
 import { createCollectingRegistry } from "../../tests/support/collecting-registry";
 import { createTurnEngine } from "./turn-engine";
 

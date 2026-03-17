@@ -1,13 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { upsertById } from "@meridian/contracts/collections";
 import { createRuntimeEventFactory } from "@meridian/contracts/runtime-events";
-import type { AgentProgressEvent, AgentToolCall } from "@/lib/agent/contracts";
-import type { AgentService } from "@/lib/agent/service";
 import {
+	type AgentProgressEvent,
+	type AgentService,
+	type AgentToolCall,
 	type CreateAgentService,
 	createAgentService as createDefaultAgentService,
-} from "@/lib/agent/service";
-import type { BackgroundCommandCompleteCallback } from "@/lib/agent/tools";
+} from "@/lib/agent";
+import type { BackgroundCommandCompleteCallback } from "@/lib/agent-tools";
 import {
 	mapAgentProgressEventToRuntimeEvent,
 	mapAgentResultToRuntimeEvent,

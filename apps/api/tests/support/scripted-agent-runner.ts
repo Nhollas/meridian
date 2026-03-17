@@ -2,7 +2,7 @@ import type {
 	AgentRunnerChunk,
 	AgentRunnerTools,
 	CreateAgentRunner,
-} from "@/lib/agent/runner";
+} from "@/lib/agent";
 
 type ScriptedTurn = (params: {
 	message: string;
