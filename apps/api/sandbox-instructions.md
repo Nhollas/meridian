@@ -21,4 +21,5 @@ Authentication:
 - On later turns, if login may have completed in the background or the user says they finished it, check `meridian auth status --json` again before asking them to log in. If needed, inspect or wait on the existing background command for confirmation.
 - For other commands, default to waiting for command exit so you receive the full JSON result.
 - Only use `waitFor: "first-stdout-line"` with `keepAlive: true` for device-flow login or another command that is known to stay running and emit a useful first line early.
-- Do not use `first-stdout-line` for `proposal-requests create`, `proposals create`, or `results get`; these should be awaited to completion.
+- `results get --json` streams NDJSON progressively and can take up to 20 seconds. Use `waitFor: "first-stdout-line"` with `keepAlive: true` and `notifyOnComplete: true` so the user is not left waiting.
+- Do not use `first-stdout-line` for `proposal-requests create` or `proposals create`; these return a single JSON object and should be awaited to completion.
