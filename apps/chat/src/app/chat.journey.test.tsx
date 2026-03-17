@@ -63,8 +63,8 @@ describe("Chat UI - broadband comparison journey", () => {
 								toolCall: {
 									id: "tc-4",
 									input:
-										'{"command":["meridian","auth","login","--json"],"waitFor":"first-stdout-line","keepAlive":true}',
-									name: "run_command",
+										'{"command":["meridian","auth","login","--json"],"label":"Logging in"}',
+									name: "start_background_command",
 									output:
 										'{"exitCode":null,"stderr":"","stdout":"{\\"user_code\\":\\"ABCD-EFGH\\",\\"status\\":\\"pending\\"}","backgroundCommandId":"bg-1","status":"running"}',
 								},
@@ -115,8 +115,8 @@ describe("Chat UI - broadband comparison journey", () => {
 									{
 										id: "tc-4",
 										input:
-											'{"command":["meridian","auth","login","--json"],"waitFor":"first-stdout-line","keepAlive":true}',
-										name: "run_command",
+											'{"command":["meridian","auth","login","--json"],"label":"Logging in"}',
+										name: "start_background_command",
 										output:
 											'{"exitCode":null,"stderr":"","stdout":"{\\"user_code\\":\\"ABCD-EFGH\\",\\"status\\":\\"pending\\"}","backgroundCommandId":"bg-1","status":"running"}',
 										state: "completed",
@@ -282,7 +282,7 @@ describe("Chat UI - broadband comparison journey", () => {
 		// Agent responds with instructions after running multiple tools
 		await chatPage.expectAssistantResponse("email address");
 		await chatPage.expectToolActivityVisible(
-			"Loaded instructions, ran 4 commands",
+			"Loaded instructions, ran 3 commands, started a background command",
 		);
 
 		// Turn 2: user provides details

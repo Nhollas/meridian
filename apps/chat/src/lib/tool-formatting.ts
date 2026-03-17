@@ -13,6 +13,7 @@ export function formatToolSummary(name: string, input?: string): string {
 		const parsed = JSON.parse(input);
 		switch (name) {
 			case "run_command":
+			case "start_background_command":
 				return parsed.command ? `$ ${parsed.command.join(" ")}` : label;
 			case "read_file":
 				return `read ${parsed.path ?? "file"}`;
@@ -22,8 +23,6 @@ export function formatToolSummary(name: string, input?: string): string {
 				return `ls ${parsed.path ?? "."}`;
 			case "inspect_background_command":
 				return "inspect background process";
-			case "wait_for_background_command":
-				return "await background process";
 			case "terminate_background_command":
 				return "terminate background process";
 			case "list_background_commands":
@@ -60,13 +59,13 @@ const TOOL_ACTIVITY_VERBS: Record<
 	},
 	read_file: { singular: "read a file", plural: "read %d files" },
 	run_command: { singular: "ran a command", plural: "ran %d commands" },
+	start_background_command: {
+		singular: "started a background command",
+		plural: "started %d background commands",
+	},
 	terminate_background_command: {
 		singular: "terminated a process",
 		plural: "terminated %d processes",
-	},
-	wait_for_background_command: {
-		singular: "waited for a process",
-		plural: "waited for %d processes",
 	},
 	write_file: { singular: "wrote a file", plural: "wrote %d files" },
 };
@@ -131,8 +130,8 @@ export function formatToolOutput(
 		const parsed = JSON.parse(result);
 		switch (name) {
 			case "run_command":
+			case "start_background_command":
 			case "inspect_background_command":
-			case "wait_for_background_command":
 			case "terminate_background_command":
 				return formatCommandOutput(parsed);
 			case "write_file": {

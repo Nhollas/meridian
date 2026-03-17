@@ -9,8 +9,8 @@ export const TOOL_NAMES = {
 	list_background_commands: "List Background Commands",
 	read_file: "Read File",
 	run_command: "Run Command",
+	start_background_command: "Start Background Command",
 	terminate_background_command: "Terminate Background Command",
-	wait_for_background_command: "Wait For Background Command",
 	write_file: "Write File",
 } as const;
 

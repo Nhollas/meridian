@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createChatRequest } from "../../tests/support/chat-route";
 import {
 	assistantText,
@@ -10,7 +10,7 @@ import {
 import { createTestChat } from "./chat.integration-support";
 
 describe("POST /api/chat integration - notify on complete", () => {
-	it("triggers a system turn when a background command finishes and notifyOnComplete is true", async () => {
+	it("triggers a system turn when a background command finishes", async () => {
 		let resolveCompletion!: (result: {
 			exitCode: number | null;
 			stderr: string;
@@ -37,23 +37,17 @@ describe("POST /api/chat integration - notify on complete", () => {
 				id: "tool-1",
 				input: {
 					command: ["meridian", "auth", "login"],
-					keepAlive: true,
 					label: "Logging into Sky",
-					notifyOnComplete: true,
-					waitFor: "first-stdout-line",
 				},
-				name: "run_command",
+				name: "start_background_command",
 			});
-			const result = await invokeTool(tools, "run_command", {
+			const result = await invokeTool(tools, "start_background_command", {
 				command: ["meridian", "auth", "login"],
-				keepAlive: true,
 				label: "Logging into Sky",
-				notifyOnComplete: true,
-				waitFor: "first-stdout-line",
 			});
 			yield toolCompleted({
 				id: "tool-1",
-				name: "run_command",
+				name: "start_background_command",
 				output: result,
 			});
 
@@ -137,89 +131,5 @@ describe("POST /api/chat integration - notify on complete", () => {
 				}),
 			}),
 		]);
-	});
-
-	it("does not trigger a system turn when notifyOnComplete is not set", async () => {
-		let resolveCompletion!: (result: {
-			exitCode: number | null;
-			stderr: string;
-			stdout: string;
-		}) => void;
-		const completionPromise = new Promise<{
-			exitCode: number | null;
-			stderr: string;
-			stdout: string;
-		}>((resolve) => {
-			resolveCompletion = resolve;
-		});
-
-		const createRunner = createScriptedAgentRunner(async function* ({ tools }) {
-			yield toolStarted({
-				id: "tool-1",
-				input: {
-					command: ["meridian", "auth", "login"],
-					keepAlive: true,
-					waitFor: "first-stdout-line",
-				},
-				name: "run_command",
-			});
-			const result = await invokeTool(tools, "run_command", {
-				command: ["meridian", "auth", "login"],
-				keepAlive: true,
-				label: "Logging in without notification",
-				waitFor: "first-stdout-line",
-			});
-			yield toolCompleted({
-				id: "tool-1",
-				name: "run_command",
-				output: result,
-			});
-
-			yield assistantText("Started login without notification.");
-		});
-		await using ctx2 = await createTestChat({
-			createRunner,
-			backgroundExecFixtures: [
-				{
-					command: ["meridian", "auth", "login"],
-					result: {
-						exitCode: null,
-						stderr: "",
-						stdout: '{"status":"pending"}',
-					},
-					completion: completionPromise,
-					stdout: '{"status":"authenticated"}\n',
-					stderr: "",
-				},
-			],
-			instructions: "Login first.",
-		});
-		const { POST, collectTurnEvents, registry } = ctx2;
-
-		const eventsPromise = collectTurnEvents("session-no-notify");
-		await POST(
-			createChatRequest({
-				message: "Login to sky",
-				sessionId: "session-no-notify",
-			}),
-		);
-		await eventsPromise;
-
-		// Resolve the background command
-		resolveCompletion({
-			exitCode: 0,
-			stderr: "",
-			stdout: '{"status":"authenticated"}\n',
-		});
-
-		// Give async operations time to settle
-		await new Promise((resolve) => setTimeout(resolve, 50));
-
-		// Verify no additional events were written (no system turn triggered)
-		const spy = vi.fn();
-		registry.register("session-no-notify", { writeSSE: spy });
-		await new Promise((resolve) => setTimeout(resolve, 50));
-		expect(spy).not.toHaveBeenCalled();
-		registry.unregister("session-no-notify");
 	});
 });
