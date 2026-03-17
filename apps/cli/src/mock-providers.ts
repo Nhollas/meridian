@@ -71,7 +71,169 @@ function createTravelOffering(input: {
 	};
 }
 
+function createCarOffering(input: {
+	brandCode: string;
+	brandName: string;
+	breakdownCover: boolean;
+	coverType: string;
+	excess: number;
+	monthlyPrice?: number;
+	annualPrice?: number;
+	providerName: string;
+}): ProductOffering {
+	if (input.monthlyPrice !== undefined) {
+		return {
+			brandName: input.brandName,
+			brandCode: input.brandCode,
+			providerName: input.providerName,
+			pricing: {
+				paymentOptions: [
+					{
+						type: "Installment",
+						totalCost: input.monthlyPrice * 12,
+						installmentDetails: {
+							deposit: 0,
+							numberOfPayments: 12,
+							installmentAmount: input.monthlyPrice,
+							apr: null,
+						},
+					},
+				],
+			},
+			metadata: {
+				coverType: input.coverType,
+				excess: input.excess,
+				breakdownCover: input.breakdownCover,
+			},
+		};
+	}
+
+	return {
+		brandName: input.brandName,
+		brandCode: input.brandCode,
+		providerName: input.providerName,
+		pricing: {
+			paymentOptions: [
+				{
+					type: "OneTime",
+					totalCost: input.annualPrice!,
+					installmentDetails: null,
+				},
+			],
+		},
+		metadata: {
+			coverType: input.coverType,
+			excess: input.excess,
+			breakdownCover: input.breakdownCover,
+		},
+	};
+}
+
 export function getMockResults(context: MockResultContext): ResultRecord {
+	if (context.product === "car") {
+		return {
+			id: `${context.proposalId}-result`,
+			product: context.product,
+			version: context.version,
+			proposalId: context.proposalId,
+			sessionId: context.sessionId,
+			customerId: context.customerId,
+			metadata: {},
+			offerings: [
+				createCarOffering({
+					providerName: "Admiral",
+					brandName: "Comprehensive Gold",
+					brandCode: "admiral-comprehensive-gold",
+					coverType: "comprehensive",
+					excess: 250,
+					monthlyPrice: 45.0,
+					breakdownCover: true,
+				}),
+				createCarOffering({
+					providerName: "Direct Line",
+					brandName: "Third Party F&T",
+					brandCode: "direct-line-tpft",
+					coverType: "thirdPartyFireTheft",
+					excess: 350,
+					annualPrice: 520.0,
+					breakdownCover: false,
+				}),
+				createCarOffering({
+					providerName: "Churchill",
+					brandName: "Comprehensive Standard",
+					brandCode: "churchill-comprehensive-standard",
+					coverType: "comprehensive",
+					excess: 300,
+					monthlyPrice: 38.5,
+					breakdownCover: true,
+				}),
+				createCarOffering({
+					providerName: "Hastings",
+					brandName: "Direct Comprehensive",
+					brandCode: "hastings-direct-comprehensive",
+					coverType: "comprehensive",
+					excess: 200,
+					annualPrice: 480.0,
+					breakdownCover: false,
+				}),
+				createCarOffering({
+					providerName: "LV=",
+					brandName: "Comprehensive Plus",
+					brandCode: "lv-comprehensive-plus",
+					coverType: "comprehensive",
+					excess: 150,
+					monthlyPrice: 52.0,
+					breakdownCover: true,
+				}),
+				createCarOffering({
+					providerName: "Aviva",
+					brandName: "Third Party Basic",
+					brandCode: "aviva-third-party-basic",
+					coverType: "thirdParty",
+					excess: 500,
+					annualPrice: 320.0,
+					breakdownCover: false,
+				}),
+				createCarOffering({
+					providerName: "AXA",
+					brandName: "Comprehensive Cover",
+					brandCode: "axa-comprehensive-cover",
+					coverType: "comprehensive",
+					excess: 275,
+					monthlyPrice: 42.0,
+					breakdownCover: false,
+				}),
+				createCarOffering({
+					providerName: "Saga",
+					brandName: "Comprehensive Premium",
+					brandCode: "saga-comprehensive-premium",
+					coverType: "comprehensive",
+					excess: 100,
+					annualPrice: 650.0,
+					breakdownCover: true,
+				}),
+				createCarOffering({
+					providerName: "esure",
+					brandName: "Third Party F&T Value",
+					brandCode: "esure-tpft-value",
+					coverType: "thirdPartyFireTheft",
+					excess: 400,
+					monthlyPrice: 28.0,
+					breakdownCover: false,
+				}),
+				createCarOffering({
+					providerName: "RAC",
+					brandName: "Comprehensive with Breakdown",
+					brandCode: "rac-comprehensive-breakdown",
+					coverType: "comprehensive",
+					excess: 225,
+					annualPrice: 540.0,
+					breakdownCover: true,
+				}),
+			],
+		};
+	}
+
 	if (context.product === "travel") {
 		return {
 			id: `${context.proposalId}-result`,

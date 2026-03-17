@@ -138,6 +138,95 @@ describe("proposals create", () => {
 		expect(stderr.output()).toBe("");
 	});
 
+	it("creates a proposal and generates mock results for car insurance", async () => {
+		await using home = await createTempHome();
+		await home.writeMeridianFile("credentials.json", {
+			accessToken: "access-token",
+			refreshToken: "refresh-token",
+			user: "john.doe@example.com",
+			expiresAt: "2026-03-07T16:20:00Z",
+		});
+		await home.writeMeridianFile("data.json", {
+			proposalRequests: {
+				"pr-car-001": {
+					product: "car",
+					version: "1.0",
+					emailAddress: "john.doe@example.com",
+					data: {
+						registrationNumber: "AB12 CDE",
+						postcode: "SW1A 1AA",
+						coverType: "comprehensive",
+						annualMileage: 10000,
+					},
+					createdAt: "2026-03-06T16:20:00.000Z",
+				},
+			},
+			proposals: {},
+			results: {},
+		});
+
+		const stdout = createWritable();
+		const stderr = createWritable();
+
+		const exitCode = await runCli(
+			["proposals", "create", "--proposal-request=pr-car-001", "--json"],
+			{
+				homeDirectory: home.homeDirectory,
+				now: () => new Date("2026-03-06T16:20:05Z"),
+				randomId: (prefix) => `${prefix}-x7y8z9`,
+				stdout: stdout.stream,
+				stderr: stderr.stream,
+			},
+		);
+
+		expect(exitCode).toBe(0);
+		expect(JSON.parse(stdout.output())).toEqual({
+			id: "prop-x7y8z9",
+			proposalRequestId: "pr-car-001",
+			product: "car",
+			version: "1.0",
+			status: "completed",
+			createdAt: "2026-03-06T16:20:05.000Z",
+		});
+		expect(stderr.output()).toBe("");
+
+		const dataStore = JSON.parse(
+			await readFile(
+				join(home.homeDirectory, ".meridian", "data.json"),
+				"utf8",
+			),
+		) as {
+			results: Record<string, Record<string, unknown>>;
+		};
+		const result = dataStore.results["prop-x7y8z9"] as {
+			offerings: Array<{
+				metadata: Record<string, unknown>;
+				pricing: { paymentOptions: Array<{ type: string }> };
+			}>;
+		};
+
+		expect(result).toMatchObject({
+			id: expect.any(String),
+			product: "car",
+			version: "1.0",
+			proposalId: "prop-x7y8z9",
+			offerings: expect.any(Array),
+		});
+		expect(result.offerings).toHaveLength(10);
+
+		for (const offering of result.offerings) {
+			expect(offering.metadata).toHaveProperty("coverType");
+			expect(offering.metadata).toHaveProperty("excess");
+			expect(offering.metadata).toHaveProperty("breakdownCover");
+		}
+
+		const paymentTypes = result.offerings.map(
+			(o) => o.pricing.paymentOptions[0]?.type,
+		);
+		expect(paymentTypes).toContain("Installment");
+		expect(paymentTypes).toContain("OneTime");
+	});
+
 	it("errors when the proposal request does not exist", async () => {
 		await using home = await createTempHome();
 		await home.writeMeridianFile("credentials.json", {
