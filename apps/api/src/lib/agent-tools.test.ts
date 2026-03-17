@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createInMemorySandboxRuntime } from "../../tests/support/in-memory-runtime";
+import { createDockerRuntime } from "@/lib/sandbox/docker-runtime";
+import { createFakeDockerClient } from "../../tests/support/fake-docker-client";
+import { createTempSessionDir } from "../../tests/support/temp-session-dir";
 
 // biome-ignore lint/complexity/noBannedTypes: test helper for mocked langchain tools
 type AnyFn = Function;
@@ -29,14 +31,33 @@ async function invokeTool(
 	return (tool as unknown as AnyFn)(input);
 }
 
+function createTestConfig(rootDirectory: string) {
+	return {
+		dockerBinary: "docker",
+		extraCaCertsFile: undefined,
+		instructionsFile: "",
+		meridianAuthClientId: "meridian-cli",
+		meridianAuthIssuer: "http://host.docker.internal:8080/realms/meridian",
+		proxyEnv: {},
+		rootDirectory,
+		runtime: "docker",
+		sandboxImage: "meridian-chat-sandbox:local",
+		sessionTtlMs: 5 * 60 * 1000,
+	};
+}
+
 describe("createRuntimeAgentTools", () => {
 	afterEach(() => {
 		vi.clearAllMocks();
 	});
 
 	it("returns a result from the runtime", async () => {
-		const runtime = createInMemorySandboxRuntime({
-			files: { "test.txt": "file content" },
+		await using tmp = await createTempSessionDir();
+		await tmp.writeSessionFile("sess-1", "test.txt", "file content");
+
+		const client = createFakeDockerClient();
+		const runtime = createDockerRuntime(createTestConfig(tmp.rootDirectory), {
+			client,
 		});
 		const tools = createRuntimeAgentTools({ runtime, sessionId: "sess-1" });
 
@@ -45,24 +66,25 @@ describe("createRuntimeAgentTools", () => {
 		});
 
 		expect(result).toBe("file content");
-		expect(runtime.calls).toContainEqual({
-			method: "readSessionFile",
-			sessionId: "sess-1",
-			args: ["test.txt"],
-		});
 	});
 
 	it("propagates runtime errors", async () => {
-		const runtime = createInMemorySandboxRuntime();
+		await using tmp = await createTempSessionDir();
+		const runtime = createDockerRuntime(createTestConfig(tmp.rootDirectory), {
+			client: createFakeDockerClient(),
+		});
 		const tools = createRuntimeAgentTools({ runtime, sessionId: "sess-1" });
 
 		await expect(
 			invokeTool(findTool(tools, "read_file"), { path: "missing.txt" }),
-		).rejects.toThrow("File not found: missing.txt");
+		).rejects.toThrow("missing.txt");
 	});
 
-	it("creates all expected tools", () => {
-		const runtime = createInMemorySandboxRuntime();
+	it("creates all expected tools", async () => {
+		await using tmp = await createTempSessionDir();
+		const runtime = createDockerRuntime(createTestConfig(tmp.rootDirectory), {
+			client: createFakeDockerClient(),
+		});
 		const tools = createRuntimeAgentTools({ runtime, sessionId: "sess-1" });
 
 		const names = tools.map((t) => t.name);
@@ -80,20 +102,37 @@ describe("createRuntimeAgentTools", () => {
 	});
 
 	it("passes command options through to the runtime", async () => {
-		const runtime = createInMemorySandboxRuntime();
+		await using tmp = await createTempSessionDir();
+		const client = createFakeDockerClient({
+			execFixtures: [
+				{
+					command: ["ls", "-la"],
+					result: { exitCode: 0, stderr: "", stdout: "total 0\n" },
+				},
+			],
+		});
+		const runtime = createDockerRuntime(createTestConfig(tmp.rootDirectory), {
+			client,
+		});
 		const tools = createRuntimeAgentTools({ runtime, sessionId: "sess-1" });
 
-		await invokeTool(findTool(tools, "run_command"), {
+		const result = await invokeTool(findTool(tools, "run_command"), {
 			command: ["ls", "-la"],
 			timeoutMs: 5000,
 			waitFor: "exit",
 		});
 
-		expect(runtime.calls).toContainEqual({
-			method: "runCommand",
-			sessionId: "sess-1",
-			args: [["ls", "-la"], { timeoutMs: 5000, waitFor: "exit" }],
-		});
+		expect(result).toContain('"exitCode":0');
+		expect(client.calls.filter((c) => c.method === "exec")).toEqual([
+			{
+				args: [
+					"meridian-chat-sandbox-sess-1",
+					["ls", "-la"],
+					{ timeoutMs: 5000, waitFor: "exit" },
+				],
+				method: "exec",
+			},
+		]);
 	});
 
 	it("extracts visible text content without including reasoning blocks", () => {
