@@ -1,17 +1,59 @@
+import { writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import type { CreateAgentRunner } from "@/lib/agent";
 import { createAgentService } from "@/lib/agent";
-import type { SandboxRuntime } from "@/lib/sandbox/runtime";
+import type { SandboxConfig } from "@/lib/sandbox/config";
+import { createDockerRuntime } from "@/lib/sandbox/docker-runtime";
 import { createTurnEngine } from "@/lib/turn-engine";
 import { createChatRoute } from "@/routes/chat";
 import { createCollectingRegistry } from "../../tests/support/collecting-registry";
+import {
+	createFakeDockerClient,
+	type FakeDockerClient,
+} from "../../tests/support/fake-docker-client";
+import { createTempSessionDir } from "../../tests/support/temp-session-dir";
 
-export function createTestChat({
+type ClientOptions = NonNullable<Parameters<typeof createFakeDockerClient>[0]>;
+type ExecFixture = NonNullable<ClientOptions["execFixtures"]>[number];
+type BackgroundExecFixture = NonNullable<
+	ClientOptions["backgroundExecFixtures"]
+>[number];
+
+export async function createTestChat({
 	createRunner,
-	runtime,
+	execFixtures = [],
+	backgroundExecFixtures = [],
+	instructions = "",
 }: {
 	createRunner: CreateAgentRunner;
-	runtime: SandboxRuntime;
+	execFixtures?: ExecFixture[];
+	backgroundExecFixtures?: BackgroundExecFixture[];
+	instructions?: string;
 }) {
+	const tmp = await createTempSessionDir();
+	const client = createFakeDockerClient({
+		execFixtures,
+		backgroundExecFixtures,
+	});
+
+	const instructionsFile = join(tmp.rootDirectory, "instructions.txt");
+	await writeFile(instructionsFile, instructions);
+
+	const config: SandboxConfig = {
+		dockerBinary: "docker",
+		extraCaCertsFile: undefined,
+		instructionsFile,
+		meridianAuthClientId: "meridian-cli",
+		meridianAuthIssuer: "http://host.docker.internal:8080/realms/meridian",
+		proxyEnv: {},
+		rootDirectory: tmp.rootDirectory,
+		runtime: "docker",
+		sandboxImage: "meridian-chat-sandbox:local",
+		sessionTtlMs: 5 * 60 * 1000,
+	};
+
+	const runtime = createDockerRuntime(config, { client });
+
 	let turnCount = 0;
 	const nextTurnId = () => `turn-${++turnCount}`;
 	const { registry, collectTurnEvents } = createCollectingRegistry();
@@ -33,5 +75,7 @@ export function createTestChat({
 		engine,
 	});
 
-	return { POST, collectTurnEvents, registry };
+	return { POST, client, collectTurnEvents, registry, tmp };
 }
+
+export type { FakeDockerClient };

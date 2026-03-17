@@ -1,7 +1,11 @@
+import { writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createAgentService } from "@/lib/agent";
+import type { SandboxConfig } from "@/lib/sandbox/config";
+import { createDockerRuntime } from "@/lib/sandbox/docker-runtime";
 import { createCollectingRegistry } from "../../tests/support/collecting-registry";
-import { createInMemorySandboxRuntime } from "../../tests/support/in-memory-runtime";
+import { createFakeDockerClient } from "../../tests/support/fake-docker-client";
 import {
 	assistantText,
 	createScriptedAgentRunner,
@@ -9,13 +13,32 @@ import {
 	toolCompleted,
 	toolStarted,
 } from "../../tests/support/scripted-agent-runner";
+import { createTempSessionDir } from "../../tests/support/temp-session-dir";
 import { createTurnEngine } from "./turn-engine";
 
 describe("TurnEngine integration", () => {
 	it("runs the agent with tools and streams events via the registry", async () => {
-		const runtime = createInMemorySandboxRuntime({
-			instructions: "You are a helpful assistant.",
-		});
+		const tmp = await createTempSessionDir();
+		const client = createFakeDockerClient();
+
+		const instructionsFile = join(tmp.rootDirectory, "instructions.txt");
+		await writeFile(instructionsFile, "You are a helpful assistant.");
+
+		const config: SandboxConfig = {
+			dockerBinary: "docker",
+			extraCaCertsFile: undefined,
+			instructionsFile,
+			meridianAuthClientId: "meridian-cli",
+			meridianAuthIssuer: "http://host.docker.internal:8080/realms/meridian",
+			proxyEnv: {},
+			rootDirectory: tmp.rootDirectory,
+			runtime: "docker",
+			sandboxImage: "meridian-chat-sandbox:local",
+			sessionTtlMs: 5 * 60 * 1000,
+		};
+
+		const runtime = createDockerRuntime(config, { client });
+
 		const createRunner = createScriptedAgentRunner(async function* ({
 			message,
 			tools,

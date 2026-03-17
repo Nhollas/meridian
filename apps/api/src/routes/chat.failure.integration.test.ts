@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { createChatRequest } from "../../tests/support/chat-route";
-import { createInMemorySandboxRuntime } from "../../tests/support/in-memory-runtime";
 import {
 	assistantText,
 	createScriptedAgentRunner,
@@ -9,14 +8,12 @@ import { createTestChat } from "./chat.integration-support";
 
 describe("POST /api/chat integration - failure handling", () => {
 	it("emits turn.failed when the agent crashes before streaming any useful progress", async () => {
-		const runtime = createInMemorySandboxRuntime();
 		// biome-ignore lint/correctness/useYield: agent crashes before yielding — that's the test scenario
 		const createRunner = createScriptedAgentRunner(async function* () {
 			throw new Error("agent exploded");
 		});
-		const { POST, collectTurnEvents } = createTestChat({
+		const { POST, collectTurnEvents } = await createTestChat({
 			createRunner,
-			runtime,
 		});
 
 		const eventsPromise = collectTurnEvents("session-123");
@@ -42,16 +39,14 @@ describe("POST /api/chat integration - failure handling", () => {
 	});
 
 	it("promotes partial streamed progress into turn.completed when the agent fails mid-turn", async () => {
-		const runtime = createInMemorySandboxRuntime();
 		const createRunner = createScriptedAgentRunner(async function* () {
 			yield assistantText(
 				"Authentication started. Open the login URL in your browser.",
 			);
 			throw new Error("device flow requires user interaction");
 		});
-		const { POST, collectTurnEvents } = createTestChat({
+		const { POST, collectTurnEvents } = await createTestChat({
 			createRunner,
-			runtime,
 		});
 
 		const eventsPromise = collectTurnEvents("session-123");

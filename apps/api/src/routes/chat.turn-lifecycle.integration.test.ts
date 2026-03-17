@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { createChatRequest } from "../../tests/support/chat-route";
-import { createInMemorySandboxRuntime } from "../../tests/support/in-memory-runtime";
 import {
 	assistantText,
 	createScriptedAgentRunner,
@@ -12,12 +11,6 @@ import { createTestChat } from "./chat.integration-support";
 
 describe("POST /api/chat integration - turn lifecycle", () => {
 	it("streams real agent-service progress and calls runtime tools through the sandbox contract", async () => {
-		const runtime = createInMemorySandboxRuntime({
-			files: {
-				"offers.json": '{"offers":2}',
-			},
-			instructions: "Call get_runtime_instructions before reading files.",
-		});
 		const createRunner = createScriptedAgentRunner(async function* ({
 			message,
 			sessionId,
@@ -58,10 +51,12 @@ describe("POST /api/chat integration - turn lifecycle", () => {
 
 			yield assistantText("I found 2 offers worth comparing.");
 		});
-		const { POST, collectTurnEvents } = createTestChat({
+		const { POST, collectTurnEvents, tmp } = await createTestChat({
 			createRunner,
-			runtime,
+			instructions: "Call get_runtime_instructions before reading files.",
 		});
+
+		await tmp.writeSessionFile("session-123", "offers.json", '{"offers":2}');
 
 		const eventsPromise = collectTurnEvents("session-123");
 		const response = await POST(
@@ -155,18 +150,6 @@ describe("POST /api/chat integration - turn lifecycle", () => {
 					],
 				}),
 			}),
-		]);
-		expect(runtime.calls).toEqual([
-			{
-				args: [],
-				method: "getInstructions",
-				sessionId: "session-123",
-			},
-			{
-				args: ["offers.json"],
-				method: "readSessionFile",
-				sessionId: "session-123",
-			},
 		]);
 	});
 });
