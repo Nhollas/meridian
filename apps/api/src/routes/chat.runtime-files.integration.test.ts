@@ -3,7 +3,6 @@ import {
 	createChatRequest,
 	getParsedToolOutput,
 } from "../../tests/support/chat-route";
-import { createInMemorySandboxRuntime } from "../../tests/support/in-memory-runtime";
 import {
 	assistantText,
 	createScriptedAgentRunner,
@@ -16,12 +15,6 @@ import { createTestChat } from "./chat.integration-support";
 
 describe("POST /api/chat integration - runtime files", () => {
 	it("lists directory contents through tool events and the final turn timeline", async () => {
-		const runtime = createInMemorySandboxRuntime({
-			files: {
-				"offers.json": '{"offers":2}',
-				"policy.txt": "No refunds",
-			},
-		});
 		const createRunner = createScriptedAgentRunner(async function* ({ tools }) {
 			yield toolStarted({
 				id: "tool-1",
@@ -36,10 +29,13 @@ describe("POST /api/chat integration - runtime files", () => {
 			});
 			yield assistantText("I listed the workspace files.");
 		});
-		const { POST, collectTurnEvents } = createTestChat({
+		await using ctx = await createTestChat({
 			createRunner,
-			runtime,
 		});
+		const { POST, collectTurnEvents, tmp } = ctx;
+
+		await tmp.writeSessionFile("session-files", "offers.json", '{"offers":2}');
+		await tmp.writeSessionFile("session-files", "policy.txt", "No refunds");
 
 		const eventsPromise = collectTurnEvents("session-files");
 		await POST(
@@ -80,17 +76,9 @@ describe("POST /api/chat integration - runtime files", () => {
 				],
 			},
 		});
-		expect(runtime.calls).toEqual([
-			{
-				args: ["."],
-				method: "listSessionFiles",
-				sessionId: "session-files",
-			},
-		]);
 	});
 
 	it("persists files written in one turn so they can be read in a later turn for the same session", async () => {
-		const runtime = createInMemorySandboxRuntime();
 		const createRunner = createScriptedAgentRunner(async function* ({
 			message,
 			sessionId,
@@ -133,10 +121,10 @@ describe("POST /api/chat integration - runtime files", () => {
 			});
 			yield assistantText(`Read back: ${output}`);
 		});
-		const { POST, collectTurnEvents } = createTestChat({
+		await using ctx2 = await createTestChat({
 			createRunner,
-			runtime,
 		});
+		const { POST, collectTurnEvents } = ctx2;
 
 		const writeEventsPromise = collectTurnEvents("session-files");
 		await POST(
@@ -167,7 +155,7 @@ describe("POST /api/chat integration - runtime files", () => {
 						id: "tool-1",
 						input: '{"contents":"buy milk","path":"notes/todo.txt"}',
 						name: "write_file",
-						output: '{"path":"/notes/todo.txt"}',
+						output: '{"path":"notes/todo.txt"}',
 						state: "completed",
 					},
 				],
@@ -227,24 +215,9 @@ describe("POST /api/chat integration - runtime files", () => {
 				},
 			}),
 		]);
-		expect(runtime.calls).toEqual([
-			{
-				args: ["notes/todo.txt", "buy milk"],
-				method: "writeSessionFile",
-				sessionId: "session-files",
-			},
-			{
-				args: ["notes/todo.txt"],
-				method: "readSessionFile",
-				sessionId: "session-files",
-			},
-		]);
 	});
 
 	it("fails clearly when a file path escapes the session workspace", async () => {
-		const runtime = createInMemorySandboxRuntime({
-			enforcePathSafety: true,
-		});
 		const createRunner = createScriptedAgentRunner(async function* ({ tools }) {
 			yield toolStarted({
 				id: "tool-1",
@@ -269,10 +242,10 @@ describe("POST /api/chat integration - runtime files", () => {
 				yield assistantText("That path is outside the session workspace.");
 			}
 		});
-		const { POST, collectTurnEvents } = createTestChat({
+		await using ctx3 = await createTestChat({
 			createRunner,
-			runtime,
 		});
+		const { POST, collectTurnEvents } = ctx3;
 
 		const eventsPromise = collectTurnEvents("session-files");
 		await POST(
@@ -339,13 +312,6 @@ describe("POST /api/chat integration - runtime files", () => {
 					],
 				},
 			}),
-		]);
-		expect(runtime.calls).toEqual([
-			{
-				args: ["../secrets.txt"],
-				method: "readSessionFile",
-				sessionId: "session-files",
-			},
 		]);
 	});
 });

@@ -75,38 +75,6 @@ function truncateOutput(output: string, limit = MAX_OUTPUT_BYTES): string {
 	return `${output.slice(0, limit)}\n[output truncated at ${limit} bytes]`;
 }
 
-export function trackProcess(
-	activeProcesses: Map<string, Set<ChildProcess>>,
-	sessionId: string,
-	child: ChildProcess,
-) {
-	const processes = activeProcesses.get(sessionId) ?? new Set<ChildProcess>();
-	processes.add(child);
-	activeProcesses.set(sessionId, processes);
-
-	child.on("close", () => {
-		processes.delete(child);
-		if (processes.size === 0) {
-			activeProcesses.delete(sessionId);
-		}
-	});
-}
-
-export function killSessionProcesses(
-	activeProcesses: Map<string, Set<ChildProcess>>,
-	sessionId: string,
-) {
-	const processes = activeProcesses.get(sessionId);
-	if (processes) {
-		for (const p of processes) {
-			if (!p.killed) {
-				p.kill();
-			}
-		}
-		activeProcesses.delete(sessionId);
-	}
-}
-
 function buildExecFileOptions(config: CommandConfig, timeoutMs: number) {
 	const options: { timeout: number; cwd?: string; env?: NodeJS.ProcessEnv } = {
 		timeout: timeoutMs,

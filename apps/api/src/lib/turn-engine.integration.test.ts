@@ -1,7 +1,10 @@
+import { writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createAgentService } from "@/lib/agent";
+import { createDockerRuntime } from "@/lib/sandbox/docker-runtime";
 import { createCollectingRegistry } from "../../tests/support/collecting-registry";
-import { createInMemorySandboxRuntime } from "../../tests/support/in-memory-runtime";
+import { createFakeDockerClient } from "../../tests/support/fake-docker-client";
 import {
 	assistantText,
 	createScriptedAgentRunner,
@@ -9,13 +12,26 @@ import {
 	toolCompleted,
 	toolStarted,
 } from "../../tests/support/scripted-agent-runner";
+import { createTempSessionDir } from "../../tests/support/temp-session-dir";
+import { createTestConfig } from "../../tests/support/test-config";
 import { createTurnEngine } from "./turn-engine";
 
 describe("TurnEngine integration", () => {
 	it("runs the agent with tools and streams events via the registry", async () => {
-		const runtime = createInMemorySandboxRuntime({
-			instructions: "You are a helpful assistant.",
-		});
+		await using tmp = await createTempSessionDir();
+		const client = createFakeDockerClient();
+
+		const instructionsFile = join(tmp.rootDirectory, "instructions.txt");
+		await writeFile(instructionsFile, "You are a helpful assistant.");
+
+		const runtime = createDockerRuntime(
+			createTestConfig({
+				instructionsFile,
+				rootDirectory: tmp.rootDirectory,
+			}),
+			{ client },
+		);
+
 		const createRunner = createScriptedAgentRunner(async function* ({
 			message,
 			tools,

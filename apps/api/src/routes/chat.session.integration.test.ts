@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { createChatRequest } from "../../tests/support/chat-route";
-import { createInMemorySandboxRuntime } from "../../tests/support/in-memory-runtime";
 import {
 	assistantText,
 	createScriptedAgentRunner,
@@ -14,7 +13,6 @@ import { createTestChat } from "./chat.integration-support";
 describe("POST /api/chat integration - session behavior", () => {
 	it("keeps conversation continuity when the same session sends later turns", async () => {
 		const historyBySession = new Map<string, string[]>();
-		const runtime = createInMemorySandboxRuntime();
 		const createRunner = createScriptedAgentRunner(async function* ({
 			message,
 			sessionId,
@@ -24,10 +22,10 @@ describe("POST /api/chat integration - session behavior", () => {
 
 			yield assistantText(`Messages so far: ${history.join(" -> ")}`);
 		});
-		const { POST, collectTurnEvents } = createTestChat({
+		await using ctx = await createTestChat({
 			createRunner,
-			runtime,
 		});
+		const { POST, collectTurnEvents } = ctx;
 
 		const firstEventsPromise = collectTurnEvents("session-123");
 		await POST(
@@ -85,7 +83,6 @@ describe("POST /api/chat integration - session behavior", () => {
 	});
 
 	it("keeps session workspaces isolated from each other", async () => {
-		const runtime = createInMemorySandboxRuntime();
 		const createRunner = createScriptedAgentRunner(async function* ({
 			message,
 			sessionId,
@@ -136,10 +133,10 @@ describe("POST /api/chat integration - session behavior", () => {
 				yield assistantText(`No note found for ${sessionId}.`);
 			}
 		});
-		const { POST, collectTurnEvents } = createTestChat({
+		await using ctx2 = await createTestChat({
 			createRunner,
-			runtime,
 		});
+		const { POST, collectTurnEvents } = ctx2;
 
 		const saveEventsPromise = collectTurnEvents("session-a");
 		await POST(
@@ -183,7 +180,7 @@ describe("POST /api/chat integration - session behavior", () => {
 						id: "tool-2",
 						input: '{"path":"notes/todo.txt"}',
 						name: "read_file",
-						output: "File not found: notes/todo.txt",
+						output: expect.stringContaining("notes/todo.txt"),
 					},
 				},
 			}),
@@ -208,24 +205,12 @@ describe("POST /api/chat integration - session behavior", () => {
 							id: "tool-2",
 							input: '{"path":"notes/todo.txt"}',
 							name: "read_file",
-							output: "File not found: notes/todo.txt",
+							output: expect.stringContaining("notes/todo.txt"),
 							state: "failed",
 						},
 					],
 				},
 			}),
-		]);
-		expect(runtime.calls).toEqual([
-			{
-				args: ["notes/todo.txt", "private to session-a"],
-				method: "writeSessionFile",
-				sessionId: "session-a",
-			},
-			{
-				args: ["notes/todo.txt"],
-				method: "readSessionFile",
-				sessionId: "session-b",
-			},
 		]);
 	});
 });

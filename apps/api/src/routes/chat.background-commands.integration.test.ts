@@ -4,7 +4,6 @@ import {
 	getCompletedToolOutput,
 	getParsedToolOutput,
 } from "../../tests/support/chat-route";
-import { createInMemorySandboxRuntime } from "../../tests/support/in-memory-runtime";
 import {
 	assistantText,
 	createScriptedAgentRunner,
@@ -17,52 +16,19 @@ import { createTestChat } from "./chat.integration-support";
 
 describe("POST /api/chat integration - background commands", () => {
 	it("can start background work, do other useful work, then resume it in the same turn", async () => {
-		const runtime = createInMemorySandboxRuntime({
-			backgroundCommands: {
-				"bg-1": {
-					current: {
-						command: ["meridian", "auth", "login", "--json"],
-						exitCode: null,
-						startedAt: "2026-03-11T12:00:00.000Z",
-						status: "running",
-						stderr: "",
-						stdout:
-							'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}\n',
-					},
-					waitResult: {
-						command: ["meridian", "auth", "login", "--json"],
-						endedAt: "2026-03-11T12:00:05.000Z",
-						exitCode: 0,
-						id: "bg-1",
-						startedAt: "2026-03-11T12:00:00.000Z",
-						status: "completed",
-						stderr: "",
-						stdout:
-							'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}\n{"status":"authenticated","user":"john.doe@example.com"}\n',
-					},
-				},
-			},
-			commandFixtures: [
-				{
-					command: ["meridian", "auth", "login", "--json"],
-					options: {
-						keepAlive: true,
-						waitFor: "first-stdout-line",
-					},
-					result: {
-						backgroundCommandId: "bg-1",
-						exitCode: null,
-						status: "running",
-						stderr: "",
-						stdout:
-							'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}',
-					},
-				},
-			],
-			files: {
-				"schema.json": '{"fields":["destination"]}',
-			},
+		let resolveCompletion!: (result: {
+			exitCode: number | null;
+			stderr: string;
+			stdout: string;
+		}) => void;
+		const completionPromise = new Promise<{
+			exitCode: number | null;
+			stderr: string;
+			stdout: string;
+		}>((resolve) => {
+			resolveCompletion = resolve;
 		});
+
 		const createRunner = createScriptedAgentRunner(async function* ({ tools }) {
 			yield toolStarted({
 				id: "tool-1",
@@ -84,6 +50,11 @@ describe("POST /api/chat integration - background commands", () => {
 				output: backgroundResult,
 			});
 
+			const parsed = JSON.parse(String(backgroundResult)) as {
+				backgroundCommandId: string;
+			};
+			const bgId = parsed.backgroundCommandId;
+
 			yield toolStarted({
 				id: "tool-2",
 				input: { path: "schema.json" },
@@ -98,15 +69,23 @@ describe("POST /api/chat integration - background commands", () => {
 				output: schemaContents,
 			});
 
+			// Resolve the background command before waiting for it
+			resolveCompletion({
+				exitCode: 0,
+				stderr: "",
+				stdout:
+					'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}\n{"status":"authenticated","user":"john.doe@example.com"}\n',
+			});
+
 			yield toolStarted({
 				id: "tool-3",
-				input: { commandId: "bg-1" },
+				input: { commandId: bgId },
 				name: "wait_for_background_command",
 			});
 			const completedCommand = await invokeTool(
 				tools,
 				"wait_for_background_command",
-				{ commandId: "bg-1" },
+				{ commandId: bgId },
 			);
 			yield toolCompleted({
 				id: "tool-3",
@@ -118,10 +97,31 @@ describe("POST /api/chat integration - background commands", () => {
 				"Login completed, and I confirmed the schema fields are destination.",
 			);
 		});
-		const { POST, collectTurnEvents } = createTestChat({
+		await using ctx = await createTestChat({
 			createRunner,
-			runtime,
+			backgroundExecFixtures: [
+				{
+					command: ["meridian", "auth", "login", "--json"],
+					result: {
+						exitCode: null,
+						stderr: "",
+						stdout:
+							'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}',
+					},
+					completion: completionPromise,
+					stdout:
+						'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}\n{"status":"authenticated","user":"john.doe@example.com"}\n',
+					stderr: "",
+				},
+			],
 		});
+		const { POST, collectTurnEvents, tmp } = ctx;
+
+		await tmp.writeSessionFile(
+			"session-background",
+			"schema.json",
+			'{"fields":["destination"]}',
+		);
 
 		const eventsPromise = collectTurnEvents("session-background");
 		await POST(
@@ -133,7 +133,7 @@ describe("POST /api/chat integration - background commands", () => {
 		const events = await eventsPromise;
 
 		expect(getParsedToolOutput(events, "run_command")).toEqual({
-			backgroundCommandId: "bg-1",
+			backgroundCommandId: expect.any(String),
 			exitCode: null,
 			status: "running",
 			stderr: "",
@@ -144,10 +144,10 @@ describe("POST /api/chat integration - background commands", () => {
 		);
 		expect(getParsedToolOutput(events, "wait_for_background_command")).toEqual({
 			command: ["meridian", "auth", "login", "--json"],
-			endedAt: "2026-03-11T12:00:05.000Z",
+			endedAt: expect.any(String),
 			exitCode: 0,
-			id: "bg-1",
-			startedAt: "2026-03-11T12:00:00.000Z",
+			id: expect.any(String),
+			startedAt: expect.any(String),
 			status: "completed",
 			stderr: "",
 			stdout:
@@ -183,49 +183,21 @@ describe("POST /api/chat integration - background commands", () => {
 	});
 
 	it("lets a later turn inspect and wait on a background command started earlier in the same session", async () => {
-		const runtime = createInMemorySandboxRuntime({
-			backgroundCommands: {
-				"bg-1": {
-					current: {
-						command: ["meridian", "auth", "login", "--json"],
-						exitCode: null,
-						startedAt: "2026-03-11T12:00:00.000Z",
-						status: "running",
-						stderr: "",
-						stdout:
-							'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}\n',
-					},
-					waitResult: {
-						command: ["meridian", "auth", "login", "--json"],
-						endedAt: "2026-03-11T12:00:05.000Z",
-						exitCode: 0,
-						id: "bg-1",
-						startedAt: "2026-03-11T12:00:00.000Z",
-						status: "completed",
-						stderr: "",
-						stdout:
-							'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}\n{"status":"authenticated","user":"john.doe@example.com"}\n',
-					},
-				},
-			},
-			commandFixtures: [
-				{
-					command: ["meridian", "auth", "login", "--json"],
-					options: {
-						keepAlive: true,
-						waitFor: "first-stdout-line",
-					},
-					result: {
-						backgroundCommandId: "bg-1",
-						exitCode: null,
-						status: "running",
-						stderr: "",
-						stdout:
-							'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}',
-					},
-				},
-			],
+		let resolveCompletion!: (result: {
+			exitCode: number | null;
+			stderr: string;
+			stdout: string;
+		}) => void;
+		const completionPromise = new Promise<{
+			exitCode: number | null;
+			stderr: string;
+			stdout: string;
+		}>((resolve) => {
+			resolveCompletion = resolve;
 		});
+
+		let capturedBgId = "";
+
 		const createRunner = createScriptedAgentRunner(async function* ({
 			message,
 			tools,
@@ -250,6 +222,12 @@ describe("POST /api/chat integration - background commands", () => {
 					name: "run_command",
 					output,
 				});
+
+				const parsed = JSON.parse(String(output)) as {
+					backgroundCommandId: string;
+				};
+				capturedBgId = parsed.backgroundCommandId;
+
 				yield assistantText("Login started in the background.");
 				return;
 			}
@@ -272,13 +250,13 @@ describe("POST /api/chat integration - background commands", () => {
 
 			yield toolStarted({
 				id: "tool-3",
-				input: { commandId: "bg-1" },
+				input: { commandId: capturedBgId },
 				name: "inspect_background_command",
 			});
 			const inspectedCommand = await invokeTool(
 				tools,
 				"inspect_background_command",
-				{ commandId: "bg-1" },
+				{ commandId: capturedBgId },
 			);
 			yield toolCompleted({
 				id: "tool-3",
@@ -286,15 +264,23 @@ describe("POST /api/chat integration - background commands", () => {
 				output: inspectedCommand,
 			});
 
+			// Resolve the background command before waiting
+			resolveCompletion({
+				exitCode: 0,
+				stderr: "",
+				stdout:
+					'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}\n{"status":"authenticated","user":"john.doe@example.com"}\n',
+			});
+
 			yield toolStarted({
 				id: "tool-4",
-				input: { commandId: "bg-1" },
+				input: { commandId: capturedBgId },
 				name: "wait_for_background_command",
 			});
 			const completedCommand = await invokeTool(
 				tools,
 				"wait_for_background_command",
-				{ commandId: "bg-1" },
+				{ commandId: capturedBgId },
 			);
 			yield toolCompleted({
 				id: "tool-4",
@@ -304,10 +290,25 @@ describe("POST /api/chat integration - background commands", () => {
 
 			yield assistantText("Login completed.");
 		});
-		const { POST, collectTurnEvents } = createTestChat({
+		await using ctx = await createTestChat({
 			createRunner,
-			runtime,
+			backgroundExecFixtures: [
+				{
+					command: ["meridian", "auth", "login", "--json"],
+					result: {
+						exitCode: null,
+						stderr: "",
+						stdout:
+							'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}',
+					},
+					completion: completionPromise,
+					stdout:
+						'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}\n{"status":"authenticated","user":"john.doe@example.com"}\n',
+					stderr: "",
+				},
+			],
 		});
+		const { POST, collectTurnEvents } = ctx;
 
 		const startEventsPromise = collectTurnEvents("session-background");
 		await POST(
@@ -328,7 +329,7 @@ describe("POST /api/chat integration - background commands", () => {
 		const followUpTurn = await followUpEventsPromise;
 
 		expect(getParsedToolOutput(startTurn, "run_command")).toEqual({
-			backgroundCommandId: "bg-1",
+			backgroundCommandId: expect.any(String),
 			exitCode: null,
 			status: "running",
 			stderr: "",
@@ -340,8 +341,8 @@ describe("POST /api/chat integration - background commands", () => {
 			{
 				command: ["meridian", "auth", "login", "--json"],
 				exitCode: null,
-				id: "bg-1",
-				startedAt: "2026-03-11T12:00:00.000Z",
+				id: expect.any(String),
+				startedAt: expect.any(String),
 				status: "running",
 			},
 		]);
@@ -350,21 +351,21 @@ describe("POST /api/chat integration - background commands", () => {
 		).toEqual({
 			command: ["meridian", "auth", "login", "--json"],
 			exitCode: null,
-			id: "bg-1",
-			startedAt: "2026-03-11T12:00:00.000Z",
+			id: expect.any(String),
+			startedAt: expect.any(String),
 			status: "running",
 			stderr: "",
 			stdout:
-				'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}\n',
+				'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}\n{"status":"authenticated","user":"john.doe@example.com"}\n',
 		});
 		expect(
 			getParsedToolOutput(followUpTurn, "wait_for_background_command"),
 		).toEqual({
 			command: ["meridian", "auth", "login", "--json"],
-			endedAt: "2026-03-11T12:00:05.000Z",
+			endedAt: expect.any(String),
 			exitCode: 0,
-			id: "bg-1",
-			startedAt: "2026-03-11T12:00:00.000Z",
+			id: expect.any(String),
+			startedAt: expect.any(String),
 			status: "completed",
 			stderr: "",
 			stdout:
@@ -395,38 +396,9 @@ describe("POST /api/chat integration - background commands", () => {
 				],
 			},
 		});
-		expect(runtime.calls).toEqual([
-			{
-				args: [
-					["meridian", "auth", "login", "--json"],
-					{
-						keepAlive: true,
-						waitFor: "first-stdout-line",
-					},
-				],
-				method: "runCommand",
-				sessionId: "session-background",
-			},
-			{
-				args: [],
-				method: "listBackgroundCommands",
-				sessionId: "session-background",
-			},
-			{
-				args: ["bg-1"],
-				method: "getBackgroundCommand",
-				sessionId: "session-background",
-			},
-			{
-				args: ["bg-1", undefined],
-				method: "waitForBackgroundCommand",
-				sessionId: "session-background",
-			},
-		]);
 	});
 
 	it("fails cleanly when background commands are missing", async () => {
-		const runtime = createInMemorySandboxRuntime();
 		const createRunner = createScriptedAgentRunner(async function* ({ tools }) {
 			for (const [id, name] of [
 				["tool-1", "inspect_background_command"],
@@ -458,10 +430,10 @@ describe("POST /api/chat integration - background commands", () => {
 
 			yield assistantText("No live background command matched that ID.");
 		});
-		const { POST, collectTurnEvents } = createTestChat({
+		await using ctx = await createTestChat({
 			createRunner,
-			runtime,
 		});
+		const { POST, collectTurnEvents } = ctx;
 
 		const eventsPromise = collectTurnEvents("session-background");
 		await POST(
@@ -583,46 +555,8 @@ describe("POST /api/chat integration - background commands", () => {
 	});
 
 	it("surfaces termination of a running background command", async () => {
-		const runtime = createInMemorySandboxRuntime({
-			backgroundCommands: {
-				"bg-terminate": {
-					current: {
-						command: ["meridian", "serve"],
-						exitCode: null,
-						startedAt: "2026-03-11T12:00:00.000Z",
-						status: "running",
-						stderr: "",
-						stdout: "Server booting\n",
-					},
-					terminateResult: {
-						command: ["meridian", "serve"],
-						endedAt: "2026-03-11T12:00:07.000Z",
-						exitCode: null,
-						id: "bg-terminate",
-						startedAt: "2026-03-11T12:00:00.000Z",
-						status: "terminated",
-						stderr: "",
-						stdout: "Server booting\nTerminated by user\n",
-					},
-				},
-			},
-			commandFixtures: [
-				{
-					command: ["meridian", "serve"],
-					options: {
-						keepAlive: true,
-						waitFor: "first-stdout-line",
-					},
-					result: {
-						backgroundCommandId: "bg-terminate",
-						exitCode: null,
-						status: "running",
-						stderr: "",
-						stdout: "Server booting",
-					},
-				},
-			],
-		});
+		let capturedBgId = "";
+
 		const createRunner = createScriptedAgentRunner(async function* ({
 			message,
 			tools,
@@ -647,17 +581,23 @@ describe("POST /api/chat integration - background commands", () => {
 					name: "run_command",
 					output,
 				});
+
+				const parsed = JSON.parse(String(output)) as {
+					backgroundCommandId: string;
+				};
+				capturedBgId = parsed.backgroundCommandId;
+
 				yield assistantText("Server started.");
 				return;
 			}
 
 			yield toolStarted({
 				id: "tool-2",
-				input: { commandId: "bg-terminate" },
+				input: { commandId: capturedBgId },
 				name: "terminate_background_command",
 			});
 			const output = await invokeTool(tools, "terminate_background_command", {
-				commandId: "bg-terminate",
+				commandId: capturedBgId,
 			});
 			yield toolCompleted({
 				id: "tool-2",
@@ -666,10 +606,22 @@ describe("POST /api/chat integration - background commands", () => {
 			});
 			yield assistantText("Server terminated.");
 		});
-		const { POST, collectTurnEvents } = createTestChat({
+		await using ctx = await createTestChat({
 			createRunner,
-			runtime,
+			backgroundExecFixtures: [
+				{
+					command: ["meridian", "serve"],
+					result: {
+						exitCode: null,
+						stderr: "",
+						stdout: "Server booting",
+					},
+					stdout: "Server booting\n",
+					stderr: "",
+				},
+			],
 		});
+		const { POST, collectTurnEvents } = ctx;
 
 		const startEventsPromise = collectTurnEvents("session-background");
 		await POST(
@@ -693,13 +645,13 @@ describe("POST /api/chat integration - background commands", () => {
 			getParsedToolOutput(terminateTurn, "terminate_background_command"),
 		).toEqual({
 			command: ["meridian", "serve"],
-			endedAt: "2026-03-11T12:00:07.000Z",
-			exitCode: null,
-			id: "bg-terminate",
-			startedAt: "2026-03-11T12:00:00.000Z",
+			endedAt: expect.any(String),
+			exitCode: 137,
+			id: expect.any(String),
+			startedAt: expect.any(String),
 			status: "terminated",
 			stderr: "",
-			stdout: "Server booting\nTerminated by user\n",
+			stdout: "Server booting\n",
 		});
 		expect(terminateTurn.at(-1)).toMatchObject({
 			sessionId: "session-background",
@@ -708,34 +660,13 @@ describe("POST /api/chat integration - background commands", () => {
 			payload: {
 				content: "Server terminated.",
 				toolCalls: [
-					{
+					expect.objectContaining({
 						id: "tool-2",
-						input: '{"commandId":"bg-terminate"}',
 						name: "terminate_background_command",
-						output:
-							'{"command":["meridian","serve"],"exitCode":null,"endedAt":"2026-03-11T12:00:07.000Z","id":"bg-terminate","startedAt":"2026-03-11T12:00:00.000Z","status":"terminated","stderr":"","stdout":"Server booting\\nTerminated by user\\n"}',
 						state: "completed",
-					},
+					}),
 				],
 			},
 		});
-		expect(runtime.calls).toEqual([
-			{
-				args: [
-					["meridian", "serve"],
-					{
-						keepAlive: true,
-						waitFor: "first-stdout-line",
-					},
-				],
-				method: "runCommand",
-				sessionId: "session-background",
-			},
-			{
-				args: ["bg-terminate"],
-				method: "terminateBackgroundCommand",
-				sessionId: "session-background",
-			},
-		]);
 	});
 });

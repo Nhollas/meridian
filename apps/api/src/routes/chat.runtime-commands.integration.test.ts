@@ -3,7 +3,6 @@ import {
 	createChatRequest,
 	getParsedToolOutput,
 } from "../../tests/support/chat-route";
-import { createInMemorySandboxRuntime } from "../../tests/support/in-memory-runtime";
 import {
 	assistantText,
 	createScriptedAgentRunner,
@@ -15,18 +14,6 @@ import { createTestChat } from "./chat.integration-support";
 
 describe("POST /api/chat integration - runtime commands", () => {
 	it("surfaces run_command stdout, stderr, and exit code through tool output", async () => {
-		const runtime = createInMemorySandboxRuntime({
-			commandFixtures: [
-				{
-					command: ["pwd"],
-					result: {
-						exitCode: 0,
-						stderr: "",
-						stdout: "/workspace\n",
-					},
-				},
-			],
-		});
 		const createRunner = createScriptedAgentRunner(async function* ({ tools }) {
 			yield toolStarted({
 				id: "tool-1",
@@ -43,10 +30,20 @@ describe("POST /api/chat integration - runtime commands", () => {
 			});
 			yield assistantText("Working directory checked.");
 		});
-		const { POST, collectTurnEvents } = createTestChat({
+		await using ctx = await createTestChat({
 			createRunner,
-			runtime,
+			execFixtures: [
+				{
+					command: ["pwd"],
+					result: {
+						exitCode: 0,
+						stderr: "",
+						stdout: "/workspace\n",
+					},
+				},
+			],
 		});
+		const { POST, collectTurnEvents } = ctx;
 
 		const eventsPromise = collectTurnEvents("session-command");
 		await POST(
@@ -80,28 +77,9 @@ describe("POST /api/chat integration - runtime commands", () => {
 				],
 			},
 		});
-		expect(runtime.calls).toEqual([
-			{
-				args: [["pwd"], {}],
-				method: "runCommand",
-				sessionId: "session-command",
-			},
-		]);
 	});
 
 	it("emits turn.failed when a command exits non-zero and the agent cannot recover", async () => {
-		const runtime = createInMemorySandboxRuntime({
-			commandFixtures: [
-				{
-					command: ["bash", "-lc", "exit 23"],
-					result: {
-						exitCode: 23,
-						stderr: "permission denied",
-						stdout: "",
-					},
-				},
-			],
-		});
 		const createRunner = createScriptedAgentRunner(async function* ({ tools }) {
 			yield toolStarted({
 				id: "tool-1",
@@ -127,10 +105,20 @@ describe("POST /api/chat integration - runtime commands", () => {
 				);
 			}
 		});
-		const { POST, collectTurnEvents } = createTestChat({
+		await using ctx2 = await createTestChat({
 			createRunner,
-			runtime,
+			execFixtures: [
+				{
+					command: ["bash", "-lc", "exit 23"],
+					result: {
+						exitCode: 23,
+						stderr: "permission denied",
+						stdout: "",
+					},
+				},
+			],
 		});
+		const { POST, collectTurnEvents } = ctx2;
 
 		const eventsPromise = collectTurnEvents("session-command");
 		await POST(
@@ -178,13 +166,6 @@ describe("POST /api/chat integration - runtime commands", () => {
 					error: "Command failed with exit code 23: permission denied",
 				},
 			}),
-		]);
-		expect(runtime.calls).toEqual([
-			{
-				args: [["bash", "-lc", "exit 23"], {}],
-				method: "runCommand",
-				sessionId: "session-command",
-			},
 		]);
 	});
 });
