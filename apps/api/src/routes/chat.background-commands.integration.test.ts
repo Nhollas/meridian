@@ -42,6 +42,7 @@ describe("POST /api/chat integration - background commands", () => {
 			const backgroundResult = await invokeTool(tools, "run_command", {
 				command: ["meridian", "auth", "login", "--json"],
 				keepAlive: true,
+				label: "Logging in",
 				waitFor: "first-stdout-line",
 			});
 			yield toolCompleted({
@@ -215,6 +216,7 @@ describe("POST /api/chat integration - background commands", () => {
 				const output = await invokeTool(tools, "run_command", {
 					command: ["meridian", "auth", "login", "--json"],
 					keepAlive: true,
+					label: "Logging in",
 					waitFor: "first-stdout-line",
 				});
 				yield toolCompleted({
@@ -574,6 +576,7 @@ describe("POST /api/chat integration - background commands", () => {
 				const output = await invokeTool(tools, "run_command", {
 					command: ["meridian", "serve"],
 					keepAlive: true,
+					label: "Starting server",
 					waitFor: "first-stdout-line",
 				});
 				yield toolCompleted({

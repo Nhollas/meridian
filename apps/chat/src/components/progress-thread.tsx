@@ -7,6 +7,7 @@ import {
 	formatToolSummary,
 } from "@/lib/tool-formatting";
 import type { ToolCallViewModel } from "@/lib/view-models";
+import { StatusDot } from "./status-dot";
 
 /**
  * SVG tree connectors — pixel-aligned to a 12×12 grid so they
@@ -18,28 +19,6 @@ const CONNECTOR_PATHS = {
 	branch: "M 6 0 V 12 M 6 6 H 10",
 	corner: "M 6 0 V 6 H 10",
 } as const;
-
-function StatusDot({ status }: { status: "running" | "error" | "completed" }) {
-	const label =
-		status === "running"
-			? "Running"
-			: status === "error"
-				? "Error"
-				: "Completed";
-	const color =
-		status === "running"
-			? "animate-pulse bg-warning"
-			: status === "error"
-				? "bg-error"
-				: "bg-success";
-	return (
-		<span
-			role="img"
-			aria-label={label}
-			className={`h-1.5 w-1.5 shrink-0 rounded-full ${color}`}
-		/>
-	);
-}
 
 function TreeConnector({ type }: { type: keyof typeof CONNECTOR_PATHS }) {
 	return (

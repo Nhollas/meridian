@@ -12,8 +12,15 @@ export type BackgroundCommandCompleteCallback = (params: {
 	sessionId: string;
 }) => void;
 
+export type BackgroundTaskStartedCallback = (params: {
+	label: string;
+	sessionId: string;
+	taskId: string;
+}) => void;
+
 type ToolContext = {
 	onBackgroundCommandComplete?: BackgroundCommandCompleteCallback | undefined;
+	onBackgroundTaskStarted?: BackgroundTaskStartedCallback | undefined;
 	runtime: SandboxRuntime;
 	sessionId: string;
 };
@@ -22,6 +29,7 @@ const emptySchema = z.object({});
 
 export function createRuntimeAgentTools({
 	onBackgroundCommandComplete,
+	onBackgroundTaskStarted,
 	runtime,
 	sessionId,
 }: ToolContext) {
@@ -38,10 +46,11 @@ export function createRuntimeAgentTools({
 				timeoutMs?: number;
 				waitFor?: "exit" | "first-stdout-line";
 				keepAlive?: boolean;
+				label: string;
 				notifyOnComplete?: boolean;
 				stdin?: string;
 			}) => {
-				const { command, notifyOnComplete, ...options } = input;
+				const { command, label, notifyOnComplete, ...options } = input;
 				const result = await runtime.runCommand(sessionId, command, options);
 
 				if (
@@ -49,6 +58,12 @@ export function createRuntimeAgentTools({
 					result.backgroundCommandId &&
 					onBackgroundCommandComplete
 				) {
+					onBackgroundTaskStarted?.({
+						label,
+						sessionId,
+						taskId: result.backgroundCommandId,
+					});
+
 					runtime
 						.waitForBackgroundCommand(sessionId, result.backgroundCommandId)
 						.then((waitResult) =>
@@ -67,7 +82,7 @@ export function createRuntimeAgentTools({
 			{
 				name: "run_command",
 				description:
-					"Run a command inside the sandbox runtime. Use this to explore installed capabilities and perform tasks. When called with waitFor=first-stdout-line and keepAlive=true, the result may include a backgroundCommandId that can be inspected later. Set notifyOnComplete=true to be automatically notified when the background command finishes.",
+					"Run a command inside the sandbox runtime. Use this to explore installed capabilities and perform tasks. When called with waitFor=first-stdout-line and keepAlive=true, the result may include a backgroundCommandId that can be inspected later. Set notifyOnComplete=true to be automatically notified when the background command finishes. Always provide a label when using notifyOnComplete.",
 				schema: z.object({
 					command: z
 						.array(z.string())
@@ -93,6 +108,11 @@ export function createRuntimeAgentTools({
 						.optional()
 						.describe(
 							"If true with waitFor=first-stdout-line, leave the process running in the background",
+						),
+					label: z
+						.string()
+						.describe(
+							"Human-readable label for the background task shown to the user",
 						),
 					notifyOnComplete: z
 						.boolean()

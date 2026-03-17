@@ -22,6 +22,7 @@ describe("POST /api/chat integration - runtime commands", () => {
 			});
 			const output = await invokeTool(tools, "run_command", {
 				command: ["pwd"],
+				label: "Print working directory",
 			});
 			yield toolCompleted({
 				id: "tool-1",
@@ -88,6 +89,7 @@ describe("POST /api/chat integration - runtime commands", () => {
 			});
 			const output = await invokeTool(tools, "run_command", {
 				command: ["bash", "-lc", "exit 23"],
+				label: "Run failing command",
 			});
 			yield toolCompleted({
 				id: "tool-1",

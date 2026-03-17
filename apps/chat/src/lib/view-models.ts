@@ -24,3 +24,17 @@ export interface ChatMessageViewModel {
 	timestamp: string;
 	status?: ChatMessageStatus;
 }
+
+export type BackgroundTaskStatus =
+	| "running"
+	| "completed"
+	| "failed"
+	| "terminated";
+
+export interface BackgroundTaskViewModel {
+	id: string;
+	label: string;
+	startedAt: string;
+	status: BackgroundTaskStatus;
+	endedAt?: string;
+}

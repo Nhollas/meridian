@@ -116,6 +116,7 @@ describe("createRuntimeAgentTools", () => {
 
 		const result = await invokeTool(findTool(tools, "run_command"), {
 			command: ["ls", "-la"],
+			label: "List files",
 			timeoutMs: 5000,
 			waitFor: "exit",
 		});
