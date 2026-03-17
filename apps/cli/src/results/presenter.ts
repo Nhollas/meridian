@@ -85,17 +85,48 @@ export function formatSortLabel(sort: SortOrder) {
 }
 
 export function formatResultsHeader(product: string, proposalId: string) {
-	const columnHeader =
-		product === "travel"
-			? "  Provider    Plan                   Cover       Price       Excess"
-			: "  Provider    Plan             Speed     Price       Contract   Setup";
+	let columnHeader: string;
+	if (product === "travel") {
+		columnHeader =
+			"  Provider    Plan                   Cover       Price       Excess";
+	} else if (product === "car") {
+		columnHeader =
+			"  Provider    Plan                   Cover              Price       Excess    Breakdown";
+	} else {
+		columnHeader =
+			"  Provider    Plan             Speed     Price       Contract   Setup";
+	}
 
 	return [`Results for proposal ${proposalId} (${product})`, "", columnHeader];
+}
+
+const coverTypeLabels: Record<string, string> = {
+	comprehensive: "Comprehensive",
+	thirdParty: "Third Party",
+	thirdPartyFireTheft: "Third Party F&T",
+};
+
+function formatCarPrice(offering: ProductOffering) {
+	const option = getPrimaryPaymentOption(offering);
+	if (option.type === "Installment") {
+		const amount =
+			option.installmentDetails?.installmentAmount ?? option.totalCost;
+		return `£${amount.toFixed(2)}/mo`;
+	}
+	return `£${option.totalCost.toFixed(2)}/yr`;
 }
 
 export function formatOfferingRow(product: string, offering: ProductOffering) {
 	if (product === "travel") {
 		return `  ${offering.providerName.padEnd(11)} ${offering.brandName.padEnd(22)} ${String(getStringMetadata(offering, "coverLevel") ?? "").padEnd(11)} ${formatOfferingPrice(offering).padEnd(11)} ${formatCurrency(getNumberMetadata(offering, "excess") ?? 0)}`;
+	}
+
+	if (product === "car") {
+		const coverType =
+			coverTypeLabels[getStringMetadata(offering, "coverType") ?? ""] ?? "";
+		const breakdown =
+			offering.metadata["breakdownCover"] === true ? "Yes" : "No";
+		return `  ${offering.providerName.padEnd(11)} ${offering.brandName.padEnd(22)} ${coverType.padEnd(18)} ${formatCarPrice(offering).padEnd(11)} ${formatCurrency(getNumberMetadata(offering, "excess") ?? 0).padEnd(9)} ${breakdown}`;
 	}
 
 	return `  ${offering.providerName.padEnd(11)} ${offering.brandName.padEnd(16)} ${String(getStringMetadata(offering, "speed") ?? "").padEnd(9)} ${formatOfferingPrice(offering).padEnd(11)} ${`${Number(getNumberMetadata(offering, "contractMonths") ?? 0)} months`.padEnd(10)} ${formatCurrency(getNumberMetadata(offering, "setupFee") ?? 0)}`;

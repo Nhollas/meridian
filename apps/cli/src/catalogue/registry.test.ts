@@ -20,6 +20,12 @@ describe("catalogue registry", () => {
 					"Compare travel insurance policies by destination, cover level, and trip type",
 				versions: [{ version: "1.0", status: "current" }],
 			},
+			{
+				name: "car",
+				description:
+					"Compare car insurance policies by cover type, price, and excess",
+				versions: [{ version: "1.0", status: "current" }],
+			},
 		]);
 	});
 

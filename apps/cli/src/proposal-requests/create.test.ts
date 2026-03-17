@@ -410,6 +410,219 @@ describe("proposal-requests create", () => {
 		expect(stdout.output()).toBe("");
 	});
 
+	it("creates a proposal request from valid car insurance input", async () => {
+		await using home = await createTempHome();
+		const inputFile = join(home.homeDirectory, "car.json");
+		await writeFile(
+			inputFile,
+			JSON.stringify({
+				emailAddress: "john.doe@example.com",
+				data: {
+					registrationNumber: "AB12 CDE",
+					postcode: "SW1A 1AA",
+					coverType: "comprehensive",
+					annualMileage: 10000,
+				},
+			}),
+		);
+		await home.writeMeridianFile("credentials.json", {
+			accessToken: "access-token",
+			refreshToken: "refresh-token",
+			user: "john.doe@example.com",
+			expiresAt: "2026-03-07T16:20:00Z",
+		});
+
+		const stdout = createWritable();
+		const stderr = createWritable();
+
+		const exitCode = await runCli(
+			[
+				"proposal-requests",
+				"create",
+				"--product=car",
+				"--version=1.0",
+				`--file=${inputFile}`,
+				"--json",
+			],
+			{
+				homeDirectory: home.homeDirectory,
+				now: () => new Date("2026-03-06T16:20:00Z"),
+				randomId: (prefix) => `${prefix}-a1b2c3d4`,
+				stdout: stdout.stream,
+				stderr: stderr.stream,
+			},
+		);
+
+		expect(exitCode).toBe(0);
+		expect(JSON.parse(stdout.output())).toEqual({
+			id: "pr-a1b2c3d4",
+			product: "car",
+			version: "1.0",
+			status: "draft",
+			createdAt: "2026-03-06T16:20:00.000Z",
+		});
+		expect(stderr.output()).toBe("");
+	});
+
+	it("rejects car input missing required fields", async () => {
+		await using home = await createTempHome();
+		const inputFile = join(home.homeDirectory, "invalid-car.json");
+		await writeFile(
+			inputFile,
+			JSON.stringify({
+				emailAddress: "john.doe@example.com",
+				data: {},
+			}),
+		);
+		await home.writeMeridianFile("credentials.json", {
+			accessToken: "access-token",
+			refreshToken: "refresh-token",
+			user: "john.doe@example.com",
+			expiresAt: "2026-03-07T16:20:00Z",
+		});
+
+		const stdout = createWritable(false);
+		const stderr = createWritable();
+
+		const exitCode = await runCli(
+			[
+				"proposal-requests",
+				"create",
+				"--product=car",
+				"--version=1.0",
+				`--file=${inputFile}`,
+			],
+			{
+				homeDirectory: home.homeDirectory,
+				now: () => new Date("2026-03-06T16:20:00Z"),
+				randomId: (prefix) => `${prefix}-a1b2c3d4`,
+				stdout: stdout.stream,
+				stderr: stderr.stream,
+			},
+		);
+
+		expect(exitCode).toBe(1);
+		const parsed = JSON.parse(stderr.output());
+		expect(parsed.error).toBe("Validation failed");
+		expect(parsed.issues).toEqual(
+			expect.arrayContaining([
+				{ path: "data.registrationNumber", message: expect.any(String) },
+				{ path: "data.postcode", message: expect.any(String) },
+				{ path: "data.coverType", message: expect.any(String) },
+				{ path: "data.annualMileage", message: expect.any(String) },
+			]),
+		);
+		expect(stdout.output()).toBe("");
+	});
+
+	it("rejects invalid coverType for car input", async () => {
+		await using home = await createTempHome();
+		const inputFile = join(home.homeDirectory, "bad-cover.json");
+		await writeFile(
+			inputFile,
+			JSON.stringify({
+				emailAddress: "john.doe@example.com",
+				data: {
+					registrationNumber: "AB12 CDE",
+					postcode: "SW1A 1AA",
+					coverType: "fully-comp",
+					annualMileage: 10000,
+				},
+			}),
+		);
+		await home.writeMeridianFile("credentials.json", {
+			accessToken: "access-token",
+			refreshToken: "refresh-token",
+			user: "john.doe@example.com",
+			expiresAt: "2026-03-07T16:20:00Z",
+		});
+
+		const stdout = createWritable(false);
+		const stderr = createWritable();
+
+		const exitCode = await runCli(
+			[
+				"proposal-requests",
+				"create",
+				"--product=car",
+				"--version=1.0",
+				`--file=${inputFile}`,
+			],
+			{
+				homeDirectory: home.homeDirectory,
+				now: () => new Date("2026-03-06T16:20:00Z"),
+				stdout: stdout.stream,
+				stderr: stderr.stream,
+			},
+		);
+
+		expect(exitCode).toBe(1);
+		const parsed = JSON.parse(stderr.output());
+		expect(parsed.error).toBe("Validation failed");
+		expect(parsed.issues).toEqual([
+			{
+				path: "data.coverType",
+				message:
+					'Invalid option: expected one of "comprehensive"|"thirdParty"|"thirdPartyFireTheft"',
+			},
+		]);
+		expect(stdout.output()).toBe("");
+	});
+
+	it("rejects invalid claimsHistory for car input", async () => {
+		await using home = await createTempHome();
+		const inputFile = join(home.homeDirectory, "bad-claims.json");
+		await writeFile(
+			inputFile,
+			JSON.stringify({
+				emailAddress: "john.doe@example.com",
+				data: {
+					registrationNumber: "AB12 CDE",
+					postcode: "SW1A 1AA",
+					coverType: "comprehensive",
+					annualMileage: 10000,
+					claimsHistory: "3",
+				},
+			}),
+		);
+		await home.writeMeridianFile("credentials.json", {
+			accessToken: "access-token",
+			refreshToken: "refresh-token",
+			user: "john.doe@example.com",
+			expiresAt: "2026-03-07T16:20:00Z",
+		});
+
+		const stdout = createWritable(false);
+		const stderr = createWritable();
+
+		const exitCode = await runCli(
+			[
+				"proposal-requests",
+				"create",
+				"--product=car",
+				"--version=1.0",
+				`--file=${inputFile}`,
+			],
+			{
+				homeDirectory: home.homeDirectory,
+				now: () => new Date("2026-03-06T16:20:00Z"),
+				stdout: stdout.stream,
+				stderr: stderr.stream,
+			},
+		);
+
+		expect(exitCode).toBe(1);
+		const parsed = JSON.parse(stderr.output());
+		expect(parsed.error).toBe("Validation failed");
+		expect(parsed.issues).toEqual([
+			{
+				path: "data.claimsHistory",
+				message: 'Invalid option: expected one of "1"|"none"|"2+"',
+			},
+		]);
+		expect(stdout.output()).toBe("");
+	});
+
 	it("shows subcommand help instead of validating flags", async () => {
 		const stdout = createWritable();
 		const stderr = createWritable();
