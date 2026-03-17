@@ -1,5 +1,5 @@
 import type { SandboxConfig } from "./config";
-import type { SandboxCommandResult } from "./runtime";
+import type { SandboxCommandOptions, SandboxCommandResult } from "./runtime";
 import {
 	DEFAULT_TIMEOUT_MS,
 	runInBackgroundUntilFirstStdoutLine,
@@ -10,9 +10,9 @@ import {
 export type ContainerState = "missing" | "running" | "stopped";
 
 export type DockerExecOptions = {
-	stdin?: string;
-	timeoutMs?: number;
-	waitFor?: "exit" | "first-stdout-line";
+	stdin?: string | undefined;
+	timeoutMs?: number | undefined;
+	waitFor?: "exit" | "first-stdout-line" | undefined;
 };
 
 export type ProcessHandle = {
@@ -180,15 +180,13 @@ export function createDockerClient(config: SandboxConfig): DockerClient {
 			const waitFor = options.waitFor ?? "exit";
 			const execArgs = buildExecArgs(containerName, command, options);
 			const execConfig = { executable: dockerBinary, args: execArgs };
+			const commandOptions = toCommandOptions(options, timeoutMs);
 
 			if (waitFor === "first-stdout-line") {
-				return runUntilFirstStdoutLine(execConfig, {
-					...options,
-					timeoutMs,
-				});
+				return runUntilFirstStdoutLine(execConfig, commandOptions);
 			}
 
-			return runToCompletion(execConfig, { ...options, timeoutMs });
+			return runToCompletion(execConfig, commandOptions);
 		},
 
 		async execBackground(containerName, command, options = {}) {
@@ -196,10 +194,10 @@ export function createDockerClient(config: SandboxConfig): DockerClient {
 			const execArgs = buildExecArgs(containerName, command, options);
 			const execConfig = { executable: dockerBinary, args: execArgs };
 
-			const handle = await runInBackgroundUntilFirstStdoutLine(execConfig, {
-				...options,
-				timeoutMs,
-			});
+			const handle = await runInBackgroundUntilFirstStdoutLine(
+				execConfig,
+				toCommandOptions(options, timeoutMs),
+			);
 
 			return {
 				completion: handle.completion,
@@ -210,6 +208,17 @@ export function createDockerClient(config: SandboxConfig): DockerClient {
 			};
 		},
 	};
+}
+
+function toCommandOptions(
+	options: DockerExecOptions,
+	timeoutMs: number,
+): SandboxCommandOptions {
+	const result: SandboxCommandOptions = { timeoutMs };
+	if (options.stdin !== undefined) {
+		result.stdin = options.stdin;
+	}
+	return result;
 }
 
 function getContainerRuntimeArgs(config: SandboxConfig) {

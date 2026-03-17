@@ -1,54 +1,50 @@
-import type { ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 import type { SandboxConfig } from "./config";
+import {
+	type BackgroundExecResult,
+	createDockerClient,
+	type DockerClient,
+	type OutputBuffer,
+	type ProcessHandle,
+} from "./docker-client";
 import type {
 	SandboxBackgroundCommand,
 	SandboxBackgroundCommandSnapshot,
 	SandboxBackgroundCommandStatus,
+	SandboxCommandOptions,
+	SandboxCommandResult,
 	SandboxRuntime,
 	SandboxSession,
 	SandboxWaitForBackgroundCommandResult,
 } from "./runtime";
 
 import {
-	type BackgroundCommandHandle,
-	type CommandConfig,
 	DEFAULT_TIMEOUT_MS,
 	getCheckedPath,
-	killSessionProcesses,
-	runInBackgroundUntilFirstStdoutLine,
-	runToCompletion,
-	runUntilFirstStdoutLine,
-	trackProcess,
 	validateSessionId,
 } from "./runtime-shared";
 
-const CONTAINER_HOME = "/sandbox-home";
-const CONTAINER_EXTRA_CA_CERTS_PATH = "/sandbox-extra-ca.pem";
-
-type ContainerState = "missing" | "running" | "stopped";
-
-type BackgroundCommandRecord = BackgroundCommandHandle & {
+type BackgroundCommandRecord = {
 	command: string[];
+	completion: Promise<SandboxCommandResult>;
 	endedAt?: string;
 	exitCode: number | null;
 	id: string;
+	process: ProcessHandle;
 	startedAt: string;
+	stderrBuffer: OutputBuffer;
+	stdoutBuffer: OutputBuffer;
 	status: SandboxBackgroundCommandStatus;
 	terminationRequested: boolean;
 };
 
-export function createDockerRuntime(config: SandboxConfig): SandboxRuntime {
-	const {
-		dockerBinary,
-		instructionsFile,
-		rootDirectory,
-		sandboxImage,
-		sessionTtlMs,
-	} = config;
-	const activeProcesses = new Map<string, Set<ChildProcess>>();
+export function createDockerRuntime(
+	config: SandboxConfig,
+	{ client = createDockerClient(config) }: { client?: DockerClient } = {},
+): SandboxRuntime {
+	const { instructionsFile, rootDirectory, sessionTtlMs } = config;
 	const backgroundCommands = new Map<
 		string,
 		Map<string, BackgroundCommandRecord>
@@ -56,7 +52,6 @@ export function createDockerRuntime(config: SandboxConfig): SandboxRuntime {
 	const sessionLocks = new Map<string, Promise<void>>();
 	const sessionTimestamps = new Map<string, Date>();
 	const ensuredDirectories = new Set<string>();
-	const containerRuntimeArgs = getContainerRuntimeArgs(config);
 
 	function getSessionDirectory(sessionId: string) {
 		validateSessionId(sessionId);
@@ -92,6 +87,19 @@ export function createDockerRuntime(config: SandboxConfig): SandboxRuntime {
 		return command;
 	}
 
+	function hasRunningBackgroundCommands(sessionId: string) {
+		const commands = backgroundCommands.get(sessionId);
+		if (!commands) {
+			return false;
+		}
+		for (const record of commands.values()) {
+			if (record.status === "running") {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	function toBackgroundCommandSummary(
 		record: BackgroundCommandRecord,
 	): SandboxBackgroundCommand {
@@ -118,14 +126,17 @@ export function createDockerRuntime(config: SandboxConfig): SandboxRuntime {
 	function registerBackgroundCommand(
 		sessionId: string,
 		command: string[],
-		handle: BackgroundCommandHandle,
+		handle: BackgroundExecResult,
 	) {
 		const record: BackgroundCommandRecord = {
-			...handle,
 			command: [...command],
+			completion: handle.completion,
 			exitCode: null,
 			id: randomUUID(),
+			process: handle.process,
 			startedAt: new Date().toISOString(),
+			stderrBuffer: handle.stderrBuffer,
+			stdoutBuffer: handle.stdoutBuffer,
 			status: "running",
 			terminationRequested: false,
 		};
@@ -153,113 +164,28 @@ export function createDockerRuntime(config: SandboxConfig): SandboxRuntime {
 		ensuredDirectories.add(sessionId);
 	}
 
-	function runDockerCli(args: string[], timeoutMs = DEFAULT_TIMEOUT_MS) {
-		return runToCompletion({ executable: dockerBinary, args }, { timeoutMs });
-	}
-
-	async function assertDockerSuccess(
-		args: string[],
-		action: string,
-		timeoutMs = DEFAULT_TIMEOUT_MS,
-	) {
-		const result = await runDockerCli(args, timeoutMs);
-		if (result.exitCode === 0) {
-			return result;
-		}
-
-		const detail =
-			result.stderr.trim() || result.stdout.trim() || "unknown error";
-		throw new Error(`Failed to ${action}: ${detail}`);
-	}
-
-	async function getContainerState(sessionId: string): Promise<ContainerState> {
-		const result = await runDockerCli([
-			"inspect",
-			"--format",
-			"{{.State.Running}}",
-			getContainerName(sessionId),
-		]);
-
-		if (result.exitCode !== 0) {
-			return "missing";
-		}
-
-		const state = result.stdout.trim();
-		if (state === "true") {
-			return "running";
-		}
-		if (state === "false") {
-			return "stopped";
-		}
-
-		throw new Error(`Unexpected Docker container state: ${state}`);
-	}
-
-	async function createContainer(sessionId: string) {
-		const sessionDirectory = getSessionDirectory(sessionId);
-		const containerName = getContainerName(sessionId);
-		const { environmentArgs, mountArgs } = containerRuntimeArgs;
-		const createArgs = [
-			"create",
-			"--name",
-			containerName,
-			"--hostname",
-			containerName,
-			"--init",
-			"--cap-drop",
-			"ALL",
-			"--security-opt",
-			"no-new-privileges",
-			"--memory",
-			"512m",
-			"--pids-limit",
-			"256",
-			"--add-host",
-			"host.docker.internal:host-gateway",
-			"--label",
-			"meridian.chat.runtime=docker",
-			"--label",
-			`meridian.chat.session-id=${sessionId}`,
-			"-e",
-			`HOME=${CONTAINER_HOME}`,
-			"-w",
-			CONTAINER_HOME,
-			"-v",
-			`${sessionDirectory}:${CONTAINER_HOME}`,
-			...mountArgs,
-			...environmentArgs,
-			sandboxImage,
-			"sleep",
-			"infinity",
-		];
-
-		await assertDockerSuccess(
-			createArgs,
-			`create sandbox container for session ${sessionId}`,
-		);
-	}
-
 	async function ensureContainerStarted(sessionId: string) {
 		await ensureSessionDirectory(sessionId);
-		const containerState = await getContainerState(sessionId);
+		const containerName = getContainerName(sessionId);
+		const containerState = await client.getContainerState(containerName);
 
 		if (containerState === "missing") {
-			await createContainer(sessionId);
+			await client.createContainer(
+				containerName,
+				getSessionDirectory(sessionId),
+			);
 		}
 
 		if (containerState !== "running") {
-			await assertDockerSuccess(
-				["start", getContainerName(sessionId)],
-				`start sandbox container for session ${sessionId}`,
-			);
+			await client.startContainer(containerName);
 		}
 	}
 
 	async function destroySessionResources(sessionId: string) {
-		killSessionProcesses(activeProcesses, sessionId);
+		killBackgroundCommands(sessionId);
 		backgroundCommands.delete(sessionId);
 
-		await runDockerCli(["rm", "--force", getContainerName(sessionId)]);
+		await client.removeContainer(getContainerName(sessionId));
 
 		await rm(getSessionDirectory(sessionId), {
 			force: true,
@@ -267,6 +193,18 @@ export function createDockerRuntime(config: SandboxConfig): SandboxRuntime {
 		});
 		sessionTimestamps.delete(sessionId);
 		ensuredDirectories.delete(sessionId);
+	}
+
+	function killBackgroundCommands(sessionId: string) {
+		const commands = backgroundCommands.get(sessionId);
+		if (!commands) {
+			return;
+		}
+		for (const record of commands.values()) {
+			if (!record.process.killed) {
+				record.process.kill();
+			}
+		}
 	}
 
 	async function reapExpiredSessions(excludingSessionId?: string) {
@@ -279,7 +217,7 @@ export function createDockerRuntime(config: SandboxConfig): SandboxRuntime {
 			if (lastUsedAt.getTime() >= expirationCutoff) {
 				continue;
 			}
-			if ((activeProcesses.get(sessionId)?.size ?? 0) > 0) {
+			if (hasRunningBackgroundCommands(sessionId)) {
 				continue;
 			}
 
@@ -291,7 +229,7 @@ export function createDockerRuntime(config: SandboxConfig): SandboxRuntime {
 				if (currentLastUsedAt.getTime() >= expirationCutoff) {
 					return;
 				}
-				if ((activeProcesses.get(sessionId)?.size ?? 0) > 0) {
+				if (hasRunningBackgroundCommands(sessionId)) {
 					return;
 				}
 
@@ -332,26 +270,44 @@ export function createDockerRuntime(config: SandboxConfig): SandboxRuntime {
 		}
 	}
 
-	function buildDockerExecConfig(
+	async function execCommand(
 		sessionId: string,
 		command: string[],
-		options: { stdin?: string },
-	): CommandConfig {
-		const args = ["exec"];
-		if (options.stdin !== undefined) {
-			args.push("-i");
+		options: SandboxCommandOptions,
+	) {
+		const containerName = getContainerName(sessionId);
+		const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+		const waitFor = options.waitFor ?? "exit";
+
+		if (waitFor === "first-stdout-line" && options.keepAlive) {
+			const handle = await client.execBackground(containerName, command, {
+				stdin: options.stdin,
+				timeoutMs,
+			});
+
+			if (handle.result.exitCode !== null) {
+				return handle.result;
+			}
+
+			const backgroundCommand = registerBackgroundCommand(
+				sessionId,
+				command,
+				handle,
+			);
+			handle.process.unref();
+
+			return {
+				...handle.result,
+				backgroundCommandId: backgroundCommand.id,
+				status: backgroundCommand.status,
+			};
 		}
 
-		args.push(
-			"-w",
-			CONTAINER_HOME,
-			"-e",
-			`HOME=${CONTAINER_HOME}`,
-			getContainerName(sessionId),
-			...command,
-		);
-
-		return { executable: dockerBinary, args };
+		return client.exec(containerName, command, {
+			stdin: options.stdin,
+			timeoutMs,
+			waitFor,
+		});
 	}
 
 	return {
@@ -365,44 +321,7 @@ export function createDockerRuntime(config: SandboxConfig): SandboxRuntime {
 		},
 		async runCommand(sessionId, command, options = {}) {
 			await ensureSession(sessionId);
-			const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-			const waitFor = options.waitFor ?? "exit";
-			const config = buildDockerExecConfig(sessionId, command, options);
-
-			if (waitFor === "first-stdout-line" && options.keepAlive) {
-				const backgroundHandle = await runInBackgroundUntilFirstStdoutLine(
-					config,
-					{ ...options, timeoutMs },
-					(child) => trackProcess(activeProcesses, sessionId, child),
-				);
-
-				if (backgroundHandle.result.exitCode !== null) {
-					return backgroundHandle.result;
-				}
-
-				const backgroundCommand = registerBackgroundCommand(
-					sessionId,
-					command,
-					backgroundHandle,
-				);
-				backgroundHandle.child.unref();
-
-				return {
-					...backgroundHandle.result,
-					backgroundCommandId: backgroundCommand.id,
-					status: backgroundCommand.status,
-				};
-			}
-
-			if (waitFor === "first-stdout-line") {
-				return runUntilFirstStdoutLine(
-					config,
-					{ ...options, timeoutMs },
-					(child) => trackProcess(activeProcesses, sessionId, child),
-				);
-			}
-
-			return runToCompletion(config, { ...options, timeoutMs });
+			return execCommand(sessionId, command, options);
 		},
 		async getBackgroundCommand(sessionId, commandId) {
 			await ensureSessionDirectory(sessionId);
@@ -455,8 +374,8 @@ export function createDockerRuntime(config: SandboxConfig): SandboxRuntime {
 			await ensureSessionDirectory(sessionId);
 			const command = getRequiredBackgroundCommand(sessionId, commandId);
 			command.terminationRequested = true;
-			if (!command.child.killed) {
-				command.child.kill();
+			if (!command.process.killed) {
+				command.process.kill();
 			}
 			touchSession(sessionId);
 			await command.completion;
@@ -503,31 +422,5 @@ export function createDockerRuntime(config: SandboxConfig): SandboxRuntime {
 				destroySessionResources(sessionId),
 			);
 		},
-	};
-}
-
-function getContainerRuntimeArgs(config: SandboxConfig) {
-	const runtimeEnvironment: Record<string, string> = {
-		MERIDIAN_AUTH_CLIENT_ID: config.meridianAuthClientId,
-		MERIDIAN_AUTH_ISSUER: config.meridianAuthIssuer,
-		...config.proxyEnv,
-	};
-
-	const mountArgs: string[] = [];
-	if (config.extraCaCertsFile) {
-		mountArgs.push(
-			"-v",
-			`${config.extraCaCertsFile}:${CONTAINER_EXTRA_CA_CERTS_PATH}:ro`,
-		);
-		runtimeEnvironment["NODE_EXTRA_CA_CERTS"] = CONTAINER_EXTRA_CA_CERTS_PATH;
-	}
-
-	const environmentArgs = Object.entries(runtimeEnvironment).flatMap(
-		([envName, value]) => ["-e", `${envName}=${value}`],
-	);
-
-	return {
-		environmentArgs,
-		mountArgs,
 	};
 }
