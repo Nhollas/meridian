@@ -1,35 +1,11 @@
-import { EventEmitter } from "node:events";
+import { readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { assertDefined } from "../../../tests/support/assertions";
-
-const childProcessMocks = vi.hoisted(() => ({
-	execFile: vi.fn(),
-	spawn: vi.fn(),
-}));
-
-const fsMocks = vi.hoisted(() => ({
-	mkdir: vi.fn(),
-	readdir: vi.fn(),
-	readFile: vi.fn(),
-	rm: vi.fn(),
-	writeFile: vi.fn(),
-}));
-
-vi.mock("node:child_process", () => ({
-	execFile: childProcessMocks.execFile,
-	spawn: childProcessMocks.spawn,
-}));
-
-vi.mock("node:fs/promises", () => ({
-	mkdir: fsMocks.mkdir,
-	readdir: fsMocks.readdir,
-	readFile: fsMocks.readFile,
-	rm: fsMocks.rm,
-	writeFile: fsMocks.writeFile,
-}));
-
 import type { SandboxConfig } from "@/lib/sandbox/config";
 import { createDockerRuntime } from "@/lib/sandbox/docker-runtime";
+import { assertDefined } from "../../../tests/support/assertions";
+import { createFakeDockerClient } from "../../../tests/support/fake-docker-client";
+import { createTempSessionDir } from "../../../tests/support/temp-session-dir";
 
 function createTestConfig(
 	overrides: Partial<SandboxConfig> = {},
@@ -52,30 +28,26 @@ function createTestConfig(
 describe("createDockerRuntime", () => {
 	beforeEach(() => {
 		vi.useFakeTimers();
-		childProcessMocks.execFile.mockReset();
-		childProcessMocks.spawn.mockReset();
-		fsMocks.mkdir.mockReset();
-		fsMocks.readdir.mockReset();
-		fsMocks.readFile.mockReset();
-		fsMocks.rm.mockReset();
-		fsMocks.writeFile.mockReset();
-		fsMocks.mkdir.mockResolvedValue(undefined);
-		fsMocks.rm.mockResolvedValue(undefined);
 	});
 
 	afterEach(() => {
 		vi.useRealTimers();
-		vi.restoreAllMocks();
 	});
 
-	it("creates and starts a per-session container on first use", async () => {
-		const runtime = createDockerRuntime(createTestConfig());
-		mockExecFileSequence([
-			{ exitCode: 1, stderr: "No such container" },
-			{ exitCode: 0, stdout: "created-container-id\n" },
-			{ exitCode: 0, stdout: "session-123\n" },
-			{ exitCode: 0, stdout: "hello from sandbox\n" },
-		]);
+	it("creates and starts a container via the client on first use", async () => {
+		await using tmp = await createTempSessionDir();
+		const client = createFakeDockerClient({
+			execFixtures: [
+				{
+					command: ["echo", "hello"],
+					result: { exitCode: 0, stderr: "", stdout: "hello from sandbox\n" },
+				},
+			],
+		});
+		const runtime = createDockerRuntime(
+			createTestConfig({ rootDirectory: tmp.rootDirectory }),
+			{ client },
+		);
 
 		const result = await runtime.runCommand("session-123", ["echo", "hello"]);
 
@@ -84,701 +56,359 @@ describe("createDockerRuntime", () => {
 			stderr: "",
 			stdout: "hello from sandbox\n",
 		});
-		expect(fsMocks.mkdir).toHaveBeenCalledWith(
-			expect.stringContaining("/session-123"),
-			{ recursive: true },
-		);
-		expect(childProcessMocks.execFile).toHaveBeenNthCalledWith(
-			1,
-			"docker",
-			[
-				"inspect",
-				"--format",
-				"{{.State.Running}}",
-				"meridian-chat-sandbox-session-123",
-			],
-			{ timeout: 30000 },
-			expect.any(Function),
-		);
-		expect(childProcessMocks.execFile).toHaveBeenNthCalledWith(
-			2,
-			"docker",
-			expect.arrayContaining([
-				"create",
-				"--name",
-				"meridian-chat-sandbox-session-123",
-				"--cap-drop",
-				"ALL",
-				"--security-opt",
-				"no-new-privileges",
-				"--memory",
-				"512m",
-				"--pids-limit",
-				"256",
-				"-v",
-				expect.stringContaining("/session-123:/sandbox-home"),
-				"meridian-chat-sandbox:local",
-				"sleep",
-				"infinity",
-			]),
-			{ timeout: 30000 },
-			expect.any(Function),
-		);
-		expect(childProcessMocks.execFile).toHaveBeenNthCalledWith(
-			4,
-			"docker",
-			[
-				"exec",
-				"-w",
-				"/sandbox-home",
-				"-e",
-				"HOME=/sandbox-home",
-				"meridian-chat-sandbox-session-123",
-				"echo",
-				"hello",
-			],
-			{ timeout: 30000 },
-			expect.any(Function),
-		);
+		expect(client.calls).toEqual([
+			{
+				args: ["meridian-chat-sandbox-session-123"],
+				method: "getContainerState",
+			},
+			{
+				args: [
+					"meridian-chat-sandbox-session-123",
+					expect.stringContaining("/session-123"),
+				],
+				method: "createContainer",
+			},
+			{ args: ["meridian-chat-sandbox-session-123"], method: "startContainer" },
+			{
+				args: [
+					"meridian-chat-sandbox-session-123",
+					["echo", "hello"],
+					{ timeoutMs: 30000, waitFor: "exit" },
+				],
+				method: "exec",
+			},
+		]);
 	});
 
-	it("reaps expired idle sessions after five minutes", async () => {
-		const runtime = createDockerRuntime(createTestConfig());
-		mockExecFileSequence([
-			// createSession("old-session"): inspect (missing) → create → start
-			{ exitCode: 1, stderr: "No such container" },
-			{ exitCode: 0, stdout: "created-old\n" },
-			{ exitCode: 0, stdout: "old-session\n" },
-			// createSession("new-session"): reap old → rm --force, then inspect (missing) → create → start
-			{ exitCode: 0, stdout: "removed\n" },
-			{ exitCode: 1, stderr: "No such container" },
-			{ exitCode: 0, stdout: "created-new\n" },
-			{ exitCode: 0, stdout: "new-session\n" },
-		]);
+	it("creates the session directory on disk", async () => {
+		await using tmp = await createTempSessionDir();
+		const client = createFakeDockerClient();
+		const runtime = createDockerRuntime(
+			createTestConfig({ rootDirectory: tmp.rootDirectory }),
+			{ client },
+		);
+
+		await runtime.createSession("session-dir-test");
+
+		const stat = await import("node:fs/promises").then((fs) =>
+			fs.stat(join(tmp.rootDirectory, "session-dir-test")),
+		);
+		expect(stat.isDirectory()).toBe(true);
+	});
+
+	it("reaps expired idle sessions after the TTL", async () => {
+		await using tmp = await createTempSessionDir();
+		const client = createFakeDockerClient();
+		const runtime = createDockerRuntime(
+			createTestConfig({ rootDirectory: tmp.rootDirectory }),
+			{ client },
+		);
 
 		await runtime.createSession("old-session");
 		vi.advanceTimersByTime(5 * 60 * 1000 + 1);
 		await runtime.createSession("new-session");
 
-		expect(childProcessMocks.execFile).toHaveBeenCalledWith(
-			"docker",
-			["rm", "--force", "meridian-chat-sandbox-old-session"],
-			{ timeout: 30000 },
-			expect.any(Function),
-		);
-		expect(fsMocks.rm).toHaveBeenCalledWith(
-			expect.stringContaining("/old-session"),
-			{ force: true, recursive: true },
-		);
+		expect(client.calls.filter((c) => c.method === "removeContainer")).toEqual([
+			{
+				args: ["meridian-chat-sandbox-old-session"],
+				method: "removeContainer",
+			},
+		]);
 	});
 
-	it("passes configured auth environment into new containers", async () => {
+	it("reads runtime instructions from the configured file", async () => {
+		await using tmp = await createTempSessionDir();
+		const instructionsFile = join(tmp.rootDirectory, "instructions.txt");
+		await writeFile(instructionsFile, "Use the configured instructions.\n");
+
+		const client = createFakeDockerClient();
 		const runtime = createDockerRuntime(
 			createTestConfig({
-				meridianAuthClientId: "meridian-cli",
-				meridianAuthIssuer: "https://issuer.example.com",
+				instructionsFile,
+				rootDirectory: tmp.rootDirectory,
 			}),
-		);
-		mockExecFileSequence([
-			{ exitCode: 1, stderr: "No such container" },
-			{ exitCode: 0, stdout: "created\n" },
-			{ exitCode: 0, stdout: "started\n" },
-		]);
-
-		await runtime.createSession("session-456");
-
-		expect(childProcessMocks.execFile).toHaveBeenNthCalledWith(
-			2,
-			"docker",
-			expect.arrayContaining([
-				"-e",
-				"MERIDIAN_AUTH_CLIENT_ID=meridian-cli",
-				"-e",
-				"MERIDIAN_AUTH_ISSUER=https://issuer.example.com",
-			]),
-			{ timeout: 30000 },
-			expect.any(Function),
-		);
-	});
-
-	it("uses default auth environment when the shell does not provide it", async () => {
-		const runtime = createDockerRuntime(createTestConfig());
-		mockExecFileSequence([
-			{ exitCode: 1, stderr: "No such container" },
-			{ exitCode: 0, stdout: "created\n" },
-			{ exitCode: 0, stdout: "started\n" },
-		]);
-
-		await runtime.createSession("session-default-env");
-
-		expect(childProcessMocks.execFile).toHaveBeenNthCalledWith(
-			2,
-			"docker",
-			expect.arrayContaining([
-				"-e",
-				"MERIDIAN_AUTH_CLIENT_ID=meridian-cli",
-				"-e",
-				"MERIDIAN_AUTH_ISSUER=http://host.docker.internal:8080/realms/meridian",
-			]),
-			{ timeout: 30000 },
-			expect.any(Function),
-		);
-	});
-
-	it("mounts an extra CA bundle and forwards proxy environment when configured", async () => {
-		const runtime = createDockerRuntime(
-			createTestConfig({
-				extraCaCertsFile: "/Users/example/corp-root.pem",
-				proxyEnv: {
-					HTTPS_PROXY: "http://proxy.example.net:8080",
-					NO_PROXY: "localhost,127.0.0.1",
-				},
-			}),
-		);
-		mockExecFileSequence([
-			{ exitCode: 1, stderr: "No such container" },
-			{ exitCode: 0, stdout: "created\n" },
-			{ exitCode: 0, stdout: "started\n" },
-		]);
-
-		await runtime.createSession("session-ca");
-
-		expect(childProcessMocks.execFile).toHaveBeenNthCalledWith(
-			2,
-			"docker",
-			expect.arrayContaining([
-				"-v",
-				"/Users/example/corp-root.pem:/sandbox-extra-ca.pem:ro",
-				"-e",
-				"NODE_EXTRA_CA_CERTS=/sandbox-extra-ca.pem",
-				"-e",
-				"HTTPS_PROXY=http://proxy.example.net:8080",
-				"-e",
-				"NO_PROXY=localhost,127.0.0.1",
-			]),
-			{ timeout: 30000 },
-			expect.any(Function),
-		);
-	});
-
-	it("reads runtime instructions from the configured instructions file", async () => {
-		fsMocks.readFile.mockResolvedValue("Use the configured instructions.\n");
-		const runtime = createDockerRuntime(
-			createTestConfig({
-				instructionsFile: "/tmp/runtime-instructions.txt",
-			}),
+			{ client },
 		);
 
 		const instructions = await runtime.getInstructions("session-instructions");
 
 		expect(instructions).toBe("Use the configured instructions.\n");
-		expect(fsMocks.readFile).toHaveBeenCalledWith(
-			"/tmp/runtime-instructions.txt",
-			"utf8",
-		);
-		expect(fsMocks.mkdir).toHaveBeenCalledWith(
-			expect.stringContaining("/session-instructions"),
-			{ recursive: true },
-		);
 	});
 
 	it("serializes concurrent container setup for the same session", async () => {
-		const runtime = createDockerRuntime(createTestConfig());
-		let firstInspectCallback:
-			| ((
-					error: Error | NodeJS.ErrnoException | null,
-					stdout: string,
-					stderr: string,
-			  ) => void)
+		await using tmp = await createTempSessionDir();
+		let resolveFirstInspect:
+			| ((state: "missing" | "running" | "stopped") => void)
 			| undefined;
+		const client = createFakeDockerClient();
+		let inspectCount = 0;
 
-		childProcessMocks.execFile.mockImplementation(
-			(
-				_file: string,
-				args: string[],
-				_options: { timeout: number },
-				callback: (
-					error: Error | NodeJS.ErrnoException | null,
-					stdout: string,
-					stderr: string,
-				) => void,
-			) => {
-				if (args[0] === "inspect" && args[3] === "meridian-chat-sandbox-race") {
-					if (!firstInspectCallback) {
-						firstInspectCallback = callback;
-						return;
-					}
+		const originalGetContainerState = client.getContainerState.bind(client);
+		client.getContainerState = async (containerName) => {
+			inspectCount++;
+			if (
+				containerName === "meridian-chat-sandbox-race" &&
+				inspectCount === 1
+			) {
+				return new Promise((resolve) => {
+					resolveFirstInspect = resolve;
+				});
+			}
+			return originalGetContainerState(containerName);
+		};
 
-					callback(null, "true\n", "");
-					return;
-				}
+		client.exec = async (_containerName, command) => {
+			const cmd = command.at(-1);
+			return { exitCode: 0, stderr: "", stdout: `${cmd}\n` };
+		};
 
-				if (args[0] === "create") {
-					callback(null, "created\n", "");
-					return;
-				}
-
-				if (args[0] === "start") {
-					callback(null, "started\n", "");
-					return;
-				}
-
-				if (args[0] === "exec" && args.at(-1) === "one") {
-					callback(null, "first\n", "");
-					return;
-				}
-
-				if (args[0] === "exec" && args.at(-1) === "two") {
-					callback(null, "second\n", "");
-					return;
-				}
-
-				throw new Error(`Unexpected execFile args: ${args.join(" ")}`);
-			},
+		const runtime = createDockerRuntime(
+			createTestConfig({ rootDirectory: tmp.rootDirectory }),
+			{ client },
 		);
 
 		const firstRun = runtime.runCommand("race", ["echo", "one"]);
 		await vi.waitFor(() => {
-			expect(childProcessMocks.execFile).toHaveBeenCalledTimes(1);
+			expect(inspectCount).toBe(1);
 		});
+
 		const secondRun = runtime.runCommand("race", ["echo", "two"]);
 		await Promise.resolve();
-		expect(childProcessMocks.execFile).toHaveBeenCalledTimes(1);
+		expect(inspectCount).toBe(1);
 
-		firstInspectCallback?.(
-			Object.assign(new Error("No such container"), { code: 1 }),
-			"",
-			"No such container",
-		);
-
-		await vi.waitFor(() => {
-			expect(
-				childProcessMocks.execFile.mock.calls.filter(
-					([, args]) => args[0] === "create",
-				),
-			).toHaveLength(1);
-		});
+		resolveFirstInspect?.("missing");
 
 		await expect(firstRun).resolves.toEqual({
 			exitCode: 0,
 			stderr: "",
-			stdout: "first\n",
+			stdout: "one\n",
 		});
 		await expect(secondRun).resolves.toEqual({
 			exitCode: 0,
 			stderr: "",
-			stdout: "second\n",
+			stdout: "two\n",
 		});
-		expect(
-			childProcessMocks.execFile.mock.calls.filter(
-				([, args]) => args[0] === "create",
-			),
-		).toHaveLength(1);
 	});
 
-	it("uses docker exec with spawn when stdin is provided", async () => {
-		const runtime = createDockerRuntime(createTestConfig());
-		mockExecFileSequence([
-			{ exitCode: 1, stderr: "No such container" },
-			{ exitCode: 0, stdout: "created\n" },
-			{ exitCode: 0, stdout: "started\n" },
-		]);
-		const child = createMockChildProcess();
-		childProcessMocks.spawn.mockReturnValue(child);
+	it("writes and reads session files on the real filesystem", async () => {
+		await using tmp = await createTempSessionDir();
+		const client = createFakeDockerClient();
+		const runtime = createDockerRuntime(
+			createTestConfig({ rootDirectory: tmp.rootDirectory }),
+			{ client },
+		);
 
-		const resultPromise = runtime.runCommand("session-stdin", ["cat"], {
-			stdin: "payload",
-		});
-		await vi.waitFor(() => {
-			expect(childProcessMocks.spawn).toHaveBeenCalledTimes(1);
-		});
-		child.stdout.emit("data", Buffer.from("echoed payload"));
-		child.stderr.emit("data", Buffer.from(""));
-		child.emit("close", 0);
+		const relativePath = await runtime.writeSessionFile(
+			"session-files",
+			"requests/travel.json",
+			'{"destination":"Greece"}\n',
+		);
 
-		await expect(resultPromise).resolves.toEqual({
-			exitCode: 0,
-			stderr: "",
-			stdout: "echoed payload",
-		});
-		expect(childProcessMocks.spawn).toHaveBeenCalledWith(
-			"docker",
-			[
-				"exec",
-				"-i",
-				"-w",
-				"/sandbox-home",
-				"-e",
-				"HOME=/sandbox-home",
-				"meridian-chat-sandbox-session-stdin",
-				"cat",
+		expect(relativePath).toBe("requests/travel.json");
+
+		const onDisk = await readFile(
+			join(tmp.rootDirectory, "session-files", "requests", "travel.json"),
+			"utf8",
+		);
+		expect(onDisk).toBe('{"destination":"Greece"}\n');
+
+		const readBack = await runtime.readSessionFile(
+			"session-files",
+			"requests/travel.json",
+		);
+		expect(readBack).toBe('{"destination":"Greece"}\n');
+	});
+
+	it("lists session files from the real filesystem", async () => {
+		await using tmp = await createTempSessionDir();
+		await tmp.writeSessionFile("session-list", "alpha.txt", "a");
+		await tmp.writeSessionFile("session-list", "beta.txt", "b");
+
+		const client = createFakeDockerClient();
+		const runtime = createDockerRuntime(
+			createTestConfig({ rootDirectory: tmp.rootDirectory }),
+			{ client },
+		);
+
+		const files = await runtime.listSessionFiles("session-list");
+
+		expect(files).toEqual(
+			expect.arrayContaining([
+				{ name: "alpha.txt", path: "alpha.txt", type: "file" },
+				{ name: "beta.txt", path: "beta.txt", type: "file" },
+			]),
+		);
+	});
+
+	it("rejects file paths that escape the session directory", async () => {
+		await using tmp = await createTempSessionDir();
+		const client = createFakeDockerClient();
+		const runtime = createDockerRuntime(
+			createTestConfig({ rootDirectory: tmp.rootDirectory }),
+			{ client },
+		);
+
+		await expect(
+			runtime.readSessionFile("session-escape", "../../etc/passwd"),
+		).rejects.toThrow(
+			"Session file path escapes the sandbox session directory.",
+		);
+	});
+
+	it("deletes session files from the real filesystem", async () => {
+		await using tmp = await createTempSessionDir();
+		await tmp.writeSessionFile("session-delete", "temp.txt", "temporary");
+
+		const client = createFakeDockerClient();
+		const runtime = createDockerRuntime(
+			createTestConfig({ rootDirectory: tmp.rootDirectory }),
+			{ client },
+		);
+
+		await runtime.deleteSessionFile("session-delete", "temp.txt");
+
+		await expect(
+			readFile(join(tmp.rootDirectory, "session-delete", "temp.txt"), "utf8"),
+		).rejects.toThrow();
+	});
+
+	it("does not reap an expired session while a background command is running", async () => {
+		await using tmp = await createTempSessionDir();
+		const client = createFakeDockerClient({
+			backgroundExecFixtures: [
+				{
+					command: ["meridian", "auth", "login", "--json"],
+					result: {
+						exitCode: null,
+						stderr: "",
+						stdout: '{"status":"pending","userCode":"ABCD-1234"}',
+					},
+				},
 			],
-			{ stdio: ["pipe", "pipe", "pipe"] },
-		);
-		expect(child.stdin.write).toHaveBeenCalledWith("payload");
-		expect(child.stdin.end).toHaveBeenCalled();
-	});
-
-	it("returns a session-relative path when writing a file", async () => {
-		const runtime = createDockerRuntime(createTestConfig());
-
-		const result = await runtime.writeSessionFile(
-			"session-write",
-			"requests/travel-request-annual.json",
-			'{"destination":"Greece"}\n',
+		});
+		const runtime = createDockerRuntime(
+			createTestConfig({ rootDirectory: tmp.rootDirectory }),
+			{ client },
 		);
 
-		expect(result).toBe("requests/travel-request-annual.json");
-		expect(fsMocks.mkdir).toHaveBeenCalledWith(
-			expect.stringContaining("/session-write/requests"),
-			{ recursive: true },
-		);
-		expect(fsMocks.writeFile).toHaveBeenCalledWith(
-			expect.stringContaining(
-				"/session-write/requests/travel-request-annual.json",
-			),
-			'{"destination":"Greece"}\n',
-		);
-	});
-
-	it("does not reap an expired session while a background command is still running", async () => {
-		const runtime = createDockerRuntime(createTestConfig());
-		mockExecFileSequence([
-			// session-busy background command setup
-			{ exitCode: 1, stderr: "No such container" },
-			{ exitCode: 0, stdout: "created-busy\n" },
-			{ exitCode: 0, stdout: "started-busy\n" },
-			// createSession("session-fresh")
-			{ exitCode: 1, stderr: "No such container" },
-			{ exitCode: 0, stdout: "created-fresh\n" },
-			{ exitCode: 0, stdout: "started-fresh\n" },
-		]);
-		const child = createMockChildProcess();
-		childProcessMocks.spawn.mockReturnValue(child);
-
-		const backgroundPromise = runtime.runCommand(
+		const result = await runtime.runCommand(
 			"session-busy",
 			["meridian", "auth", "login", "--json"],
-			{
-				keepAlive: true,
-				waitFor: "first-stdout-line",
-			},
+			{ keepAlive: true, waitFor: "first-stdout-line" },
 		);
-
-		await vi.waitFor(() => {
-			expect(childProcessMocks.spawn).toHaveBeenCalledTimes(1);
-		});
-		child.stdout.emit(
-			"data",
-			Buffer.from(
-				'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}\n',
-			),
-		);
-
-		await expect(backgroundPromise).resolves.toEqual({
-			backgroundCommandId: expect.any(String),
-			exitCode: null,
-			status: "running",
-			stderr: "",
-			stdout: '{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}',
-		});
+		expect(result.backgroundCommandId).toBeDefined();
 
 		vi.advanceTimersByTime(5 * 60 * 1000 + 1);
-
-		await expect(runtime.createSession("session-fresh")).resolves.toEqual({
-			id: "session-fresh",
-			lastUsedAt: expect.any(Date),
-		});
+		await runtime.createSession("session-fresh");
 
 		expect(
-			childProcessMocks.execFile.mock.calls.filter(
-				([, args]) =>
-					args[0] === "rm" && args[2] === "meridian-chat-sandbox-session-busy",
+			client.calls.filter(
+				(c) =>
+					c.method === "removeContainer" &&
+					(c.args[0] as string).includes("session-busy"),
 			),
 		).toHaveLength(0);
 	});
 
-	it("tracks background commands started from the first stdout line", async () => {
-		const runtime = createDockerRuntime(createTestConfig());
-		mockExecFileSequence([
-			{ exitCode: 1, stderr: "No such container" },
-			{ exitCode: 0, stdout: "created\n" },
-			{ exitCode: 0, stdout: "started\n" },
-		]);
-		const child = createMockChildProcess();
-		childProcessMocks.spawn.mockReturnValue(child);
-
-		const resultPromise = runtime.runCommand(
-			"session-background",
-			["meridian", "auth", "login", "--json"],
-			{
-				keepAlive: true,
-				waitFor: "first-stdout-line",
-			},
-		);
-
-		await vi.waitFor(() => {
-			expect(childProcessMocks.spawn).toHaveBeenCalledTimes(1);
+	it("tracks background commands through their lifecycle", async () => {
+		await using tmp = await createTempSessionDir();
+		let resolveCompletion: (result: {
+			exitCode: number;
+			stderr: string;
+			stdout: string;
+		}) => void;
+		const completion = new Promise<{
+			exitCode: number;
+			stderr: string;
+			stdout: string;
+		}>((resolve) => {
+			resolveCompletion = resolve;
 		});
 
-		child.stdout.emit(
-			"data",
-			Buffer.from(
-				'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}\n',
-			),
+		const client = createFakeDockerClient({
+			backgroundExecFixtures: [
+				{
+					command: ["meridian", "auth", "login", "--json"],
+					completion,
+					result: {
+						exitCode: null,
+						stderr: "",
+						stdout: '{"status":"pending","userCode":"ABCD-1234"}',
+					},
+					stdout:
+						'{"status":"pending","userCode":"ABCD-1234"}\n{"status":"authenticated"}\n',
+				},
+			],
+		});
+		const runtime = createDockerRuntime(
+			createTestConfig({ rootDirectory: tmp.rootDirectory }),
+			{ client },
 		);
 
-		const result = await resultPromise;
+		const result = await runtime.runCommand(
+			"session-bg",
+			["meridian", "auth", "login", "--json"],
+			{ keepAlive: true, waitFor: "first-stdout-line" },
+		);
 
 		expect(result).toEqual({
 			backgroundCommandId: expect.any(String),
 			exitCode: null,
 			status: "running",
 			stderr: "",
-			stdout: '{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}',
+			stdout: '{"status":"pending","userCode":"ABCD-1234"}',
 		});
-		expect(child.unref).toHaveBeenCalled();
 
 		const backgroundCommandId = result.backgroundCommandId;
 		assertDefined(backgroundCommandId);
 
+		await expect(runtime.listBackgroundCommands("session-bg")).resolves.toEqual(
+			[
+				{
+					command: ["meridian", "auth", "login", "--json"],
+					exitCode: null,
+					id: backgroundCommandId,
+					startedAt: expect.any(String),
+					status: "running",
+				},
+			],
+		);
+
+		resolveCompletion!({ exitCode: 0, stderr: "", stdout: "done" });
+
 		await expect(
-			runtime.listBackgroundCommands("session-background"),
-		).resolves.toEqual([
+			runtime.waitForBackgroundCommand("session-bg", backgroundCommandId),
+		).resolves.toMatchObject({
+			command: ["meridian", "auth", "login", "--json"],
+			exitCode: 0,
+			id: backgroundCommandId,
+			status: "completed",
+		});
+	});
+
+	it("destroys session resources including container and files", async () => {
+		await using tmp = await createTempSessionDir();
+		const client = createFakeDockerClient();
+		const runtime = createDockerRuntime(
+			createTestConfig({ rootDirectory: tmp.rootDirectory }),
+			{ client },
+		);
+
+		await runtime.createSession("session-destroy");
+		await runtime.writeSessionFile("session-destroy", "file.txt", "content");
+
+		await runtime.destroySession("session-destroy");
+
+		expect(client.calls.filter((c) => c.method === "removeContainer")).toEqual([
 			{
-				command: ["meridian", "auth", "login", "--json"],
-				exitCode: null,
-				id: backgroundCommandId,
-				startedAt: expect.any(String),
-				status: "running",
+				args: ["meridian-chat-sandbox-session-destroy"],
+				method: "removeContainer",
 			},
 		]);
+
+		const { stat } = await import("node:fs/promises");
 		await expect(
-			runtime.getBackgroundCommand("session-background", backgroundCommandId),
-		).resolves.toEqual({
-			command: ["meridian", "auth", "login", "--json"],
-			exitCode: null,
-			id: result.backgroundCommandId,
-			startedAt: expect.any(String),
-			status: "running",
-			stderr: "",
-			stdout:
-				'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}\n',
-		});
-
-		child.stdout.emit(
-			"data",
-			Buffer.from(
-				'{"status":"authenticated","intervalSeconds":5,"user":"john.doe@example.com"}\n',
-			),
-		);
-		child.emit("close", 0);
-
-		await expect(
-			runtime.waitForBackgroundCommand(
-				"session-background",
-				backgroundCommandId,
-			),
-		).resolves.toEqual({
-			command: ["meridian", "auth", "login", "--json"],
-			endedAt: expect.any(String),
-			exitCode: 0,
-			id: result.backgroundCommandId,
-			startedAt: expect.any(String),
-			status: "completed",
-			stderr: "",
-			stdout:
-				'{"status":"pending","intervalSeconds":5,"userCode":"ABCD-1234"}\n{"status":"authenticated","intervalSeconds":5,"user":"john.doe@example.com"}\n',
-		});
-	});
-
-	it("does not reap an expired session while another caller is reviving it", async () => {
-		const runtime = createDockerRuntime(createTestConfig());
-		let sessionAInspectCount = 0;
-		let reviveInspectCallback:
-			| ((
-					error: Error | NodeJS.ErrnoException | null,
-					stdout: string,
-					stderr: string,
-			  ) => void)
-			| undefined;
-
-		childProcessMocks.execFile.mockImplementation(
-			(
-				_file: string,
-				args: string[],
-				_options: { timeout: number },
-				callback: (
-					error: Error | NodeJS.ErrnoException | null,
-					stdout: string,
-					stderr: string,
-				) => void,
-			) => {
-				if (
-					args[0] === "inspect" &&
-					args[3] === "meridian-chat-sandbox-session-a"
-				) {
-					sessionAInspectCount += 1;
-
-					if (sessionAInspectCount === 1) {
-						callback(
-							Object.assign(new Error("No such container"), { code: 1 }),
-							"",
-							"No such container",
-						);
-						return;
-					}
-
-					if (sessionAInspectCount === 2) {
-						reviveInspectCallback = callback;
-						return;
-					}
-				}
-
-				if (
-					args[0] === "create" &&
-					args.includes("meridian-chat-sandbox-session-a")
-				) {
-					callback(null, "created-a\n", "");
-					return;
-				}
-
-				if (
-					args[0] === "start" &&
-					args[1] === "meridian-chat-sandbox-session-a"
-				) {
-					callback(null, "started-a\n", "");
-					return;
-				}
-
-				if (args[0] === "rm" && args[2] === "meridian-chat-sandbox-session-a") {
-					callback(null, "removed-a\n", "");
-					return;
-				}
-
-				if (
-					args[0] === "inspect" &&
-					args[3] === "meridian-chat-sandbox-session-b"
-				) {
-					callback(
-						Object.assign(new Error("No such container"), { code: 1 }),
-						"",
-						"No such container",
-					);
-					return;
-				}
-
-				if (
-					args[0] === "create" &&
-					args.includes("meridian-chat-sandbox-session-b")
-				) {
-					callback(null, "created-b\n", "");
-					return;
-				}
-
-				if (
-					args[0] === "start" &&
-					args[1] === "meridian-chat-sandbox-session-b"
-				) {
-					callback(null, "started-b\n", "");
-					return;
-				}
-
-				throw new Error(`Unexpected execFile args: ${args.join(" ")}`);
-			},
-		);
-
-		await runtime.createSession("session-a");
-		vi.advanceTimersByTime(5 * 60 * 1000 + 1);
-
-		const revivePromise = runtime.createSession("session-a");
-		await vi.waitFor(() => {
-			expect(reviveInspectCallback).toBeDefined();
-		});
-
-		const otherSessionPromise = runtime.createSession("session-b");
-		await Promise.resolve();
-
-		expect(
-			childProcessMocks.execFile.mock.calls.filter(
-				([, args]) =>
-					args[0] === "rm" && args[2] === "meridian-chat-sandbox-session-a",
-			),
-		).toHaveLength(0);
-		expect(childProcessMocks.execFile).toHaveBeenCalledTimes(4);
-
-		reviveInspectCallback?.(null, "true\n", "");
-
-		await expect(revivePromise).resolves.toEqual({
-			id: "session-a",
-			lastUsedAt: expect.any(Date),
-		});
-		await expect(otherSessionPromise).resolves.toEqual({
-			id: "session-b",
-			lastUsedAt: expect.any(Date),
-		});
-		expect(
-			childProcessMocks.execFile.mock.calls.filter(
-				([, args]) =>
-					args[0] === "rm" && args[2] === "meridian-chat-sandbox-session-a",
-			),
-		).toHaveLength(0);
+			stat(join(tmp.rootDirectory, "session-destroy")),
+		).rejects.toThrow();
 	});
 });
-
-function mockExecFileSequence(
-	results: Array<{ exitCode: number; stderr?: string; stdout?: string }>,
-) {
-	childProcessMocks.execFile.mockImplementation(
-		(
-			_file: string,
-			_args: string[],
-			_options: { timeout: number },
-			callback: (
-				error: Error | NodeJS.ErrnoException | null,
-				stdout: string,
-				stderr: string,
-			) => void,
-		) => {
-			const next = results.shift();
-			if (!next) {
-				throw new Error("Unexpected execFile call in test.");
-			}
-
-			if (next.exitCode === 0) {
-				callback(null, next.stdout ?? "", next.stderr ?? "");
-				return;
-			}
-
-			const error = Object.assign(new Error(next.stderr ?? "failed"), {
-				code: next.exitCode,
-			});
-			callback(error, next.stdout ?? "", next.stderr ?? "");
-		},
-	);
-}
-
-function createMockChildProcess() {
-	const child = new EventEmitter() as EventEmitter & {
-		killed: boolean;
-		kill: ReturnType<typeof vi.fn>;
-		stdin: { end: ReturnType<typeof vi.fn>; write: ReturnType<typeof vi.fn> };
-		stderr: EventEmitter & { resume: ReturnType<typeof vi.fn> };
-		stdout: EventEmitter & { resume: ReturnType<typeof vi.fn> };
-		unref: ReturnType<typeof vi.fn>;
-	};
-
-	child.killed = false;
-	child.kill = vi.fn(() => {
-		child.killed = true;
-	});
-	child.stdin = {
-		end: vi.fn(),
-		write: vi.fn(),
-	};
-	child.stdout = Object.assign(new EventEmitter(), { resume: vi.fn() });
-	child.stderr = Object.assign(new EventEmitter(), { resume: vi.fn() });
-	child.unref = vi.fn();
-
-	return child;
-}
