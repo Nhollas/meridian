@@ -11,8 +11,8 @@ describe("Chat UI - background tasks", () => {
 
 		await chatPage.expectReady();
 
-		// Panel is always visible, even when empty
-		await chatPage.expectBackgroundTaskPanelVisible();
+		// Panel is hidden when there are no tasks
+		await chatPage.expectBackgroundTaskPanelHidden();
 
 		sseStream.emit(
 			events.create("background_task.started", {

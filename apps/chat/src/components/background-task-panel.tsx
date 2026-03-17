@@ -55,23 +55,22 @@ interface BackgroundTaskPanelProps {
 }
 
 export function BackgroundTaskPanel({ tasks }: BackgroundTaskPanelProps) {
+	if (tasks.length === 0) return null;
+
 	return (
 		<aside
 			className="fixed right-6 bottom-20 z-10 w-72"
 			aria-label="Background tasks"
 		>
 			<div className="rounded-lg border border-border/50 bg-surface-1/80 px-3 py-2 backdrop-blur-sm">
-				{tasks.length === 0 ? (
-					<p className="font-mono text-[11px] text-text-muted/50">
-						No active tasks
-					</p>
-				) : (
-					<ul className="flex list-none flex-col gap-1.5 font-mono text-[11px] text-text-muted">
-						{tasks.map((task) => (
-							<TaskEntry key={task.id} task={task} />
-						))}
-					</ul>
-				)}
+				<p className="mb-1.5 font-medium font-mono text-[11px] text-text-muted/50">
+					Background tasks
+				</p>
+				<ul className="flex list-none flex-col gap-1.5 font-mono text-[11px] text-text-muted">
+					{tasks.map((task) => (
+						<TaskEntry key={task.id} task={task} />
+					))}
+				</ul>
 			</div>
 		</aside>
 	);

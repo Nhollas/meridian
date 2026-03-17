@@ -105,15 +105,18 @@ export function useChat() {
 		function handleSSEEvent(event: RuntimeEventEnvelope) {
 			if (event.type === "background_task.started") {
 				startTransition(() => {
-					setBackgroundTasks((prev) => [
-						...prev,
-						{
-							id: event.payload.taskId,
-							label: event.payload.label,
-							startedAt: event.payload.startedAt,
-							status: "running",
-						},
-					]);
+					setBackgroundTasks((prev) => {
+						if (prev.some((t) => t.id === event.payload.taskId)) return prev;
+						return [
+							...prev,
+							{
+								id: event.payload.taskId,
+								label: event.payload.label,
+								startedAt: event.payload.startedAt,
+								status: "running",
+							},
+						];
+					});
 				});
 				return;
 			}

@@ -1,7 +1,6 @@
 import { tool } from "langchain";
 import { z } from "zod";
 import type {
-	SandboxCommandOptions,
 	SandboxRuntime,
 	SandboxWaitForBackgroundCommandResult,
 } from "@/lib/sandbox/runtime";
@@ -43,12 +42,11 @@ export function createRuntimeAgentTools({
 		}),
 		tool(
 			async (input) => {
-				const { command, label, notifyOnComplete, ...options } = input;
-				const result = await runtime.runCommand(
-					sessionId,
-					command,
-					options as SandboxCommandOptions,
+				const { command, label, notifyOnComplete, ...rest } = input;
+				const options = Object.fromEntries(
+					Object.entries(rest).filter(([, v]) => v !== undefined),
 				);
+				const result = await runtime.runCommand(sessionId, command, options);
 
 				if (
 					notifyOnComplete &&
@@ -80,46 +78,51 @@ export function createRuntimeAgentTools({
 				name: "run_command",
 				description:
 					"Run a command inside the sandbox runtime. Use this to explore installed capabilities and perform tasks. When called with waitFor=first-stdout-line and keepAlive=true, the result may include a backgroundCommandId that can be inspected later. Set notifyOnComplete=true to be automatically notified when the background command finishes. Always provide a label when using notifyOnComplete.",
-				schema: z.object({
-					command: z
-						.array(z.string())
-						.min(1)
-						.describe(
-							"Executable followed by its arguments, for example ['meridian', '--help']",
-						),
-					timeoutMs: z
-						.number()
-						.int()
-						.positive()
-						.max(300000)
-						.optional()
-						.describe("Optional timeout in milliseconds"),
-					waitFor: z
-						.enum(["exit", "first-stdout-line"])
-						.optional()
-						.describe(
-							"Whether to wait for full completion or only the first stdout line",
-						),
-					keepAlive: z
-						.boolean()
-						.optional()
-						.describe(
-							"If true with waitFor=first-stdout-line, leave the process running in the background",
-						),
-					label: z
-						.string()
-						.optional()
-						.describe(
-							"Human-readable label for the background task shown to the user. Required when using notifyOnComplete.",
-						),
-					notifyOnComplete: z
-						.boolean()
-						.optional()
-						.describe(
-							"If true, you will be automatically notified when this background command completes without needing to poll",
-						),
-					stdin: z.string().optional().describe("Optional stdin input"),
-				}),
+				schema: z
+					.object({
+						command: z
+							.array(z.string())
+							.min(1)
+							.describe(
+								"Executable followed by its arguments, for example ['meridian', '--help']",
+							),
+						timeoutMs: z
+							.number()
+							.int()
+							.positive()
+							.max(300000)
+							.optional()
+							.describe("Optional timeout in milliseconds"),
+						waitFor: z
+							.enum(["exit", "first-stdout-line"])
+							.optional()
+							.describe(
+								"Whether to wait for full completion or only the first stdout line",
+							),
+						keepAlive: z
+							.boolean()
+							.optional()
+							.describe(
+								"If true with waitFor=first-stdout-line, leave the process running in the background",
+							),
+						label: z
+							.string()
+							.optional()
+							.describe(
+								"Human-readable label for the background task shown to the user. Required when using notifyOnComplete.",
+							),
+						notifyOnComplete: z
+							.boolean()
+							.optional()
+							.describe(
+								"If true, you will be automatically notified when this background command completes without needing to poll",
+							),
+						stdin: z.string().optional().describe("Optional stdin input"),
+					})
+					.refine((data) => !data.notifyOnComplete || data.label, {
+						message: "label is required when notifyOnComplete is true",
+						path: ["label"],
+					}),
 			},
 		),
 		tool(

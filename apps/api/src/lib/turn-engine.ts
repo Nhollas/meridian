@@ -74,6 +74,8 @@ export function createTurnEngine({
 			result,
 			sessionId,
 		}) => {
+			if (result.status === "running" || !result.endedAt) return;
+
 			const eventFactory = createRuntimeEventFactory({
 				sessionId,
 				turnId,
@@ -81,8 +83,8 @@ export function createTurnEngine({
 			registry.writeEvent(
 				sessionId,
 				eventFactory.create("background_task.completed", {
-					endedAt: result.endedAt ?? new Date().toISOString(),
-					status: result.status as "completed" | "failed" | "terminated",
+					endedAt: result.endedAt,
+					status: result.status,
 					taskId: commandId,
 				}),
 			);

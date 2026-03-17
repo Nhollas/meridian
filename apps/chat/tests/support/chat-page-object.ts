@@ -46,6 +46,12 @@ export function chatPageObject(page: BrowserPage) {
 			await expect.element(self.getBackgroundTaskPanel()).toBeVisible();
 		},
 
+		expectBackgroundTaskPanelHidden: async () => {
+			await expect
+				.element(self.getBackgroundTaskPanel())
+				.not.toBeInTheDocument();
+		},
+
 		expectBackgroundTask: async (label: string) => {
 			await expect.element(self.getBackgroundTask(label)).toBeVisible();
 		},
