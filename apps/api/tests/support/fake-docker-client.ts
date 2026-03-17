@@ -30,6 +30,27 @@ export type FakeDockerClient = DockerClient & {
 	calls: DockerClientCall[];
 };
 
+function normalizeOptions(options?: DockerExecOptions) {
+	return Object.fromEntries(
+		Object.entries(options ?? {})
+			.filter(([, value]) => typeof value !== "undefined")
+			.sort(([left], [right]) => left.localeCompare(right)),
+	);
+}
+
+function matchesOptions(
+	fixtureOptions: DockerExecOptions | undefined,
+	callOptions: DockerExecOptions,
+) {
+	if (fixtureOptions === undefined) {
+		return true;
+	}
+	return (
+		JSON.stringify(normalizeOptions(fixtureOptions)) ===
+		JSON.stringify(normalizeOptions(callOptions))
+	);
+}
+
 export function createFakeDockerClient({
 	execFixtures = [],
 	backgroundExecFixtures = [],
@@ -52,8 +73,8 @@ export function createFakeDockerClient({
 			return containers.get(containerName) ?? "missing";
 		},
 
-		async createContainer(containerName, sessionDirectory) {
-			record("createContainer", containerName, sessionDirectory);
+		async createContainer(containerName, sessionDirectory, sessionId) {
+			record("createContainer", containerName, sessionDirectory, sessionId);
 			containers.set(containerName, "stopped");
 		},
 
@@ -70,7 +91,9 @@ export function createFakeDockerClient({
 		async exec(containerName, command, options = {}) {
 			record("exec", containerName, command, options);
 			const fixture = execFixtures.find(
-				(f) => JSON.stringify(f.command) === JSON.stringify(command),
+				(f) =>
+					JSON.stringify(f.command) === JSON.stringify(command) &&
+					matchesOptions(f.options, options),
 			);
 			return fixture?.result ?? { exitCode: 0, stderr: "", stdout: "" };
 		},

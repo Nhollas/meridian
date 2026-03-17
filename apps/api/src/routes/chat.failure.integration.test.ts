@@ -12,9 +12,10 @@ describe("POST /api/chat integration - failure handling", () => {
 		const createRunner = createScriptedAgentRunner(async function* () {
 			throw new Error("agent exploded");
 		});
-		const { POST, collectTurnEvents } = await createTestChat({
+		await using ctx = await createTestChat({
 			createRunner,
 		});
+		const { POST, collectTurnEvents } = ctx;
 
 		const eventsPromise = collectTurnEvents("session-123");
 		await POST(
@@ -45,9 +46,10 @@ describe("POST /api/chat integration - failure handling", () => {
 			);
 			throw new Error("device flow requires user interaction");
 		});
-		const { POST, collectTurnEvents } = await createTestChat({
+		await using ctx2 = await createTestChat({
 			createRunner,
 		});
+		const { POST, collectTurnEvents } = ctx2;
 
 		const eventsPromise = collectTurnEvents("session-123");
 		await POST(

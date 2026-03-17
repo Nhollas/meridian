@@ -85,7 +85,11 @@ describe("createDockerClient", () => {
 		const client = createDockerClient(createTestConfig());
 		mockExecFileSequence([{ exitCode: 0, stdout: "created\n" }]);
 
-		await client.createContainer("sandbox-session-1", "/tmp/sessions/s1");
+		await client.createContainer(
+			"sandbox-session-1",
+			"/tmp/sessions/s1",
+			"session-1",
+		);
 
 		expect(childProcessMocks.execFile).toHaveBeenCalledWith(
 			"docker",
@@ -102,6 +106,8 @@ describe("createDockerClient", () => {
 				"512m",
 				"--pids-limit",
 				"256",
+				"--label",
+				"meridian.chat.session-id=session-1",
 				"-v",
 				"/tmp/sessions/s1:/sandbox-home",
 				"meridian-chat-sandbox:local",
@@ -122,7 +128,7 @@ describe("createDockerClient", () => {
 		);
 		mockExecFileSequence([{ exitCode: 0, stdout: "created\n" }]);
 
-		await client.createContainer("sandbox-auth", "/tmp/sessions/auth");
+		await client.createContainer("sandbox-auth", "/tmp/sessions/auth", "auth");
 
 		expect(childProcessMocks.execFile).toHaveBeenCalledWith(
 			"docker",
@@ -149,7 +155,11 @@ describe("createDockerClient", () => {
 		);
 		mockExecFileSequence([{ exitCode: 0, stdout: "created\n" }]);
 
-		await client.createContainer("sandbox-proxy", "/tmp/sessions/proxy");
+		await client.createContainer(
+			"sandbox-proxy",
+			"/tmp/sessions/proxy",
+			"proxy",
+		);
 
 		expect(childProcessMocks.execFile).toHaveBeenCalledWith(
 			"docker",

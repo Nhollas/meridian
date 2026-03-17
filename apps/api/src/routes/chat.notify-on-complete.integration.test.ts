@@ -59,7 +59,7 @@ describe("POST /api/chat integration - notify on complete", () => {
 				"I've started the login process. You'll be notified when it completes.",
 			);
 		});
-		const { POST, collectTurnEvents } = await createTestChat({
+		await using ctx = await createTestChat({
 			createRunner,
 			backgroundExecFixtures: [
 				{
@@ -76,6 +76,7 @@ describe("POST /api/chat integration - notify on complete", () => {
 			],
 			instructions: "Login first.",
 		});
+		const { POST, collectTurnEvents } = ctx;
 
 		const userTurnEventsPromise = collectTurnEvents("session-notify");
 		await POST(
@@ -150,7 +151,7 @@ describe("POST /api/chat integration - notify on complete", () => {
 
 			yield assistantText("Started login without notification.");
 		});
-		const { POST, collectTurnEvents, registry } = await createTestChat({
+		await using ctx2 = await createTestChat({
 			createRunner,
 			backgroundExecFixtures: [
 				{
@@ -167,6 +168,7 @@ describe("POST /api/chat integration - notify on complete", () => {
 			],
 			instructions: "Login first.",
 		});
+		const { POST, collectTurnEvents, registry } = ctx2;
 
 		const eventsPromise = collectTurnEvents("session-no-notify");
 		await POST(

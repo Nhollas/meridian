@@ -38,6 +38,7 @@ export interface DockerClient {
 	createContainer(
 		containerName: string,
 		sessionDirectory: string,
+		sessionId: string,
 	): Promise<void>;
 	startContainer(containerName: string): Promise<void>;
 	removeContainer(containerName: string): Promise<void>;
@@ -125,7 +126,7 @@ export function createDockerClient(config: SandboxConfig): DockerClient {
 			throw new Error(`Unexpected Docker container state: ${state}`);
 		},
 
-		async createContainer(containerName, sessionDirectory) {
+		async createContainer(containerName, sessionDirectory, sessionId) {
 			const createArgs = [
 				"create",
 				"--name",
@@ -145,6 +146,8 @@ export function createDockerClient(config: SandboxConfig): DockerClient {
 				"host.docker.internal:host-gateway",
 				"--label",
 				"meridian.chat.runtime=docker",
+				"--label",
+				`meridian.chat.session-id=${sessionId}`,
 				"-e",
 				`HOME=${CONTAINER_HOME}`,
 				"-w",

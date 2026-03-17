@@ -18,7 +18,7 @@ import { createTurnEngine } from "./turn-engine";
 
 describe("TurnEngine integration", () => {
 	it("runs the agent with tools and streams events via the registry", async () => {
-		const tmp = await createTempSessionDir();
+		await using tmp = await createTempSessionDir();
 		const client = createFakeDockerClient();
 
 		const instructionsFile = join(tmp.rootDirectory, "instructions.txt");

@@ -51,10 +51,11 @@ describe("POST /api/chat integration - turn lifecycle", () => {
 
 			yield assistantText("I found 2 offers worth comparing.");
 		});
-		const { POST, collectTurnEvents, tmp } = await createTestChat({
+		await using ctx = await createTestChat({
 			createRunner,
 			instructions: "Call get_runtime_instructions before reading files.",
 		});
+		const { POST, collectTurnEvents, tmp } = ctx;
 
 		await tmp.writeSessionFile("session-123", "offers.json", '{"offers":2}');
 

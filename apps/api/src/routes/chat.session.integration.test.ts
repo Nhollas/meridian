@@ -22,9 +22,10 @@ describe("POST /api/chat integration - session behavior", () => {
 
 			yield assistantText(`Messages so far: ${history.join(" -> ")}`);
 		});
-		const { POST, collectTurnEvents } = await createTestChat({
+		await using ctx = await createTestChat({
 			createRunner,
 		});
+		const { POST, collectTurnEvents } = ctx;
 
 		const firstEventsPromise = collectTurnEvents("session-123");
 		await POST(
@@ -132,9 +133,10 @@ describe("POST /api/chat integration - session behavior", () => {
 				yield assistantText(`No note found for ${sessionId}.`);
 			}
 		});
-		const { POST, collectTurnEvents } = await createTestChat({
+		await using ctx2 = await createTestChat({
 			createRunner,
 		});
+		const { POST, collectTurnEvents } = ctx2;
 
 		const saveEventsPromise = collectTurnEvents("session-a");
 		await POST(

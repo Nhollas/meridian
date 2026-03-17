@@ -29,9 +29,10 @@ describe("POST /api/chat integration - runtime files", () => {
 			});
 			yield assistantText("I listed the workspace files.");
 		});
-		const { POST, collectTurnEvents, tmp } = await createTestChat({
+		await using ctx = await createTestChat({
 			createRunner,
 		});
+		const { POST, collectTurnEvents, tmp } = ctx;
 
 		await tmp.writeSessionFile("session-files", "offers.json", '{"offers":2}');
 		await tmp.writeSessionFile("session-files", "policy.txt", "No refunds");
@@ -120,9 +121,10 @@ describe("POST /api/chat integration - runtime files", () => {
 			});
 			yield assistantText(`Read back: ${output}`);
 		});
-		const { POST, collectTurnEvents } = await createTestChat({
+		await using ctx2 = await createTestChat({
 			createRunner,
 		});
+		const { POST, collectTurnEvents } = ctx2;
 
 		const writeEventsPromise = collectTurnEvents("session-files");
 		await POST(
@@ -240,9 +242,10 @@ describe("POST /api/chat integration - runtime files", () => {
 				yield assistantText("That path is outside the session workspace.");
 			}
 		});
-		const { POST, collectTurnEvents } = await createTestChat({
+		await using ctx3 = await createTestChat({
 			createRunner,
 		});
+		const { POST, collectTurnEvents } = ctx3;
 
 		const eventsPromise = collectTurnEvents("session-files");
 		await POST(

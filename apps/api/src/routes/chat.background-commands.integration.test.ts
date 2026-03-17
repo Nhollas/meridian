@@ -97,7 +97,7 @@ describe("POST /api/chat integration - background commands", () => {
 				"Login completed, and I confirmed the schema fields are destination.",
 			);
 		});
-		const { POST, collectTurnEvents, tmp } = await createTestChat({
+		await using ctx = await createTestChat({
 			createRunner,
 			backgroundExecFixtures: [
 				{
@@ -115,6 +115,7 @@ describe("POST /api/chat integration - background commands", () => {
 				},
 			],
 		});
+		const { POST, collectTurnEvents, tmp } = ctx;
 
 		await tmp.writeSessionFile(
 			"session-background",
@@ -131,7 +132,7 @@ describe("POST /api/chat integration - background commands", () => {
 		);
 		const events = await eventsPromise;
 
-		expect(getParsedToolOutput(events, "run_command")).toMatchObject({
+		expect(getParsedToolOutput(events, "run_command")).toEqual({
 			backgroundCommandId: expect.any(String),
 			exitCode: null,
 			status: "running",
@@ -141,12 +142,12 @@ describe("POST /api/chat integration - background commands", () => {
 		expect(getCompletedToolOutput(events, "read_file")).toBe(
 			'{"fields":["destination"]}',
 		);
-		expect(
-			getParsedToolOutput(events, "wait_for_background_command"),
-		).toMatchObject({
+		expect(getParsedToolOutput(events, "wait_for_background_command")).toEqual({
 			command: ["meridian", "auth", "login", "--json"],
+			endedAt: expect.any(String),
 			exitCode: 0,
 			id: expect.any(String),
+			startedAt: expect.any(String),
 			status: "completed",
 			stderr: "",
 			stdout:
@@ -289,7 +290,7 @@ describe("POST /api/chat integration - background commands", () => {
 
 			yield assistantText("Login completed.");
 		});
-		const { POST, collectTurnEvents } = await createTestChat({
+		await using ctx = await createTestChat({
 			createRunner,
 			backgroundExecFixtures: [
 				{
@@ -307,6 +308,7 @@ describe("POST /api/chat integration - background commands", () => {
 				},
 			],
 		});
+		const { POST, collectTurnEvents } = ctx;
 
 		const startEventsPromise = collectTurnEvents("session-background");
 		await POST(
@@ -326,7 +328,7 @@ describe("POST /api/chat integration - background commands", () => {
 		);
 		const followUpTurn = await followUpEventsPromise;
 
-		expect(getParsedToolOutput(startTurn, "run_command")).toMatchObject({
+		expect(getParsedToolOutput(startTurn, "run_command")).toEqual({
 			backgroundCommandId: expect.any(String),
 			exitCode: null,
 			status: "running",
@@ -336,17 +338,21 @@ describe("POST /api/chat integration - background commands", () => {
 		expect(
 			getParsedToolOutput(followUpTurn, "list_background_commands"),
 		).toEqual([
-			expect.objectContaining({
+			{
 				command: ["meridian", "auth", "login", "--json"],
 				exitCode: null,
+				id: expect.any(String),
+				startedAt: expect.any(String),
 				status: "running",
-			}),
+			},
 		]);
 		expect(
 			getParsedToolOutput(followUpTurn, "inspect_background_command"),
-		).toMatchObject({
+		).toEqual({
 			command: ["meridian", "auth", "login", "--json"],
 			exitCode: null,
+			id: expect.any(String),
+			startedAt: expect.any(String),
 			status: "running",
 			stderr: "",
 			stdout:
@@ -354,9 +360,12 @@ describe("POST /api/chat integration - background commands", () => {
 		});
 		expect(
 			getParsedToolOutput(followUpTurn, "wait_for_background_command"),
-		).toMatchObject({
+		).toEqual({
 			command: ["meridian", "auth", "login", "--json"],
+			endedAt: expect.any(String),
 			exitCode: 0,
+			id: expect.any(String),
+			startedAt: expect.any(String),
 			status: "completed",
 			stderr: "",
 			stdout:
@@ -421,9 +430,10 @@ describe("POST /api/chat integration - background commands", () => {
 
 			yield assistantText("No live background command matched that ID.");
 		});
-		const { POST, collectTurnEvents } = await createTestChat({
+		await using ctx = await createTestChat({
 			createRunner,
 		});
+		const { POST, collectTurnEvents } = ctx;
 
 		const eventsPromise = collectTurnEvents("session-background");
 		await POST(
@@ -596,7 +606,7 @@ describe("POST /api/chat integration - background commands", () => {
 			});
 			yield assistantText("Server terminated.");
 		});
-		const { POST, collectTurnEvents } = await createTestChat({
+		await using ctx = await createTestChat({
 			createRunner,
 			backgroundExecFixtures: [
 				{
@@ -611,6 +621,7 @@ describe("POST /api/chat integration - background commands", () => {
 				},
 			],
 		});
+		const { POST, collectTurnEvents } = ctx;
 
 		const startEventsPromise = collectTurnEvents("session-background");
 		await POST(
@@ -632,9 +643,12 @@ describe("POST /api/chat integration - background commands", () => {
 
 		expect(
 			getParsedToolOutput(terminateTurn, "terminate_background_command"),
-		).toMatchObject({
+		).toEqual({
 			command: ["meridian", "serve"],
+			endedAt: expect.any(String),
 			exitCode: 137,
+			id: expect.any(String),
+			startedAt: expect.any(String),
 			status: "terminated",
 			stderr: "",
 			stdout: "Server booting\n",

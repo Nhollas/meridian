@@ -68,7 +68,16 @@ export async function createTestChat({
 		engine,
 	});
 
-	return { POST, client, collectTurnEvents, registry, tmp };
+	return {
+		POST,
+		client,
+		collectTurnEvents,
+		registry,
+		tmp,
+		async [Symbol.asyncDispose]() {
+			await tmp[Symbol.asyncDispose]();
+		},
+	};
 }
 
 export type { FakeDockerClient };

@@ -49,6 +49,7 @@ export function createDockerRuntime(
 		string,
 		Map<string, BackgroundCommandRecord>
 	>();
+	const activeExecCount = new Map<string, number>();
 	const sessionLocks = new Map<string, Promise<void>>();
 	const sessionTimestamps = new Map<string, Date>();
 	const ensuredDirectories = new Set<string>();
@@ -98,6 +99,13 @@ export function createDockerRuntime(
 			}
 		}
 		return false;
+	}
+
+	function hasRunningCommands(sessionId: string) {
+		return (
+			(activeExecCount.get(sessionId) ?? 0) > 0 ||
+			hasRunningBackgroundCommands(sessionId)
+		);
 	}
 
 	function toBackgroundCommandSummary(
@@ -173,6 +181,7 @@ export function createDockerRuntime(
 			await client.createContainer(
 				containerName,
 				getSessionDirectory(sessionId),
+				sessionId,
 			);
 		}
 
@@ -217,7 +226,7 @@ export function createDockerRuntime(
 			if (lastUsedAt.getTime() >= expirationCutoff) {
 				continue;
 			}
-			if (hasRunningBackgroundCommands(sessionId)) {
+			if (hasRunningCommands(sessionId)) {
 				continue;
 			}
 
@@ -229,7 +238,7 @@ export function createDockerRuntime(
 				if (currentLastUsedAt.getTime() >= expirationCutoff) {
 					return;
 				}
-				if (hasRunningBackgroundCommands(sessionId)) {
+				if (hasRunningCommands(sessionId)) {
 					return;
 				}
 
@@ -271,6 +280,24 @@ export function createDockerRuntime(
 	}
 
 	async function execCommand(
+		sessionId: string,
+		command: string[],
+		options: SandboxCommandOptions,
+	) {
+		activeExecCount.set(sessionId, (activeExecCount.get(sessionId) ?? 0) + 1);
+		try {
+			return await execCommandInner(sessionId, command, options);
+		} finally {
+			const count = (activeExecCount.get(sessionId) ?? 1) - 1;
+			if (count <= 0) {
+				activeExecCount.delete(sessionId);
+			} else {
+				activeExecCount.set(sessionId, count);
+			}
+		}
+	}
+
+	async function execCommandInner(
 		sessionId: string,
 		command: string[],
 		options: SandboxCommandOptions,

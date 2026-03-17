@@ -47,6 +47,7 @@ describe("createDockerRuntime", () => {
 				args: [
 					"meridian-chat-sandbox-session-123",
 					expect.stringContaining("/session-123"),
+					"session-123",
 				],
 				method: "createContainer",
 			},
@@ -360,11 +361,15 @@ describe("createDockerRuntime", () => {
 
 		await expect(
 			runtime.waitForBackgroundCommand("session-bg", backgroundCommandId),
-		).resolves.toMatchObject({
+		).resolves.toEqual({
 			command: ["meridian", "auth", "login", "--json"],
+			endedAt: expect.any(String),
 			exitCode: 0,
 			id: backgroundCommandId,
+			startedAt: expect.any(String),
 			status: "completed",
+			stderr: "",
+			stdout: expect.any(String),
 		});
 	});
 

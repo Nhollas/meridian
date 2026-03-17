@@ -30,7 +30,7 @@ describe("POST /api/chat integration - runtime commands", () => {
 			});
 			yield assistantText("Working directory checked.");
 		});
-		const { POST, collectTurnEvents } = await createTestChat({
+		await using ctx = await createTestChat({
 			createRunner,
 			execFixtures: [
 				{
@@ -43,6 +43,7 @@ describe("POST /api/chat integration - runtime commands", () => {
 				},
 			],
 		});
+		const { POST, collectTurnEvents } = ctx;
 
 		const eventsPromise = collectTurnEvents("session-command");
 		await POST(
@@ -104,7 +105,7 @@ describe("POST /api/chat integration - runtime commands", () => {
 				);
 			}
 		});
-		const { POST, collectTurnEvents } = await createTestChat({
+		await using ctx2 = await createTestChat({
 			createRunner,
 			execFixtures: [
 				{
@@ -117,6 +118,7 @@ describe("POST /api/chat integration - runtime commands", () => {
 				},
 			],
 		});
+		const { POST, collectTurnEvents } = ctx2;
 
 		const eventsPromise = collectTurnEvents("session-command");
 		await POST(
