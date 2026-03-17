@@ -8,29 +8,18 @@ import {
 	createScriptedAgentRunner,
 } from "../../tests/support/scripted-agent-runner";
 import { createTempSessionDir } from "../../tests/support/temp-session-dir";
-
-function createTestConfig(rootDirectory: string) {
-	return {
-		dockerBinary: "docker",
-		extraCaCertsFile: undefined,
-		instructionsFile: "",
-		meridianAuthClientId: "meridian-cli",
-		meridianAuthIssuer: "http://host.docker.internal:8080/realms/meridian",
-		proxyEnv: {},
-		rootDirectory,
-		runtime: "docker",
-		sandboxImage: "meridian-chat-sandbox:local",
-		sessionTtlMs: 5 * 60 * 1000,
-	};
-}
+import { createTestConfig } from "../../tests/support/test-config";
 
 describe("agent service", () => {
 	it("passes the session id to the runner so stateful conversations can continue", async () => {
 		await using tmp = await createTempSessionDir();
 		const turnsBySession = new Map<string, string[]>();
-		const runtime = createDockerRuntime(createTestConfig(tmp.rootDirectory), {
-			client: createFakeDockerClient(),
-		});
+		const runtime = createDockerRuntime(
+			createTestConfig({ rootDirectory: tmp.rootDirectory }),
+			{
+				client: createFakeDockerClient(),
+			},
+		);
 		const createRunner = createScriptedAgentRunner(async function* ({
 			message,
 			sessionId,
@@ -75,9 +64,12 @@ describe("agent service", () => {
 
 	it("does not retain conversation history across fresh service instances", async () => {
 		await using tmp = await createTempSessionDir();
-		const runtime = createDockerRuntime(createTestConfig(tmp.rootDirectory), {
-			client: createFakeDockerClient(),
-		});
+		const runtime = createDockerRuntime(
+			createTestConfig({ rootDirectory: tmp.rootDirectory }),
+			{
+				client: createFakeDockerClient(),
+			},
+		);
 		const createFirstService = () => {
 			const turnsBySession = new Map<string, string[]>();
 			const createRunner = createScriptedAgentRunner(async function* ({
@@ -128,9 +120,12 @@ describe("agent service", () => {
 
 	it("completes gracefully when the stream throws a closed controller error mid-iteration", async () => {
 		await using tmp = await createTempSessionDir();
-		const runtime = createDockerRuntime(createTestConfig(tmp.rootDirectory), {
-			client: createFakeDockerClient(),
-		});
+		const runtime = createDockerRuntime(
+			createTestConfig({ rootDirectory: tmp.rootDirectory }),
+			{
+				client: createFakeDockerClient(),
+			},
+		);
 		const createRunner = createScriptedAgentRunner(async function* () {
 			yield assistantText("Partial content before crash");
 			throw new TypeError("Invalid state: Controller is already closed");
@@ -157,9 +152,12 @@ describe("agent service", () => {
 
 	it("excludes reasoning blocks from streamed assistant text", async () => {
 		await using tmp = await createTempSessionDir();
-		const runtime = createDockerRuntime(createTestConfig(tmp.rootDirectory), {
-			client: createFakeDockerClient(),
-		});
+		const runtime = createDockerRuntime(
+			createTestConfig({ rootDirectory: tmp.rootDirectory }),
+			{
+				client: createFakeDockerClient(),
+			},
+		);
 		const createRunner = createScriptedAgentRunner(async function* () {
 			yield {
 				content: [

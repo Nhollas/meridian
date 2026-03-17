@@ -1,29 +1,11 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { SandboxConfig } from "@/lib/sandbox/config";
 import { createDockerRuntime } from "@/lib/sandbox/docker-runtime";
 import { assertDefined } from "../../../tests/support/assertions";
 import { createFakeDockerClient } from "../../../tests/support/fake-docker-client";
 import { createTempSessionDir } from "../../../tests/support/temp-session-dir";
-
-function createTestConfig(
-	overrides: Partial<SandboxConfig> = {},
-): SandboxConfig {
-	return {
-		dockerBinary: "docker",
-		extraCaCertsFile: undefined,
-		instructionsFile: "/tmp/test-instructions.txt",
-		meridianAuthClientId: "meridian-cli",
-		meridianAuthIssuer: "http://host.docker.internal:8080/realms/meridian",
-		proxyEnv: {},
-		rootDirectory: "/tmp/meridian-chat-sandbox-sessions",
-		runtime: "docker",
-		sandboxImage: "meridian-chat-sandbox:local",
-		sessionTtlMs: 5 * 60 * 1000,
-		...overrides,
-	};
-}
+import { createTestConfig } from "../../../tests/support/test-config";
 
 describe("createDockerRuntime", () => {
 	beforeEach(() => {

@@ -2,7 +2,6 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createAgentService } from "@/lib/agent";
-import type { SandboxConfig } from "@/lib/sandbox/config";
 import { createDockerRuntime } from "@/lib/sandbox/docker-runtime";
 import { createCollectingRegistry } from "../../tests/support/collecting-registry";
 import { createFakeDockerClient } from "../../tests/support/fake-docker-client";
@@ -14,6 +13,7 @@ import {
 	toolStarted,
 } from "../../tests/support/scripted-agent-runner";
 import { createTempSessionDir } from "../../tests/support/temp-session-dir";
+import { createTestConfig } from "../../tests/support/test-config";
 import { createTurnEngine } from "./turn-engine";
 
 describe("TurnEngine integration", () => {
@@ -24,20 +24,13 @@ describe("TurnEngine integration", () => {
 		const instructionsFile = join(tmp.rootDirectory, "instructions.txt");
 		await writeFile(instructionsFile, "You are a helpful assistant.");
 
-		const config: SandboxConfig = {
-			dockerBinary: "docker",
-			extraCaCertsFile: undefined,
-			instructionsFile,
-			meridianAuthClientId: "meridian-cli",
-			meridianAuthIssuer: "http://host.docker.internal:8080/realms/meridian",
-			proxyEnv: {},
-			rootDirectory: tmp.rootDirectory,
-			runtime: "docker",
-			sandboxImage: "meridian-chat-sandbox:local",
-			sessionTtlMs: 5 * 60 * 1000,
-		};
-
-		const runtime = createDockerRuntime(config, { client });
+		const runtime = createDockerRuntime(
+			createTestConfig({
+				instructionsFile,
+				rootDirectory: tmp.rootDirectory,
+			}),
+			{ client },
+		);
 
 		const createRunner = createScriptedAgentRunner(async function* ({
 			message,

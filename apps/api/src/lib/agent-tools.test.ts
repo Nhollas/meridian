@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createDockerRuntime } from "@/lib/sandbox/docker-runtime";
 import { createFakeDockerClient } from "../../tests/support/fake-docker-client";
 import { createTempSessionDir } from "../../tests/support/temp-session-dir";
+import { createTestConfig } from "../../tests/support/test-config";
 
 // biome-ignore lint/complexity/noBannedTypes: test helper for mocked langchain tools
 type AnyFn = Function;
@@ -31,21 +32,6 @@ async function invokeTool(
 	return (tool as unknown as AnyFn)(input);
 }
 
-function createTestConfig(rootDirectory: string) {
-	return {
-		dockerBinary: "docker",
-		extraCaCertsFile: undefined,
-		instructionsFile: "",
-		meridianAuthClientId: "meridian-cli",
-		meridianAuthIssuer: "http://host.docker.internal:8080/realms/meridian",
-		proxyEnv: {},
-		rootDirectory,
-		runtime: "docker",
-		sandboxImage: "meridian-chat-sandbox:local",
-		sessionTtlMs: 5 * 60 * 1000,
-	};
-}
-
 describe("createRuntimeAgentTools", () => {
 	afterEach(() => {
 		vi.clearAllMocks();
@@ -56,9 +42,12 @@ describe("createRuntimeAgentTools", () => {
 		await tmp.writeSessionFile("sess-1", "test.txt", "file content");
 
 		const client = createFakeDockerClient();
-		const runtime = createDockerRuntime(createTestConfig(tmp.rootDirectory), {
-			client,
-		});
+		const runtime = createDockerRuntime(
+			createTestConfig({ rootDirectory: tmp.rootDirectory }),
+			{
+				client,
+			},
+		);
 		const tools = createRuntimeAgentTools({ runtime, sessionId: "sess-1" });
 
 		const result = await invokeTool(findTool(tools, "read_file"), {
@@ -70,9 +59,12 @@ describe("createRuntimeAgentTools", () => {
 
 	it("propagates runtime errors", async () => {
 		await using tmp = await createTempSessionDir();
-		const runtime = createDockerRuntime(createTestConfig(tmp.rootDirectory), {
-			client: createFakeDockerClient(),
-		});
+		const runtime = createDockerRuntime(
+			createTestConfig({ rootDirectory: tmp.rootDirectory }),
+			{
+				client: createFakeDockerClient(),
+			},
+		);
 		const tools = createRuntimeAgentTools({ runtime, sessionId: "sess-1" });
 
 		await expect(
@@ -82,9 +74,12 @@ describe("createRuntimeAgentTools", () => {
 
 	it("creates all expected tools", async () => {
 		await using tmp = await createTempSessionDir();
-		const runtime = createDockerRuntime(createTestConfig(tmp.rootDirectory), {
-			client: createFakeDockerClient(),
-		});
+		const runtime = createDockerRuntime(
+			createTestConfig({ rootDirectory: tmp.rootDirectory }),
+			{
+				client: createFakeDockerClient(),
+			},
+		);
 		const tools = createRuntimeAgentTools({ runtime, sessionId: "sess-1" });
 
 		const names = tools.map((t) => t.name);
@@ -111,9 +106,12 @@ describe("createRuntimeAgentTools", () => {
 				},
 			],
 		});
-		const runtime = createDockerRuntime(createTestConfig(tmp.rootDirectory), {
-			client,
-		});
+		const runtime = createDockerRuntime(
+			createTestConfig({ rootDirectory: tmp.rootDirectory }),
+			{
+				client,
+			},
+		);
 		const tools = createRuntimeAgentTools({ runtime, sessionId: "sess-1" });
 
 		const result = await invokeTool(findTool(tools, "run_command"), {

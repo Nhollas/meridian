@@ -2,7 +2,6 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { CreateAgentRunner } from "@/lib/agent";
 import { createAgentService } from "@/lib/agent";
-import type { SandboxConfig } from "@/lib/sandbox/config";
 import { createDockerRuntime } from "@/lib/sandbox/docker-runtime";
 import { createTurnEngine } from "@/lib/turn-engine";
 import { createChatRoute } from "@/routes/chat";
@@ -12,6 +11,7 @@ import {
 	type FakeDockerClient,
 } from "../../tests/support/fake-docker-client";
 import { createTempSessionDir } from "../../tests/support/temp-session-dir";
+import { createTestConfig } from "../../tests/support/test-config";
 
 type ClientOptions = NonNullable<Parameters<typeof createFakeDockerClient>[0]>;
 type ExecFixture = NonNullable<ClientOptions["execFixtures"]>[number];
@@ -39,20 +39,13 @@ export async function createTestChat({
 	const instructionsFile = join(tmp.rootDirectory, "instructions.txt");
 	await writeFile(instructionsFile, instructions);
 
-	const config: SandboxConfig = {
-		dockerBinary: "docker",
-		extraCaCertsFile: undefined,
-		instructionsFile,
-		meridianAuthClientId: "meridian-cli",
-		meridianAuthIssuer: "http://host.docker.internal:8080/realms/meridian",
-		proxyEnv: {},
-		rootDirectory: tmp.rootDirectory,
-		runtime: "docker",
-		sandboxImage: "meridian-chat-sandbox:local",
-		sessionTtlMs: 5 * 60 * 1000,
-	};
-
-	const runtime = createDockerRuntime(config, { client });
+	const runtime = createDockerRuntime(
+		createTestConfig({
+			instructionsFile,
+			rootDirectory: tmp.rootDirectory,
+		}),
+		{ client },
+	);
 
 	let turnCount = 0;
 	const nextTurnId = () => `turn-${++turnCount}`;

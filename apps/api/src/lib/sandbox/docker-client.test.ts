@@ -11,26 +11,8 @@ vi.mock("node:child_process", () => ({
 	spawn: childProcessMocks.spawn,
 }));
 
-import type { SandboxConfig } from "@/lib/sandbox/config";
 import { createDockerClient } from "@/lib/sandbox/docker-client";
-
-function createTestConfig(
-	overrides: Partial<SandboxConfig> = {},
-): SandboxConfig {
-	return {
-		dockerBinary: "docker",
-		extraCaCertsFile: undefined,
-		instructionsFile: "/tmp/test-instructions.txt",
-		meridianAuthClientId: "meridian-cli",
-		meridianAuthIssuer: "http://host.docker.internal:8080/realms/meridian",
-		proxyEnv: {},
-		rootDirectory: "/tmp/meridian-chat-sandbox-sessions",
-		runtime: "docker",
-		sandboxImage: "meridian-chat-sandbox:local",
-		sessionTtlMs: 5 * 60 * 1000,
-		...overrides,
-	};
-}
+import { createTestConfig } from "../../../tests/support/test-config";
 
 function mockExecFileSequence(
 	results: Array<{ exitCode: number; stderr?: string; stdout?: string }>,
