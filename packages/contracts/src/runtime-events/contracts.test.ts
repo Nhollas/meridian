@@ -81,6 +81,22 @@ describe("runtime event contracts", () => {
 				error: "agent exploded",
 			},
 		},
+		{
+			type: "background_task.started",
+			payload: {
+				label: "Logging into MoneySupermarket",
+				startedAt: "2026-03-10T12:00:00.000Z",
+				taskId: "bg-task-1",
+			},
+		},
+		{
+			type: "background_task.completed",
+			payload: {
+				endedAt: "2026-03-10T12:00:05.000Z",
+				status: "completed",
+				taskId: "bg-task-1",
+			},
+		},
 	] satisfies RuntimeEventFixture[])("serializes and parses %s events", (event) => {
 		const serialized = serializeRuntimeEventEnvelope({
 			...baseEvent,

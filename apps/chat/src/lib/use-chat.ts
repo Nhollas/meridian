@@ -8,7 +8,11 @@ import {
 	mapRuntimeTurnToolCallsToViewModels,
 } from "./runtime-event-mappers";
 import { readSSEStream } from "./stream-reader";
-import type { ChatMessageStatus, ChatMessageViewModel } from "./view-models";
+import type {
+	BackgroundTaskViewModel,
+	ChatMessageStatus,
+	ChatMessageViewModel,
+} from "./view-models";
 
 const API_URL =
 	typeof process !== "undefined"
@@ -18,6 +22,7 @@ const API_URL =
 const SESSION_STORAGE_KEY = "meridian.chat.session-id";
 const TURN_TIMEOUT_MS = 300_000;
 const SSE_RECONNECT_DELAY_MS = 1000;
+const BACKGROUND_TASK_DISMISS_MS = 4000;
 
 type TurnHandler = {
 	assistantMessageId: string;
@@ -69,10 +74,14 @@ function dispatchEvent(
 
 export function useChat() {
 	const [messages, setMessages] = useState<ChatMessageViewModel[]>([]);
+	const [backgroundTasks, setBackgroundTasks] = useState<
+		BackgroundTaskViewModel[]
+	>([]);
 	const [sessionId, setSessionId] = useState<string | null>(null);
 	const turnHandlersRef = useRef(new Map<string, TurnHandler>());
 	const eventBufferRef = useRef(new Map<string, RuntimeEventEnvelope[]>());
 	const pendingUserTurnRef = useRef(false);
+	const dismissTimeouts = useRef(new Set<ReturnType<typeof setTimeout>>());
 	const sseReadyRef = useRef(createDeferred());
 
 	function registerTurnHandler(turnId: string, handler: TurnHandler) {
@@ -94,6 +103,45 @@ export function useChat() {
 		const abortController = new AbortController();
 
 		function handleSSEEvent(event: RuntimeEventEnvelope) {
+			if (event.type === "background_task.started") {
+				startTransition(() => {
+					setBackgroundTasks((prev) => {
+						if (prev.some((t) => t.id === event.payload.taskId)) return prev;
+						return [
+							...prev,
+							{
+								id: event.payload.taskId,
+								label: event.payload.label,
+								startedAt: event.payload.startedAt,
+								status: "running",
+							},
+						];
+					});
+				});
+				return;
+			}
+
+			if (event.type === "background_task.completed") {
+				const { taskId, status, endedAt } = event.payload;
+				startTransition(() => {
+					setBackgroundTasks((prev) =>
+						prev.map((task) =>
+							task.id === taskId ? { ...task, status, endedAt } : task,
+						),
+					);
+				});
+				const timeoutId = setTimeout(() => {
+					dismissTimeouts.current.delete(timeoutId);
+					startTransition(() => {
+						setBackgroundTasks((prev) =>
+							prev.filter((task) => task.id !== taskId),
+						);
+					});
+				}, BACKGROUND_TASK_DISMISS_MS);
+				dismissTimeouts.current.add(timeoutId);
+				return;
+			}
+
 			const handler = turnHandlersRef.current.get(event.turnId);
 			if (handler) {
 				dispatchEvent(turnHandlersRef.current, handler, event);
@@ -179,6 +227,10 @@ export function useChat() {
 
 		return () => {
 			abortController.abort();
+			for (const id of dismissTimeouts.current) {
+				clearTimeout(id);
+			}
+			dismissTimeouts.current.clear();
 		};
 	}, []);
 
@@ -303,6 +355,7 @@ export function useChat() {
 	});
 
 	return {
+		backgroundTasks,
 		messages,
 		sessionId,
 		isPending,

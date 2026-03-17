@@ -56,6 +56,7 @@ export async function createTestChat({
 			createAgentService({
 				createRunner,
 				onBackgroundCommandComplete: deps.onBackgroundCommandComplete,
+				onBackgroundTaskStarted: deps.onBackgroundTaskStarted,
 				runtime: deps.runtime,
 			}),
 		createTurnId: nextTurnId,

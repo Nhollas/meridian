@@ -8,7 +8,10 @@ import {
 	type CreateAgentService,
 	createAgentService as createDefaultAgentService,
 } from "@/lib/agent";
-import type { BackgroundCommandCompleteCallback } from "@/lib/agent-tools";
+import type {
+	BackgroundCommandCompleteCallback,
+	BackgroundTaskStartedCallback,
+} from "@/lib/agent-tools";
 import {
 	mapAgentProgressEventToRuntimeEvent,
 	mapAgentResultToRuntimeEvent,
@@ -45,27 +48,62 @@ export function createTurnEngine({
 }: TurnEngineDependencies = {}): TurnEngine {
 	const sessionTurnQueue: Map<string, Promise<void>> = new Map();
 
-	const onBackgroundCommandComplete: BackgroundCommandCompleteCallback = ({
-		commandId,
-		command,
-		result,
-		sessionId,
-	}) => {
-		const message = [
-			`[System] Background command ${commandId} (${command.join(" ")}) ${result.status}.`,
-			result.stdout ? `Output:\n${result.stdout}` : "",
-			result.stderr ? `Errors:\n${result.stderr}` : "",
-			"Briefly acknowledge what changed and continue with the next step. Do not repeat information from previous turns.",
-		]
-			.filter(Boolean)
-			.join("\n");
+	function createAgentServiceForTurn(turnId: string): AgentService {
+		const onBackgroundTaskStarted: BackgroundTaskStartedCallback = ({
+			label,
+			sessionId,
+			taskId,
+		}) => {
+			const eventFactory = createRuntimeEventFactory({
+				sessionId,
+				turnId,
+			});
+			registry.writeEvent(
+				sessionId,
+				eventFactory.create("background_task.started", {
+					label,
+					startedAt: new Date().toISOString(),
+					taskId,
+				}),
+			);
+		};
 
-		engine.submit({ sessionId, message });
-	};
+		const onBackgroundCommandComplete: BackgroundCommandCompleteCallback = ({
+			commandId,
+			command,
+			result,
+			sessionId,
+		}) => {
+			if (result.status === "running" || !result.endedAt) return;
 
-	function createAgentServiceForTurn(): AgentService {
+			const eventFactory = createRuntimeEventFactory({
+				sessionId,
+				turnId,
+			});
+			registry.writeEvent(
+				sessionId,
+				eventFactory.create("background_task.completed", {
+					endedAt: result.endedAt,
+					status: result.status,
+					taskId: commandId,
+				}),
+			);
+
+			const message = [
+				`[System] Background command ${commandId} (${command.join(" ")}) ${result.status}.`,
+				result.stdout ? `Output:\n${result.stdout}` : "",
+				result.stderr ? `Errors:\n${result.stderr}` : "",
+				"Briefly acknowledge what changed and continue with the next step. Do not repeat information from previous turns.",
+			]
+				.filter(Boolean)
+				.join("\n");
+
+			engine.submit({ sessionId, message });
+		};
+
 		return createAgentService({
 			onBackgroundCommandComplete,
+			onBackgroundTaskStarted,
 			runtime: getRuntime(),
 		});
 	}
@@ -80,7 +118,7 @@ export function createTurnEngine({
 		turnId?: string;
 	}): string {
 		const resolvedTurnId = turnId ?? createTurnId();
-		const agentService = createAgentServiceForTurn();
+		const agentService = createAgentServiceForTurn(resolvedTurnId);
 
 		const previous = sessionTurnQueue.get(sessionId) ?? Promise.resolve();
 

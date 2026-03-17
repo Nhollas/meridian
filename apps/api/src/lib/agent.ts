@@ -4,6 +4,7 @@ import { ChatOpenAI } from "@langchain/openai";
 import { createAgent } from "langchain";
 import {
 	type BackgroundCommandCompleteCallback,
+	type BackgroundTaskStartedCallback,
 	createRuntimeAgentTools,
 	extractTextContent,
 	stringifyMessageContent,
@@ -176,6 +177,7 @@ export interface AgentService {
 export type AgentServiceDependencies = {
 	createRunner?: CreateAgentRunner;
 	onBackgroundCommandComplete?: BackgroundCommandCompleteCallback | undefined;
+	onBackgroundTaskStarted?: BackgroundTaskStartedCallback | undefined;
 	runtime: SandboxRuntime;
 };
 
@@ -186,6 +188,7 @@ export type CreateAgentService = (
 export const createAgentService: CreateAgentService = ({
 	createRunner = createLangChainAgentRunner,
 	onBackgroundCommandComplete,
+	onBackgroundTaskStarted,
 	runtime,
 }) => {
 	return {
@@ -200,6 +203,7 @@ export const createAgentService: CreateAgentService = ({
 		}): Promise<AgentTurnResult> {
 			const tools = createRuntimeAgentTools({
 				onBackgroundCommandComplete,
+				onBackgroundTaskStarted,
 				runtime,
 				sessionId,
 			});

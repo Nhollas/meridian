@@ -38,6 +38,7 @@ describe("POST /api/chat integration - notify on complete", () => {
 				input: {
 					command: ["meridian", "auth", "login"],
 					keepAlive: true,
+					label: "Logging into Sky",
 					notifyOnComplete: true,
 					waitFor: "first-stdout-line",
 				},
@@ -46,6 +47,7 @@ describe("POST /api/chat integration - notify on complete", () => {
 			const result = await invokeTool(tools, "run_command", {
 				command: ["meridian", "auth", "login"],
 				keepAlive: true,
+				label: "Logging into Sky",
 				notifyOnComplete: true,
 				waitFor: "first-stdout-line",
 			});
@@ -85,7 +87,21 @@ describe("POST /api/chat integration - notify on complete", () => {
 				sessionId: "session-notify",
 			}),
 		);
-		await userTurnEventsPromise;
+		const userTurnEvents = await userTurnEventsPromise;
+
+		expect(userTurnEvents).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					type: "background_task.started",
+					sessionId: "session-notify",
+					turnId: "turn-1",
+					payload: expect.objectContaining({
+						label: "Logging into Sky",
+						taskId: expect.any(String),
+					}),
+				}),
+			]),
+		);
 
 		// The background command completion triggers a system turn via the engine
 		const systemTurnEventsPromise = collectTurnEvents("session-notify");
@@ -100,6 +116,15 @@ describe("POST /api/chat integration - notify on complete", () => {
 		const systemTurnEvents = await systemTurnEventsPromise;
 
 		expect(systemTurnEvents).toEqual([
+			expect.objectContaining({
+				type: "background_task.completed",
+				sessionId: "session-notify",
+				turnId: "turn-1",
+				payload: expect.objectContaining({
+					status: "completed",
+					taskId: expect.any(String),
+				}),
+			}),
 			expect.objectContaining({
 				type: "assistant.delta",
 				sessionId: "session-notify",
@@ -141,6 +166,7 @@ describe("POST /api/chat integration - notify on complete", () => {
 			const result = await invokeTool(tools, "run_command", {
 				command: ["meridian", "auth", "login"],
 				keepAlive: true,
+				label: "Logging in without notification",
 				waitFor: "first-stdout-line",
 			});
 			yield toolCompleted({

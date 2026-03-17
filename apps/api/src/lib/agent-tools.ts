@@ -12,8 +12,15 @@ export type BackgroundCommandCompleteCallback = (params: {
 	sessionId: string;
 }) => void;
 
+export type BackgroundTaskStartedCallback = (params: {
+	label: string;
+	sessionId: string;
+	taskId: string;
+}) => void;
+
 type ToolContext = {
 	onBackgroundCommandComplete?: BackgroundCommandCompleteCallback | undefined;
+	onBackgroundTaskStarted?: BackgroundTaskStartedCallback | undefined;
 	runtime: SandboxRuntime;
 	sessionId: string;
 };
@@ -22,6 +29,7 @@ const emptySchema = z.object({});
 
 export function createRuntimeAgentTools({
 	onBackgroundCommandComplete,
+	onBackgroundTaskStarted,
 	runtime,
 	sessionId,
 }: ToolContext) {
@@ -33,15 +41,11 @@ export function createRuntimeAgentTools({
 			schema: emptySchema,
 		}),
 		tool(
-			async (input: {
-				command: string[];
-				timeoutMs?: number;
-				waitFor?: "exit" | "first-stdout-line";
-				keepAlive?: boolean;
-				notifyOnComplete?: boolean;
-				stdin?: string;
-			}) => {
-				const { command, notifyOnComplete, ...options } = input;
+			async (input) => {
+				const { command, label, notifyOnComplete, ...rest } = input;
+				const options = Object.fromEntries(
+					Object.entries(rest).filter(([, v]) => v !== undefined),
+				);
 				const result = await runtime.runCommand(sessionId, command, options);
 
 				if (
@@ -49,6 +53,12 @@ export function createRuntimeAgentTools({
 					result.backgroundCommandId &&
 					onBackgroundCommandComplete
 				) {
+					onBackgroundTaskStarted?.({
+						label: label ?? command.join(" "),
+						sessionId,
+						taskId: result.backgroundCommandId,
+					});
+
 					runtime
 						.waitForBackgroundCommand(sessionId, result.backgroundCommandId)
 						.then((waitResult) =>
@@ -67,41 +77,52 @@ export function createRuntimeAgentTools({
 			{
 				name: "run_command",
 				description:
-					"Run a command inside the sandbox runtime. Use this to explore installed capabilities and perform tasks. When called with waitFor=first-stdout-line and keepAlive=true, the result may include a backgroundCommandId that can be inspected later. Set notifyOnComplete=true to be automatically notified when the background command finishes.",
-				schema: z.object({
-					command: z
-						.array(z.string())
-						.min(1)
-						.describe(
-							"Executable followed by its arguments, for example ['meridian', '--help']",
-						),
-					timeoutMs: z
-						.number()
-						.int()
-						.positive()
-						.max(300000)
-						.optional()
-						.describe("Optional timeout in milliseconds"),
-					waitFor: z
-						.enum(["exit", "first-stdout-line"])
-						.optional()
-						.describe(
-							"Whether to wait for full completion or only the first stdout line",
-						),
-					keepAlive: z
-						.boolean()
-						.optional()
-						.describe(
-							"If true with waitFor=first-stdout-line, leave the process running in the background",
-						),
-					notifyOnComplete: z
-						.boolean()
-						.optional()
-						.describe(
-							"If true, you will be automatically notified when this background command completes without needing to poll",
-						),
-					stdin: z.string().optional().describe("Optional stdin input"),
-				}),
+					"Run a command inside the sandbox runtime. Use this to explore installed capabilities and perform tasks. When called with waitFor=first-stdout-line and keepAlive=true, the result may include a backgroundCommandId that can be inspected later. Set notifyOnComplete=true to be automatically notified when the background command finishes. Always provide a label when using notifyOnComplete.",
+				schema: z
+					.object({
+						command: z
+							.array(z.string())
+							.min(1)
+							.describe(
+								"Executable followed by its arguments, for example ['meridian', '--help']",
+							),
+						timeoutMs: z
+							.number()
+							.int()
+							.positive()
+							.max(300000)
+							.optional()
+							.describe("Optional timeout in milliseconds"),
+						waitFor: z
+							.enum(["exit", "first-stdout-line"])
+							.optional()
+							.describe(
+								"Whether to wait for full completion or only the first stdout line",
+							),
+						keepAlive: z
+							.boolean()
+							.optional()
+							.describe(
+								"If true with waitFor=first-stdout-line, leave the process running in the background",
+							),
+						label: z
+							.string()
+							.optional()
+							.describe(
+								"Human-readable label for the background task shown to the user. Required when using notifyOnComplete.",
+							),
+						notifyOnComplete: z
+							.boolean()
+							.optional()
+							.describe(
+								"If true, you will be automatically notified when this background command completes without needing to poll",
+							),
+						stdin: z.string().optional().describe("Optional stdin input"),
+					})
+					.refine((data) => !data.notifyOnComplete || data.label, {
+						message: "label is required when notifyOnComplete is true",
+						path: ["label"],
+					}),
 			},
 		),
 		tool(
@@ -115,7 +136,7 @@ export function createRuntimeAgentTools({
 			},
 		),
 		tool(
-			async (input: { commandId: string }) =>
+			async (input) =>
 				JSON.stringify(
 					await runtime.getBackgroundCommand(sessionId, input.commandId),
 				),
@@ -129,7 +150,7 @@ export function createRuntimeAgentTools({
 			},
 		),
 		tool(
-			async (input: { commandId: string; timeoutMs?: number }) =>
+			async (input) =>
 				JSON.stringify(
 					await runtime.waitForBackgroundCommand(
 						sessionId,
@@ -154,7 +175,7 @@ export function createRuntimeAgentTools({
 			},
 		),
 		tool(
-			async (input: { commandId: string }) =>
+			async (input) =>
 				JSON.stringify(
 					await runtime.terminateBackgroundCommand(sessionId, input.commandId),
 				),
@@ -168,7 +189,7 @@ export function createRuntimeAgentTools({
 			},
 		),
 		tool(
-			async (input: { path?: string }) =>
+			async (input) =>
 				JSON.stringify(await runtime.listSessionFiles(sessionId, input.path)),
 			{
 				name: "list_directory",
@@ -181,19 +202,15 @@ export function createRuntimeAgentTools({
 				}),
 			},
 		),
+		tool(async (input) => runtime.readSessionFile(sessionId, input.path), {
+			name: "read_file",
+			description: "Read a file from the session workspace.",
+			schema: z.object({
+				path: z.string().describe("Relative path to the file"),
+			}),
+		}),
 		tool(
-			async (input: { path: string }) =>
-				runtime.readSessionFile(sessionId, input.path),
-			{
-				name: "read_file",
-				description: "Read a file from the session workspace.",
-				schema: z.object({
-					path: z.string().describe("Relative path to the file"),
-				}),
-			},
-		),
-		tool(
-			async (input: { path: string; contents: string }) =>
+			async (input) =>
 				JSON.stringify({
 					path: await runtime.writeSessionFile(
 						sessionId,

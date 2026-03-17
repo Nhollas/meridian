@@ -3,13 +3,15 @@
 import { useCallback, useState } from "react";
 import { useAutoScroll } from "@/lib/use-auto-scroll";
 import { useChat } from "@/lib/use-chat";
+import { BackgroundTaskPanel } from "./background-task-panel";
 import { ChatInput } from "./chat-input";
 import { ChatMessage } from "./chat-message";
 import { DebugToolbar } from "./debug-toolbar";
 import { ThemeToggle } from "./theme-toggle";
 
 export function Chat() {
-	const { messages, sendMessage, isPending, sessionId } = useChat();
+	const { backgroundTasks, messages, sendMessage, isPending, sessionId } =
+		useChat();
 	const { scrollRef, handleScroll, enableAutoScroll } = useAutoScroll(messages);
 	const [showDebug, setShowDebug] = useState(false);
 
@@ -95,6 +97,7 @@ export function Chat() {
 			</div>
 
 			<ChatInput onSend={handleSend} disabled={isPending} />
+			<BackgroundTaskPanel tasks={backgroundTasks} />
 		</div>
 	);
 }

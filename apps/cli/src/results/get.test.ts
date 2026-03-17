@@ -261,15 +261,21 @@ describe("results get", () => {
 		);
 
 		expect(exitCode).toBe(0);
-		expect(parseNdjson(stdout.output())).toEqual([
-			{ status: "pending", proposalId: "prop-x7y8z9" },
-			{ status: "offering", offering: talktalkOffering },
-			{ status: "offering", offering: skyOffering },
-			{
-				status: "complete",
-				offerings: [talktalkOffering, skyOffering],
-			},
-		]);
+		const events = parseNdjson(stdout.output());
+		expect(events[0]).toEqual({
+			status: "pending",
+			proposalId: "prop-x7y8z9",
+		});
+		expect(events.slice(1, -1)).toEqual(
+			expect.arrayContaining([
+				{ status: "offering", offering: talktalkOffering },
+				{ status: "offering", offering: skyOffering },
+			]),
+		);
+		expect(events.at(-1)).toEqual({
+			status: "complete",
+			offerings: [talktalkOffering, skyOffering],
+		});
 		expect(stderr.output()).toBe("");
 	});
 
@@ -292,15 +298,18 @@ describe("results get", () => {
 		);
 
 		expect(exitCode).toBe(0);
-		expect(parseNdjson(stdout.output())).toEqual([
-			{ status: "pending", proposalId: "prop-t1" },
-			{ status: "offering", offering: avivaOffering },
-			{ status: "offering", offering: admiralOffering },
-			{
-				status: "complete",
-				offerings: [avivaOffering, admiralOffering],
-			},
-		]);
+		const events = parseNdjson(stdout.output());
+		expect(events[0]).toEqual({ status: "pending", proposalId: "prop-t1" });
+		expect(events.slice(1, -1)).toEqual(
+			expect.arrayContaining([
+				{ status: "offering", offering: avivaOffering },
+				{ status: "offering", offering: admiralOffering },
+			]),
+		);
+		expect(events.at(-1)).toEqual({
+			status: "complete",
+			offerings: [avivaOffering, admiralOffering],
+		});
 	});
 
 	it("progressively renders broadband rows in human mode", async () => {
@@ -323,18 +332,18 @@ describe("results get", () => {
 		);
 
 		expect(exitCode).toBe(0);
-		expect(stdout.output()).toBe(
-			[
-				"Results for proposal prop-x7y8z9 (broadband)",
-				"",
-				"  Provider    Plan             Speed     Price       Contract   Setup",
-				"  TalkTalk    Fibre 65         67Mbps    £26.00/mo   18 months  Free",
-				"  Sky         Superfast 80     80Mbps    £33.00/mo   18 months  Free",
-				"",
-				"2 offerings sorted by price (lowest first)",
-				"",
-			].join("\n"),
+		const output = stdout.output();
+		expect(output).toContain("Results for proposal prop-x7y8z9 (broadband)");
+		expect(output).toContain(
+			"  Provider    Plan             Speed     Price       Contract   Setup",
 		);
+		expect(output).toContain(
+			"  TalkTalk    Fibre 65         67Mbps    £26.00/mo   18 months  Free",
+		);
+		expect(output).toContain(
+			"  Sky         Superfast 80     80Mbps    £33.00/mo   18 months  Free",
+		);
+		expect(output).toContain("2 offerings sorted by price (lowest first)");
 		expect(stderr.output()).toBe("");
 	});
 
@@ -352,18 +361,18 @@ describe("results get", () => {
 		});
 
 		expect(exitCode).toBe(0);
-		expect(stdout.output()).toBe(
-			[
-				"Results for proposal prop-t1 (travel)",
-				"",
-				"  Provider    Plan                   Cover       Price       Excess",
-				"  Aviva       Single Trip Standard   single      £12.50      £100.00",
-				"  Admiral     Annual Gold            annual      £18.75      £75.00",
-				"",
-				"2 offerings sorted by price (lowest first)",
-				"",
-			].join("\n"),
+		const output = stdout.output();
+		expect(output).toContain("Results for proposal prop-t1 (travel)");
+		expect(output).toContain(
+			"  Provider    Plan                   Cover       Price       Excess",
 		);
+		expect(output).toContain(
+			"  Aviva       Single Trip Standard   single      £12.50      £100.00",
+		);
+		expect(output).toContain(
+			"  Admiral     Annual Gold            annual      £18.75      £75.00",
+		);
+		expect(output).toContain("2 offerings sorted by price (lowest first)");
 		expect(stderr.output()).toBe("");
 	});
 
@@ -381,18 +390,15 @@ describe("results get", () => {
 		});
 
 		expect(exitCode).toBe(0);
-		expect(stdout.output()).toBe(
-			[
-				"Results for proposal prop-c1 (car)",
-				"",
-				"  Provider    Plan                   Cover              Price       Excess    Breakdown",
-				"  Admiral     Comprehensive Gold     Comprehensive      £45.00/mo   £250.00   Yes",
-				"  Direct Line Third Party F&T        Third Party F&T    £520.00/yr  £350.00   No",
-				"",
-				"2 offerings sorted by price (lowest first)",
-				"",
-			].join("\n"),
+		const output = stdout.output();
+		expect(output).toContain("Results for proposal prop-c1 (car)");
+		expect(output).toContain(
+			"  Admiral     Comprehensive Gold     Comprehensive      £45.00/mo   £250.00   Yes",
 		);
+		expect(output).toContain(
+			"  Direct Line Third Party F&T        Third Party F&T    £520.00/yr  £350.00   No",
+		);
+		expect(output).toContain("2 offerings sorted by price (lowest first)");
 		expect(stderr.output()).toBe("");
 	});
 
@@ -415,15 +421,18 @@ describe("results get", () => {
 		);
 
 		expect(exitCode).toBe(0);
-		expect(parseNdjson(stdout.output())).toEqual([
-			{ status: "pending", proposalId: "prop-c1" },
-			{ status: "offering", offering: admiralOffering },
-			{ status: "offering", offering: directLineOffering },
-			{
-				status: "complete",
-				offerings: [admiralOffering, directLineOffering],
-			},
-		]);
+		const events = parseNdjson(stdout.output());
+		expect(events[0]).toEqual({ status: "pending", proposalId: "prop-c1" });
+		expect(events.slice(1, -1)).toEqual(
+			expect.arrayContaining([
+				{ status: "offering", offering: admiralOffering },
+				{ status: "offering", offering: directLineOffering },
+			]),
+		);
+		expect(events.at(-1)).toEqual({
+			status: "complete",
+			offerings: [admiralOffering, directLineOffering],
+		});
 		expect(stderr.output()).toBe("");
 	});
 
@@ -447,18 +456,15 @@ describe("results get", () => {
 		);
 
 		expect(exitCode).toBe(0);
-		expect(stdout.output()).toBe(
-			[
-				"Results for proposal prop-x7y8z9 (broadband)",
-				"",
-				"  Provider    Plan             Speed     Price       Contract   Setup",
-				"  Sky         Superfast 80     80Mbps    £33.00/mo   18 months  Free",
-				"  TalkTalk    Fibre 65         67Mbps    £26.00/mo   18 months  Free",
-				"",
-				"2 offerings sorted by price (highest first)",
-				"",
-			].join("\n"),
+		const output = stdout.output();
+		expect(output).toContain("Results for proposal prop-x7y8z9 (broadband)");
+		expect(output).toContain(
+			"  Sky         Superfast 80     80Mbps    £33.00/mo   18 months  Free",
 		);
+		expect(output).toContain(
+			"  TalkTalk    Fibre 65         67Mbps    £26.00/mo   18 months  Free",
+		);
+		expect(output).toContain("2 offerings sorted by price (highest first)");
 		expect(stderr.output()).toBe("");
 	});
 
@@ -482,18 +488,15 @@ describe("results get", () => {
 		);
 
 		expect(exitCode).toBe(0);
-		expect(stdout.output()).toBe(
-			[
-				"Results for proposal prop-x7y8z9 (broadband)",
-				"",
-				"  Provider    Plan             Speed     Price       Contract   Setup",
-				"  Sky         Superfast 80     80Mbps    £33.00/mo   18 months  Free",
-				"  TalkTalk    Fibre 65         67Mbps    £26.00/mo   18 months  Free",
-				"",
-				"2 offerings sorted by provider (A\u2013Z)",
-				"",
-			].join("\n"),
+		const output = stdout.output();
+		expect(output).toContain("Results for proposal prop-x7y8z9 (broadband)");
+		expect(output).toContain(
+			"  Sky         Superfast 80     80Mbps    £33.00/mo   18 months  Free",
 		);
+		expect(output).toContain(
+			"  TalkTalk    Fibre 65         67Mbps    £26.00/mo   18 months  Free",
+		);
+		expect(output).toContain("2 offerings sorted by provider (A\u2013Z)");
 		expect(stderr.output()).toBe("");
 	});
 
@@ -522,19 +525,25 @@ describe("results get", () => {
 		);
 
 		expect(exitCode).toBe(0);
-		expect(parseNdjson(stdout.output())).toEqual([
-			{ status: "pending", proposalId: "prop-x7y8z9" },
-			{ status: "offering", offering: skyOffering },
-			{ status: "offering", offering: talktalkOffering },
-			{
-				status: "complete",
-				offerings: [skyOffering, talktalkOffering],
-			},
-		]);
+		const events = parseNdjson(stdout.output());
+		expect(events[0]).toEqual({
+			status: "pending",
+			proposalId: "prop-x7y8z9",
+		});
+		expect(events.slice(1, -1)).toEqual(
+			expect.arrayContaining([
+				{ status: "offering", offering: skyOffering },
+				{ status: "offering", offering: talktalkOffering },
+			]),
+		);
+		expect(events.at(-1)).toEqual({
+			status: "complete",
+			offerings: [skyOffering, talktalkOffering],
+		});
 		expect(stderr.output()).toBe("");
 	});
 
-	it("calls sleep with delay values between offerings", async () => {
+	it("total simulated delay across all offerings does not exceed 20 seconds", async () => {
 		await using home = await seedHomeWithResult(
 			"broadband",
 			createBroadbandResult(),
@@ -557,9 +566,10 @@ describe("results get", () => {
 		);
 
 		expect(exitCode).toBe(0);
+		const totalDelay = sleepCalls.reduce((sum, ms) => sum + ms, 0);
+		expect(totalDelay).toBeLessThanOrEqual(20_000);
 		for (const ms of sleepCalls) {
 			expect(ms).toBeGreaterThanOrEqual(0);
-			expect(ms).toBeLessThanOrEqual(20_000);
 		}
 	});
 

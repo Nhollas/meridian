@@ -35,8 +35,32 @@ export function chatPageObject(page: BrowserPage) {
 				.getConversation()
 				.getByRole("article", { name: "User message" })
 				.filter({ hasText: text }),
+		getBackgroundTaskPanel: () =>
+			page.getByRole("complementary", { name: "Background tasks" }),
+		getBackgroundTask: (label: string) =>
+			self.getBackgroundTaskPanel().getByRole("listitem", { name: label }),
 		getWelcomeHeading: () =>
 			page.getByRole("heading", { name: "Meridian Agent" }),
+
+		expectBackgroundTaskPanelVisible: async () => {
+			await expect.element(self.getBackgroundTaskPanel()).toBeVisible();
+		},
+
+		expectBackgroundTaskPanelHidden: async () => {
+			await expect
+				.element(self.getBackgroundTaskPanel())
+				.not.toBeInTheDocument();
+		},
+
+		expectBackgroundTask: async (label: string) => {
+			await expect.element(self.getBackgroundTask(label)).toBeVisible();
+		},
+
+		expectNoBackgroundTask: async (label: string) => {
+			await expect
+				.element(self.getBackgroundTask(label))
+				.not.toBeInTheDocument();
+		},
 
 		expectAssistantResponse: async (text: string) => {
 			await expect.element(self.getAssistantMessage(text)).toBeVisible();
