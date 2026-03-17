@@ -118,11 +118,86 @@ function createTravelResult() {
 	} satisfies ResultRecord;
 }
 
+function createCarResult() {
+	return {
+		id: "result-car",
+		product: "car",
+		version: "1.0",
+		proposalId: "prop-c1",
+		sessionId: "session-pr-c1",
+		customerId: "john.doe@example.com",
+		metadata: {},
+		offerings: [
+			{
+				brandName: "Comprehensive Gold",
+				brandCode: "admiral-comprehensive-gold",
+				providerName: "Admiral",
+				pricing: {
+					paymentOptions: [
+						{
+							type: "Installment",
+							totalCost: 540,
+							installmentDetails: {
+								deposit: 0,
+								numberOfPayments: 12,
+								installmentAmount: 45,
+								apr: null,
+							},
+						},
+					],
+				},
+				metadata: {
+					coverType: "comprehensive",
+					excess: 250,
+					breakdownCover: true,
+				},
+			},
+			{
+				brandName: "Third Party F&T",
+				brandCode: "direct-line-tpft",
+				providerName: "Direct Line",
+				pricing: {
+					paymentOptions: [
+						{
+							type: "OneTime",
+							totalCost: 520,
+							installmentDetails: null,
+						},
+					],
+				},
+				metadata: {
+					coverType: "thirdPartyFireTheft",
+					excess: 350,
+					breakdownCover: false,
+				},
+			},
+		],
+	} satisfies ResultRecord;
+}
+
+const productDataMap = {
+	broadband: {
+		proposalRequestId: "pr-a1b2c3d4",
+		data: { postcode: "AA1 1AA" },
+	},
+	travel: { proposalRequestId: "pr-t1", data: { destination: "Spain" } },
+	car: {
+		proposalRequestId: "pr-c1",
+		data: {
+			registrationNumber: "AB12 CDE",
+			postcode: "SW1A 1AA",
+			coverType: "comprehensive",
+			annualMileage: 10000,
+		},
+	},
+};
+
 async function seedHomeWithResult(
-	product: "broadband" | "travel",
+	product: "broadband" | "travel" | "car",
 	result:
 		| ReturnType<typeof createBroadbandResult>
-		| ReturnType<typeof createTravelResult>,
+		| ReturnType<typeof createTravelResult>
+		| ReturnType<typeof createCarResult>,
 ) {
 	const home = await createTempHome();
 	await home.writeMeridianFile("credentials.json", {
@@ -131,17 +206,14 @@ async function seedHomeWithResult(
 		expiresAt: "2026-03-07T16:20:00Z",
 	});
 	const proposalId = result.proposalId;
-	const proposalRequestId = product === "broadband" ? "pr-a1b2c3d4" : "pr-t1";
+	const { proposalRequestId, data } = productDataMap[product];
 	await home.writeMeridianFile("data.json", {
 		proposalRequests: {
 			[proposalRequestId]: {
 				product,
 				version: "1.0",
 				emailAddress: "john.doe@example.com",
-				data:
-					product === "broadband"
-						? { postcode: "AA1 1AA" }
-						: { destination: "Spain" },
+				data,
 				createdAt: "2026-03-06T16:20:00.000Z",
 			},
 		},
@@ -292,6 +364,66 @@ describe("results get", () => {
 				"",
 			].join("\n"),
 		);
+		expect(stderr.output()).toBe("");
+	});
+
+	it("progressively renders car rows in human mode", async () => {
+		await using home = await seedHomeWithResult("car", createCarResult());
+		const stdout = createWritable(true);
+		const stderr = createWritable();
+
+		const exitCode = await runCli(["results", "get", "--proposal=prop-c1"], {
+			homeDirectory: home.homeDirectory,
+			now: () => new Date("2026-03-07T16:00:00Z"),
+			sleep: async () => {},
+			stdout: stdout.stream,
+			stderr: stderr.stream,
+		});
+
+		expect(exitCode).toBe(0);
+		expect(stdout.output()).toBe(
+			[
+				"Results for proposal prop-c1 (car)",
+				"",
+				"  Provider    Plan                   Cover              Price       Excess    Breakdown",
+				"  Admiral     Comprehensive Gold     Comprehensive      £45.00/mo   £250.00   Yes",
+				"  Direct Line Third Party F&T        Third Party F&T    £520.00/yr  £350.00   No",
+				"",
+				"2 offerings sorted by price (lowest first)",
+				"",
+			].join("\n"),
+		);
+		expect(stderr.output()).toBe("");
+	});
+
+	it("streams car offerings as ndjson events in json mode", async () => {
+		const car = createCarResult();
+		const [admiralOffering, directLineOffering] = car.offerings;
+		await using home = await seedHomeWithResult("car", car);
+		const stdout = createWritable(false);
+		const stderr = createWritable();
+
+		const exitCode = await runCli(
+			["results", "get", "--proposal=prop-c1", "--json"],
+			{
+				homeDirectory: home.homeDirectory,
+				now: () => new Date("2026-03-07T16:00:00Z"),
+				sleep: async () => {},
+				stdout: stdout.stream,
+				stderr: stderr.stream,
+			},
+		);
+
+		expect(exitCode).toBe(0);
+		expect(parseNdjson(stdout.output())).toEqual([
+			{ status: "pending", proposalId: "prop-c1" },
+			{ status: "offering", offering: admiralOffering },
+			{ status: "offering", offering: directLineOffering },
+			{
+				status: "complete",
+				offerings: [admiralOffering, directLineOffering],
+			},
+		]);
 		expect(stderr.output()).toBe("");
 	});
 
