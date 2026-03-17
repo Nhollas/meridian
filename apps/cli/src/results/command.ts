@@ -20,7 +20,9 @@ export function registerResultCommands(
 	addJsonOption(
 		results
 			.command("get")
-			.description("Get the result for a proposal")
+			.description(
+				"Get the result for a proposal. Offerings stream in progressively and the command can take up to 20 seconds to complete.",
+			)
 			.requiredOption("--proposal <id>", "Proposal id")
 			.addOption(
 				new Option("--sort <order>", "Sort order for offerings")
