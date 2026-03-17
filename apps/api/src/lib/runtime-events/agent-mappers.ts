@@ -2,10 +2,7 @@ import type {
 	createRuntimeEventFactory,
 	RuntimeEventPayload,
 } from "@meridian/contracts/runtime-events";
-import type {
-	AgentProgressEvent,
-	AgentTurnResult,
-} from "@/lib/agent/contracts";
+import type { AgentProgressEvent, AgentTurnResult } from "@/lib/agent";
 
 type RuntimeEventFactory = ReturnType<typeof createRuntimeEventFactory>;
 

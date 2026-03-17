@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { AgentProgressEvent } from "@/lib/agent/contracts";
-import { createAgentService } from "@/lib/agent/service";
-import { createInMemorySandboxRuntime } from "../../../tests/support/in-memory-runtime";
+import type { AgentProgressEvent } from "@/lib/agent";
+import { createAgentService } from "@/lib/agent";
+import { createInMemorySandboxRuntime } from "../../tests/support/in-memory-runtime";
 import {
 	assistantText,
 	createScriptedAgentRunner,
-} from "../../../tests/support/scripted-agent-runner";
+} from "../../tests/support/scripted-agent-runner";
 
 describe("agent service", () => {
 	it("passes the session id to the runner so stateful conversations can continue", async () => {
