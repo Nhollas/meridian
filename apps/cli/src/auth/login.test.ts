@@ -334,6 +334,60 @@ describe("auth login", () => {
 		});
 	});
 
+	it("returns a structured error when the user denies the device authorisation", async () => {
+		await using home = await createTempHome();
+		const stdout = createWritable(false);
+		const stderr = createWritable();
+		mswServer.use(
+			http.post(
+				"http://localhost:8180/realms/meridian/protocol/openid-connect/auth/device",
+				withFormBody(
+					{
+						client_id: "meridian-cli",
+						scope: "openid email profile",
+					},
+					() =>
+						HttpResponse.json({
+							device_code: "device-code",
+							user_code: "ABCD-1234",
+							verification_uri_complete:
+								"http://localhost:8180/device?user_code=ABCD-1234",
+							interval: 5,
+						}),
+				),
+			),
+			http.post(
+				"http://localhost:8180/realms/meridian/protocol/openid-connect/token",
+				withFormBody(
+					{
+						grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+						client_id: "meridian-cli",
+						device_code: "device-code",
+					},
+					() => HttpResponse.json({ error: "access_denied" }, { status: 400 }),
+				),
+			),
+		);
+
+		const exitCode = await runCli(["auth", "login", "--json"], {
+			env: {
+				MERIDIAN_AUTH_ISSUER: "http://localhost:8180/realms/meridian",
+				MERIDIAN_AUTH_CLIENT_ID: "meridian-cli",
+			},
+			homeDirectory: home.homeDirectory,
+			now: () => new Date("2026-03-06T12:00:00Z"),
+			sleep: async () => {},
+			stdout: stdout.stream,
+			stderr: stderr.stream,
+		});
+
+		expect(exitCode).toBe(1);
+		expect(stdout.output()).toContain('"status":"pending"');
+		expect(JSON.parse(stderr.output())).toEqual({
+			error: "access_denied",
+		});
+	});
+
 	it("returns a structured error when token polling has a transport failure", async () => {
 		await using home = await createTempHome();
 		const stdout = createWritable(false);
