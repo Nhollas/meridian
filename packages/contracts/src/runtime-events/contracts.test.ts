@@ -18,7 +18,7 @@ const baseEvent = {
 	sessionId: "session-123",
 	turnId: "turn-123",
 	timestamp: "2026-03-10T12:00:00.000Z",
-} as const;
+};
 
 describe("runtime event contracts", () => {
 	it.each([

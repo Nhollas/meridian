@@ -28,7 +28,11 @@ Run for a single package: `pnpm --filter <package-name> run <script>`
 
 - Read existing code in the area you're changing. Follow the patterns already there.
 - Read existing tests before writing new ones. The test helpers ARE the conventions.
-- Run `pnpm lint` and `pnpm typecheck` before considering work complete — they catch style and correctness issues that don't need to be documented.
+
+## Before considering work complete
+
+- Run `pnpm lint` and `pnpm typecheck` — they catch style and correctness issues that don't need to be documented.
+- Leave the codebase better than you found it. Fix pre-existing issues you encounter — for example lint warnings, type errors, or code smells — don't skip them just because they weren't yours.
 
 ## Git workflow
 
