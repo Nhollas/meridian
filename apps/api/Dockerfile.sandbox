@@ -20,7 +20,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 COPY --from=meridian-cli-builder /tmp/meridian-cli-pack/*.tgz /tmp/meridian-cli.tgz
-RUN npm install -g /tmp/meridian-cli.tgz \
+RUN npm install -g /tmp/meridian-cli.tgz @anthropic-ai/claude-code \
   && rm /tmp/meridian-cli.tgz
 
 RUN useradd -m -d /sandbox-home -s /bin/sh agent

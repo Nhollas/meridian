@@ -3,7 +3,7 @@ import { resolve, sep } from "node:path";
 import type { SandboxCommandOptions, SandboxCommandResult } from "./runtime";
 
 export const DEFAULT_TIMEOUT_MS = 30_000;
-export const MAX_OUTPUT_BYTES = 1024 * 1024;
+export const MAX_OUTPUT_BYTES = 5 * 1024 * 1024;
 export const SESSION_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 export const PROXY_ENV_VARS = [
 	"HTTP_PROXY",

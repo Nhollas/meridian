@@ -64,7 +64,7 @@ export function createRuntimeAgentTools({
 						.number()
 						.int()
 						.positive()
-						.max(300000)
+						.max(600000)
 						.optional()
 						.describe("Optional timeout in milliseconds"),
 					stdin: z.string().optional().describe("Optional stdin input"),
@@ -125,7 +125,7 @@ export function createRuntimeAgentTools({
 						.number()
 						.int()
 						.positive()
-						.max(300000)
+						.max(600000)
 						.optional()
 						.describe("Optional timeout in milliseconds"),
 					stdin: z.string().optional().describe("Optional stdin input"),
