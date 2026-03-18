@@ -66,9 +66,8 @@ chat -> user: renders response
 OAuth device flow: {
   style.fill: "#f9f4ee"
 
-  sandbox -> agent: login required + device URL {
-    style.stroke-dash: 3
-  }
+  agent -> sandbox: "start_background_command: meridian auth login"
+  sandbox -> agent: device URL + background command ID
   agent -> api: response includes login URL
   api -> chat: SSE event pushed {
     style.animated: true
@@ -83,13 +82,15 @@ OAuth device flow: {
   }
 }
 
-# Next turn — agent checks auth status
-user -> chat: sends next message
-chat -> api: "POST /chat → 202 { turnId }"
-api -> agent: invoke agent
-agent -> sandbox: check auth status {
-  style.stroke-dash: 3
-}
-sandbox -> agent: authenticated {
-  style.stroke-dash: 3
+# Background command completes — server-side turn (no user message needed)
+Server-side turn: {
+  style.fill: "#eef4f9"
+
+  sandbox -> api: background command completed
+  api -> agent: "[System] background command completed"
+  agent -> api: acknowledges login
+  api -> chat: SSE event pushed {
+    style.animated: true
+  }
+  chat -> user: renders acknowledgement
 }

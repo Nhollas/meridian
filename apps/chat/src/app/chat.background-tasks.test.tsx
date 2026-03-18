@@ -17,15 +17,15 @@ describe("Chat UI - background tasks", () => {
 		sseStream.emit(
 			events.create("background_task.started", {
 				taskId: "task-1",
-				label: "Logging into MoneySupermarket",
+				label: "Logging into QuoteWizard",
 				startedAt: "2026-03-10T12:00:00.000Z",
 			}),
 		);
 
-		await chatPage.expectBackgroundTask("Logging into MoneySupermarket");
+		await chatPage.expectBackgroundTask("Logging into QuoteWizard");
 
 		// Verify running status dot is shown
-		const task = chatPage.getBackgroundTask("Logging into MoneySupermarket");
+		const task = chatPage.getBackgroundTask("Logging into QuoteWizard");
 		await expect
 			.element(task.getByRole("img", { name: "Running" }))
 			.toBeVisible();
@@ -85,21 +85,21 @@ describe("Chat UI - background tasks", () => {
 		sseStream.emit(
 			events.create("background_task.started", {
 				taskId: "task-2",
-				label: "Logging into MoneySupermarket",
+				label: "Logging into QuoteWizard",
 				startedAt: "2026-03-10T12:00:01.000Z",
 			}),
 		);
 		sseStream.emit(
 			events.create("background_task.started", {
 				taskId: "task-3",
-				label: "Logging into CompareTheMarket",
+				label: "Logging into DealFinder",
 				startedAt: "2026-03-10T12:00:02.000Z",
 			}),
 		);
 
 		await chatPage.expectBackgroundTask("Logging into Sky");
-		await chatPage.expectBackgroundTask("Logging into MoneySupermarket");
-		await chatPage.expectBackgroundTask("Logging into CompareTheMarket");
+		await chatPage.expectBackgroundTask("Logging into QuoteWizard");
+		await chatPage.expectBackgroundTask("Logging into DealFinder");
 	});
 
 	test("shows failed task with error status", async ({
