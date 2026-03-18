@@ -295,11 +295,11 @@ describe("createDockerRuntime", () => {
 
 	it("tracks background commands through their lifecycle", async () => {
 		await using tmp = await createTempSessionDir();
-		let resolveCompletion: (result: {
+		let resolveCompletion = (_result: {
 			exitCode: number;
 			stderr: string;
 			stdout: string;
-		}) => void;
+		}) => {};
 		const completion = new Promise<{
 			exitCode: number;
 			stderr: string;
@@ -357,7 +357,7 @@ describe("createDockerRuntime", () => {
 			],
 		);
 
-		resolveCompletion!({ exitCode: 0, stderr: "", stdout: "done" });
+		resolveCompletion({ exitCode: 0, stderr: "", stdout: "done" });
 
 		await expect(
 			runtime.waitForBackgroundCommand("session-bg", backgroundCommandId),

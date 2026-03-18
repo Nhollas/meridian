@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import type { ChatMessageViewModel as ChatMessageType } from "@/lib/view-models";
 import { Markdown } from "./markdown";
 import { ProgressThread } from "./progress-thread";
@@ -76,9 +77,11 @@ function AssistantMessage({ message }: { message: ChatMessageType }) {
 	);
 }
 
-export function ChatMessage({ message }: ChatMessageProps) {
+export const ChatMessage = memo(function ChatMessage({
+	message,
+}: ChatMessageProps) {
 	if (message.role === "user") {
 		return <UserMessage message={message} />;
 	}
 	return <AssistantMessage message={message} />;
-}
+});

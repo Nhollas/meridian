@@ -9,6 +9,18 @@ import { ChatMessage } from "./chat-message";
 import { DebugToolbar } from "./debug-toolbar";
 import { ThemeToggle } from "./theme-toggle";
 
+const EmptyState = (
+	<div className="mt-8 flex flex-col items-center justify-center rounded-xl border border-border border-dashed py-16 text-center">
+		<h1 className="font-display font-semibold text-lg tracking-tight">
+			Meridian Agent
+		</h1>
+		<p className="mt-2 max-w-md text-sm text-text-secondary">
+			I can help you compare broadband, travel insurance, and more. Send a
+			message to get started.
+		</p>
+	</div>
+);
+
 export function Chat() {
 	const { backgroundTasks, messages, sendMessage, isPending, sessionId } =
 		useChat();
@@ -76,17 +88,7 @@ export function Chat() {
 					aria-relevant="additions text"
 					className="mx-auto max-w-4xl px-6 py-8"
 				>
-					{messages.length === 0 && (
-						<div className="mt-8 flex flex-col items-center justify-center rounded-xl border border-border border-dashed py-16 text-center">
-							<h1 className="font-display font-semibold text-lg tracking-tight">
-								Meridian Agent
-							</h1>
-							<p className="mt-2 max-w-md text-sm text-text-secondary">
-								I can help you compare broadband, travel insurance, and more.
-								Send a message to get started.
-							</p>
-						</div>
-					)}
+					{messages.length === 0 && EmptyState}
 
 					<div className="flex flex-col gap-6">
 						{messages.map((msg) => (

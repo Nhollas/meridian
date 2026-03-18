@@ -1,7 +1,10 @@
 "use client";
 
+import { memo } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+
+const remarkPlugins = [remarkGfm];
 
 const components: Components = {
 	h1: ({ children }) => (
@@ -95,10 +98,10 @@ interface MarkdownProps {
 	content: string;
 }
 
-export function Markdown({ content }: MarkdownProps) {
+export const Markdown = memo(function Markdown({ content }: MarkdownProps) {
 	return (
-		<ReactMarkdown components={components} remarkPlugins={[remarkGfm]}>
+		<ReactMarkdown components={components} remarkPlugins={remarkPlugins}>
 			{content}
 		</ReactMarkdown>
 	);
-}
+});

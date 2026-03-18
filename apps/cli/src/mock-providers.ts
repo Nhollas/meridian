@@ -116,7 +116,7 @@ function createCarOffering(input: {
 			paymentOptions: [
 				{
 					type: "OneTime",
-					totalCost: input.annualPrice!,
+					totalCost: input.annualPrice ?? 0,
 					installmentDetails: null,
 				},
 			],
