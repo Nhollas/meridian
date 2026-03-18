@@ -84,7 +84,7 @@ describe("runtime event contracts", () => {
 		{
 			type: "background_task.started",
 			payload: {
-				label: "Logging into MoneySupermarket",
+				label: "Logging into QuoteWizard",
 				startedAt: "2026-03-10T12:00:00.000Z",
 				taskId: "bg-task-1",
 			},
