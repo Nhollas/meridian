@@ -573,6 +573,77 @@ describe("results get", () => {
 		}
 	});
 
+	it("errors when not authenticated", async () => {
+		await using home = await createTempHome();
+		const stdout = createWritable(false);
+		const stderr = createWritable();
+
+		const exitCode = await runCli(
+			["results", "get", "--proposal=prop-any", "--json"],
+			{
+				homeDirectory: home.homeDirectory,
+				now: () => new Date("2026-03-07T16:00:00Z"),
+				stdout: stdout.stream,
+				stderr: stderr.stream,
+			},
+		);
+
+		expect(exitCode).toBe(1);
+		expect(stdout.output()).toBe("");
+		expect(JSON.parse(stderr.output())).toEqual({
+			error: 'Not authenticated. Run "meridian auth login" first.',
+		});
+	});
+
+	it("errors when the proposal exists but the result does not", async () => {
+		await using home = await createTempHome();
+		await home.writeMeridianFile("credentials.json", {
+			accessToken: "access-token",
+			user: "john.doe@example.com",
+			expiresAt: "2026-03-07T16:20:00Z",
+		});
+		await home.writeMeridianFile("data.json", {
+			proposalRequests: {
+				"pr-a1b2c3d4": {
+					product: "broadband",
+					version: "1.0",
+					emailAddress: "john.doe@example.com",
+					data: { postcode: "AA1 1AA" },
+					createdAt: "2026-03-06T16:20:00.000Z",
+				},
+			},
+			proposals: {
+				"prop-x7y8z9": {
+					proposalRequestId: "pr-a1b2c3d4",
+					product: "broadband",
+					version: "1.0",
+					status: "completed",
+					createdAt: "2026-03-06T16:20:05.000Z",
+				},
+			},
+			results: {},
+		});
+
+		const stdout = createWritable(false);
+		const stderr = createWritable();
+
+		const exitCode = await runCli(
+			["results", "get", "--proposal=prop-x7y8z9", "--json"],
+			{
+				homeDirectory: home.homeDirectory,
+				now: () => new Date("2026-03-07T16:00:00Z"),
+				stdout: stdout.stream,
+				stderr: stderr.stream,
+			},
+		);
+
+		expect(exitCode).toBe(1);
+		expect(stdout.output()).toBe("");
+		expect(JSON.parse(stderr.output())).toEqual({
+			error: 'Result for proposal "prop-x7y8z9" not found.',
+		});
+	});
+
 	it("returns a structured error when the local data store is corrupted", async () => {
 		await using home = await createTempHome();
 		await home.writeMeridianFile("credentials.json", {

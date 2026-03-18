@@ -227,6 +227,29 @@ describe("proposals create", () => {
 		expect(paymentTypes).toContain("OneTime");
 	});
 
+	it("errors when not authenticated", async () => {
+		await using home = await createTempHome();
+
+		const stdout = createWritable();
+		const stderr = createWritable();
+
+		const exitCode = await runCli(
+			["proposals", "create", "--proposal-request=pr-a1b2c3d4"],
+			{
+				homeDirectory: home.homeDirectory,
+				now: () => new Date("2026-03-06T16:20:05Z"),
+				stdout: stdout.stream,
+				stderr: stderr.stream,
+			},
+		);
+
+		expect(exitCode).toBe(1);
+		expect(stdout.output()).toBe("");
+		expect(stderr.output()).toContain(
+			'Not authenticated. Run "meridian auth login" first.',
+		);
+	});
+
 	it("errors when the proposal request does not exist", async () => {
 		await using home = await createTempHome();
 		await home.writeMeridianFile("credentials.json", {

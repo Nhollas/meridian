@@ -373,6 +373,67 @@ describe("createDockerRuntime", () => {
 		});
 	});
 
+	it("returns completed status when terminating an already-finished background command", async () => {
+		await using tmp = await createTempSessionDir();
+		let resolveCompletion = (_result: {
+			exitCode: number;
+			stderr: string;
+			stdout: string;
+		}) => {};
+		const completion = new Promise<{
+			exitCode: number;
+			stderr: string;
+			stdout: string;
+		}>((resolve) => {
+			resolveCompletion = resolve;
+		});
+
+		const client = createFakeDockerClient({
+			backgroundExecFixtures: [
+				{
+					command: ["some-task"],
+					completion,
+					result: {
+						exitCode: null,
+						stderr: "",
+						stdout: "started",
+					},
+					stdout: "task output\n",
+				},
+			],
+		});
+		const runtime = createDockerRuntime(
+			createTestConfig({ rootDirectory: tmp.rootDirectory }),
+			{ client },
+		);
+
+		const result = await runtime.runCommand("session-term", ["some-task"], {
+			keepAlive: true,
+			waitFor: "first-stdout-line",
+		});
+		const backgroundCommandId = result.backgroundCommandId;
+		assertDefined(backgroundCommandId);
+
+		resolveCompletion({ exitCode: 0, stderr: "", stdout: "task output\n" });
+		await runtime.waitForBackgroundCommand("session-term", backgroundCommandId);
+
+		const snapshot = await runtime.terminateBackgroundCommand(
+			"session-term",
+			backgroundCommandId,
+		);
+
+		expect(snapshot).toEqual({
+			command: ["some-task"],
+			endedAt: expect.any(String),
+			exitCode: 0,
+			id: backgroundCommandId,
+			startedAt: expect.any(String),
+			status: "completed",
+			stderr: "",
+			stdout: "task output\n",
+		});
+	});
+
 	it("destroys session resources including container and files", async () => {
 		await using tmp = await createTempSessionDir();
 		const client = createFakeDockerClient();

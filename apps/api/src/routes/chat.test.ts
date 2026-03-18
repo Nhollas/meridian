@@ -31,6 +31,24 @@ describe("POST /api/chat", () => {
 		});
 	});
 
+	it("returns a validation error when the session-id header is missing", async () => {
+		const { createChatRoute } = await import("@/routes/chat");
+		const engine = createStubEngine();
+		const route = createChatRoute({ engine });
+
+		const response = await route(
+			new Request("http://localhost/api/chat", {
+				body: JSON.stringify({ message: "Hello" }),
+				headers: { "Content-Type": "application/json" },
+				method: "POST",
+			}),
+		);
+
+		expect(response.status).toBe(400);
+		const body = (await response.json()) as { errors: string[] };
+		expect(body.errors).toHaveLength(1);
+	});
+
 	it("returns a validation error when the message is empty", async () => {
 		const { createChatRoute } = await import("@/routes/chat");
 		const engine = createStubEngine();
