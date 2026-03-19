@@ -20,6 +20,7 @@
 		"*.{ts,tsx,json,mjs}": "biome check --write --no-errors-on-unmatched"
 	},
 	"devDependencies": {
+		"@anthropic-ai/claude-agent-sdk": "^0.2.79",
 		"@biomejs/biome": "^2.4.6",
 		"@commitlint/cli": "^20.4.4",
 		"@commitlint/config-conventional": "^20.4.4",
