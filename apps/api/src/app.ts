@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { createTurnEngine } from "./lib/turn-engine";
 import { createChatRoute } from "./routes/chat";
+import { handleHealth } from "./routes/health";
 import { createSessionEventsRoute } from "./routes/session-events";
 
 export const app = new Hono();
@@ -17,3 +18,4 @@ const handleSessionEvents = createSessionEventsRoute({
 
 app.post("/api/chat", (c) => handleChat(c.req.raw));
 app.get("/api/sessions/:id/events", handleSessionEvents);
+app.get("/api/health", handleHealth);
