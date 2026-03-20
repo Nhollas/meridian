@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { z } from "zod";
-import type { TurnEngine } from "../lib/turn-engine";
+import type { TurnEngine } from "@/lib/turn-engine";
 
 const sessionIdSchema = z
 	.string()
