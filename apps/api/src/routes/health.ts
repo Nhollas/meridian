@@ -4,8 +4,8 @@ import type { TurnEngine } from "../lib/turn-engine";
 
 const sessionIdSchema = z
 	.string()
-	.min(1, "Missing session-id header")
-	.regex(/^[A-Za-z0-9_-]+$/, "Invalid session-id format");
+	.min(1, "Missing or invalid sessionId.")
+	.regex(/^[A-Za-z0-9_-]+$/, "Missing or invalid sessionId.");
 
 export function createHealthRoute({ engine }: { engine: TurnEngine }) {
 	return async (c: Context) => {
