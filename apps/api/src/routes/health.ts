@@ -1,7 +1,7 @@
 import type { Context } from "hono";
-import { createTurnEngine } from "../lib/turn-engine";
+import type { TurnEngine } from "../lib/turn-engine";
 
-export function createHealthRoute() {
+export function createHealthRoute({ engine }: { engine: TurnEngine }) {
 	return async (c: Context) => {
 		const sessionId = c.req.header("session-id");
 
@@ -14,7 +14,6 @@ export function createHealthRoute() {
 		}
 
 		try {
-			const engine = createTurnEngine();
 			const status = engine.registry ? "healthy" : "degraded";
 
 			return c.json({

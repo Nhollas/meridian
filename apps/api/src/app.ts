@@ -18,5 +18,5 @@ const handleSessionEvents = createSessionEventsRoute({
 
 app.post("/api/chat", (c) => handleChat(c.req.raw));
 app.get("/api/sessions/:id/events", handleSessionEvents);
-const handleHealth = createHealthRoute();
+const handleHealth = createHealthRoute({ engine });
 app.get("/api/health", handleHealth);
