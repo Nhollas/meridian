@@ -1,17 +1,24 @@
 import type { Context } from "hono";
+import { z } from "zod";
 import type { TurnEngine } from "../lib/turn-engine";
+
+const sessionIdSchema = z
+	.string()
+	.min(1, "Missing session-id header")
+	.regex(/^[A-Za-z0-9_-]+$/, "Invalid session-id format");
 
 export function createHealthRoute({ engine }: { engine: TurnEngine }) {
 	return async (c: Context) => {
-		const sessionId = c.req.header("session-id");
+		const sessionIdResult = sessionIdSchema.safeParse(
+			c.req.header("session-id"),
+		);
 
-		if (!sessionId || sessionId.length === 0) {
-			return c.json({ errors: ["Missing session-id header"] }, 400);
+		if (!sessionIdResult.success) {
+			const errors = sessionIdResult.error.issues.map((issue) => issue.message);
+			return c.json({ errors }, 400);
 		}
 
-		if (!/^[A-Za-z0-9_-]+$/.test(sessionId)) {
-			return c.json({ errors: ["Invalid session-id format"] }, 400);
-		}
+		const sessionId = sessionIdResult.data;
 
 		try {
 			const status = engine.registry ? "healthy" : "degraded";
